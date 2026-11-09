@@ -1,0 +1,47 @@
+// Compose compiler plugin classpath (see Expo UI "Extending with Jetpack Compose").
+buildscript {
+  repositories {
+    mavenCentral()
+  }
+  dependencies {
+    classpath("org.jetbrains.kotlin.plugin.compose:org.jetbrains.kotlin.plugin.compose.gradle.plugin:${kotlinVersion}")
+  }
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'expo-module-gradle-plugin'
+apply plugin: 'org.jetbrains.kotlin.plugin.compose'
+
+group = 'expo.modules.expressive'
+version = '0.1.0'
+
+android {
+  namespace "expo.modules.expressive"
+  defaultConfig {
+    versionCode 1
+    versionName "0.1.0"
+  }
+  buildFeatures {
+    compose true
+  }
+  lintOptions {
+    abortOnError false
+  }
+}
+
+// Keep these in lockstep with node_modules/@expo/ui/android/build.gradle.
+dependencies {
+  // ModifierList (from expo-ui) is Map<String, com.facebook.react.bridge.Dynamic>.
+  implementation 'com.facebook.react:react-android'
+
+  if (findProject(':expo-ui') != null) {
+    implementation project(':expo-ui')
+  } else {
+    implementation 'expo.modules.ui:expo.modules.ui:+'
+  }
+  implementation 'androidx.compose.foundation:foundation-android:1.12.1'
+  implementation 'androidx.compose.ui:ui-android:1.12.1'
+  implementation 'androidx.compose.material3:material3:1.5.0-beta01'
+  implementation 'androidx.graphics:graphics-shapes:1.1.0'
+  implementation 'androidx.core:core-ktx:1.18.0'
+}

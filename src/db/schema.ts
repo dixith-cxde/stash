@@ -1,0 +1,184 @@
+import { sql } from 'drizzle-orm';
+import {
+  type AnySQLiteColumn,
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+} from 'drizzle-orm/sqlite-core';
+
+export const BOOKMARK_TYPES = ['link', 'pdf', 'text', 'image', 'file'] as const;
+export type BookmarkType = (typeof BOOKMARK_TYPES)[number];
+
+export const FETCH_STATUS = ['idle', 'pending', 'done', 'failed'] as const;
+export type FetchStatus = (typeof FETCH_STATUS)[number];
+
+const timestamps = {
+  createdAt: integer('created_at', { mode: 'timestamp_ms' })
+    .notNull()
+    .default(sql`(unixepoch('subsec') * 1000)`),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+    .notNull()
+    .default(sql`(unixepoch('subsec') * 1000)`),
+};
+
+export const folders = sqliteTable(
+  'folders',
+  {
+    id: text('id').primaryKey(),
+    parentId: text('parent_id').references((): AnySQLiteColumn => folders.id, {
+      onDelete: 'cascade',
+    }),
+    name: text('name').notNull(),
+    /** MaterialShapes name used for the folder avatar, e.g. "cookie9Sided". */
+    shape: text('shape').notNull().default('cookie9Sided'),
+    color: text('color'),
+    sort: integer('sort').notNull().default(0),
+    pinned: integer('pinned', { mode: 'boolean' }).notNull().default(false),
+    ...timestamps,
+  },
+  (t) => [index('folders_parent_idx').on(t.parentId)],
+);
+
+export const bookmarks = sqliteTable(
+  'bookmarks',
+  {
+    id: text('id').primaryKey(),
+    type: text('type', { enum: BOOKMARK_TYPES }).notNull(),
+    title: text('title').notNull().default(''),
+    description: text('description'),
+    url: text('url'),
+    /** Text body for text/notes, or extracted text for links/PDFs. */
+    content: text('content'),
+    note: text('note'),
+    /** Local file:// path for PDFs/images/files copied into app storage. */
+    filePath: text('file_path'),
+    mimeType: text('mime_type'),
+    fileSize: integer('file_size'),
+    thumbPath: text('thumb_path'),
+    imageUrl: text('image_url'),
+    favicon: text('favicon'),
+    siteName: text('site_name'),
+    sourceApp: text('source_app'),
+    folderId: text('folder_id').references(() => folders.id, { onDelete: 'set null' }),
+    isFavorite: integer('is_favorite', { mode: 'boolean' }).notNull().default(false),
+    isArchived: integer('is_archived', { mode: 'boolean' }).notNull().default(false),
+    readAt: integer('read_at', { mode: 'timestamp_ms' }),
+    fetchStatus: text('fetch_status', { enum: FETCH_STATUS }).notNull().default('idle'),
+    ...timestamps,
+  },
+  (t) => [
+    index('bookmarks_folder_idx').on(t.folderId),
+    index('bookmarks_type_idx').on(t.type),
+    index('bookmarks_created_idx').on(t.createdAt),
+  ],
+);
+
+export const tags = sqliteTable('tags', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull().unique(),
+  color: text('color'),
+  ...timestamps,
+});
+
+export const bookmarkTags = sqliteTable(
+  'bookmark_tags',
+  {
+    bookmarkId: text('bookmark_id')
+      .notNull()
+      .references(() => bookmarks.id, { onDelete: 'cascade' }),
+    tagId: text('tag_id')
+      .notNull()
+      .references(() => tags.id, { onDelete: 'cascade' }),
+  },
+  (t) => [primaryKey({ columns: [t.bookmarkId, t.tagId] }), index('bookmark_tags_tag_idx').on(t.tagId)],
+);
+
+export const LIST_KINDS = ['manual', 'smart'] as const;
+
+export const lists = sqliteTable('lists', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  kind: text('kind', { enum: LIST_KINDS }).notNull().default('manual'),
+  /** JSON-encoded SmartFilter for kind = 'smart'. */
+  filter: text('filter', { mode: 'json' }).$type<SmartFilter>(),
+  shape: text('shape').notNull().default('clover4Leaf'),
+  color: text('color'),
+  pinned: integer('pinned', { mode: 'boolean' }).notNull().default(false),
+  sort: integer('sort').notNull().default(0),
+  ...timestamps,
+});
+
+export const listItems = sqliteTable(
+  'list_items',
+  {
+    listId: text('list_id')
+      .notNull()
+      .references(() => lists.id, { onDelete: 'cascade' }),
+    bookmarkId: text('bookmark_id')
+      .notNull()
+      .references(() => bookmarks.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull().default(0),
+    addedAt: integer('added_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .default(sql`(unixepoch('subsec') * 1000)`),
+  },
+  (t) => [primaryKey({ columns: [t.listId, t.bookmarkId] })],
+);
+
+export const HIGHLIGHT_COLORS = ['yellow', 'green', 'blue', 'pink', 'purple'] as const;
+export type HighlightColor = (typeof HIGHLIGHT_COLORS)[number];
+
+export const highlights = sqliteTable(
+  'highlights',
+  {
+    id: text('id').primaryKey(),
+    /** Optional: highlight can belong to a saved bookmark (e.g. a PDF page) or stand alone. */
+    bookmarkId: text('bookmark_id').references(() => bookmarks.id, { onDelete: 'cascade' }),
+    text: text('text').notNull(),
+    note: text('note'),
+    color: text('color', { enum: HIGHLIGHT_COLORS }).notNull().default('yellow'),
+    sourceApp: text('source_app'),
+    sourceUrl: text('source_url'),
+    sourceTitle: text('source_title'),
+    /** Page number for PDFs. */
+    page: integer('page'),
+    ...timestamps,
+  },
+  (t) => [index('highlights_bookmark_idx').on(t.bookmarkId)],
+);
+
+export const highlightTags = sqliteTable(
+  'highlight_tags',
+  {
+    highlightId: text('highlight_id')
+      .notNull()
+      .references(() => highlights.id, { onDelete: 'cascade' }),
+    tagId: text('tag_id')
+      .notNull()
+      .references(() => tags.id, { onDelete: 'cascade' }),
+  },
+  (t) => [primaryKey({ columns: [t.highlightId, t.tagId] })],
+);
+
+/** Saved filter that powers a smart list. Every field is optional and AND-combined. */
+export type SmartFilter = {
+  types?: BookmarkType[];
+  tagIds?: string[];
+  folderId?: string | null;
+  favorite?: boolean;
+  unread?: boolean;
+  archived?: boolean;
+  query?: string;
+  /** Only items created within the last N days. */
+  withinDays?: number;
+};
+
+export type Bookmark = typeof bookmarks.$inferSelect;
+export type NewBookmark = typeof bookmarks.$inferInsert;
+export type Folder = typeof folders.$inferSelect;
+export type Tag = typeof tags.$inferSelect;
+export type List = typeof lists.$inferSelect;
+export type Highlight = typeof highlights.$inferSelect;

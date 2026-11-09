@@ -1,56 +1,54 @@
-# Welcome to your Expo app 👋
+# Stash
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Save anything from any app (links, PDFs, images, notes, and text highlights) and organize it
+with nested folders, lists (manual or smart), and tags. Android-first, local-only, built with
+**Material 3 Expressive**.
 
-## Get started
+## Run it
 
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+Requirements: Node ≥ 22.13 (`.node-version` pins 26), JDK 17 or 21, Android SDK (API 36).
+This app has custom native code, so it needs a development build; Expo Go won't work.
 
 ```bash
-npm run reset-project
+npm install
+npm run android        # expo run:android: prebuild + build + install the dev client
+npm start              # Metro for the dev client afterwards
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+Checks: `npm run typecheck`, `npm run lint`, `npm test`.
 
-### Other setup steps
+## How it is built
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+| Concern | Choice |
+| --- | --- |
+| UI | `@expo/ui/jetpack-compose`: real Compose Material3 1.5 rendered inside `MaterialExpressiveTheme` |
+| Missing M3E pieces | `modules/expressive` (local Expo module, Kotlin): connected `ButtonGroup`, `FabMenu`, `MorphingShape`, brand type scale, PDF page renderer, PROCESS_TEXT bridge |
+| Color | Wallpaper dynamic color, or a seed run through `SchemeExpressive` (2025 spec) in `src/theme/palette.ts` |
+| Type | Google Sans Flex (OFL), static instances with `ROND=50`, in `assets/fonts` |
+| Icons | Material Symbols Rounded XML drawables in `assets/icons` (`src/theme/icons.ts`) |
+| Data | expo-sqlite + Drizzle ORM; FTS5 search (`drizzle/0001_fts.sql`); `useDbQuery` re-runs on DB change |
+| Capture | `expo-share-intent` (text, URLs, PDFs, images, multiple files) and the `Save to Stash` text-selection action (`plugins/withProcessText.js`) |
+| Previews | OpenGraph/Twitter meta parser + YouTube oEmbed (`src/features/preview`) |
+| PDFs | `react-native-pdf` reader; first-page thumbnails via Android `PdfRenderer` |
 
-## Learn more
+### Layout
 
-To learn more about developing your project with Expo, look at the following resources:
+```
+src/app/            routes: (tabs)/ Home, Library, Highlights, Search · item, pdf, folder, list, tag, capture, settings
+src/components/     Compose building blocks (BookmarkCollection, sheets, HighlightCard, TopBar…)
+src/db/             schema, filters (SmartFilter → SQL), repo, live-query hook
+src/features/       capture (normalize/save/quick add), preview, files, backup (JSON + Netscape HTML)
+src/theme/          tokens, palette, icons, per-type shapes
+modules/expressive/ Kotlin + TS wrappers for the custom Compose views
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Database changes
 
-## Join the community
+Edit `src/db/schema.ts`, then run `npm run db:generate`. FTS tables and triggers live in the
+hand-written `drizzle/0001_fts.sql`; update it if you add searchable columns.
 
-Join our community of developers creating universal apps.
+## Backup and import
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Settings → Backup exports a full JSON backup or a Netscape bookmarks HTML file. Import accepts
+either format, so bookmarks exported from Chrome, Firefox, Pocket, Raindrop or Omnivore come in
+with their folders and tags.

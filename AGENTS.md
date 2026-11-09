@@ -1,4 +1,17 @@
-This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.
+This is **Stash**, an Expo SDK 58 / React Native 0.88 bookmark app (Android-first, local-only) built with
+**Material 3 Expressive**. See README.md for the architecture.
+
+## Project rules
+
+- UI is Jetpack Compose via `@expo/ui/jetpack-compose`. Wrap Compose trees in `AppHost` (`src/theme/AppTheme.tsx`),
+  which applies the Expressive palette, Google Sans Flex and `MotionScheme.expressive()`. Keep one or a few large
+  Hosts per screen; never a Host per list row.
+- M3 Expressive components that Expo UI lacks belong in `modules/expressive` (Kotlin, `ExpoUIView` + `Slot` children).
+  Keep its Compose/material3 versions in lockstep with `node_modules/@expo/ui/android/build.gradle`.
+- Read colors with `useColors()`; never hardcode hex colors in screens. Icons go through `Ico` + `src/theme/icons.ts`
+  (add new ones with `npx @expo/material-symbols --style rounded -o assets/icons <name>`, then add them to the map).
+- Data access goes through `src/db/repo.ts`; screens read with `useDbQuery`. Smart-list logic lives in `src/db/filters.ts`.
+- Node ≥ 22.13 is required (`.node-version` = 26).
 
 ## Expo has changed — do not trust your training data
 
