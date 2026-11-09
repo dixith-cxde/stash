@@ -8,6 +8,15 @@ import android.os.ParcelFileDescriptor
 import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import expo.modules.expressive.stash.StashActionEvent
+import expo.modules.expressive.stash.StashDetailContent
+import expo.modules.expressive.stash.StashDetailProps
+import expo.modules.expressive.stash.StashQuickSaveContent
+import expo.modules.expressive.stash.StashQuickSaveProps
+import expo.modules.expressive.stash.StashHomeContent
+import expo.modules.expressive.stash.StashHomeProps
+import expo.modules.expressive.stash.StashNavToolbarContent
+import expo.modules.expressive.stash.StashNavToolbarProps
 import expo.modules.ui.ExpoUIView
 import java.io.File
 import java.io.FileOutputStream
@@ -112,6 +121,27 @@ class ExpressiveModule : Module() {
 
     ExpoUIView<MorphingShapeProps>("MorphingShapeView") {
       Content { props -> MorphingShapeContent(props) }
+    }
+
+    // Whole native screens (Stash v2). Data comes in as display records; intents go out as onAction.
+    ExpoUIView<StashHomeProps>("StashHomeView") {
+      val onAction by Event<StashActionEvent>()
+      Content { props -> StashHomeContent(props) { a, k -> onAction(StashActionEvent(a, k)) } }
+    }
+
+    ExpoUIView<StashDetailProps>("StashDetailView") {
+      val onAction by Event<StashActionEvent>()
+      Content { props -> StashDetailContent(props) { a, k, v -> onAction(StashActionEvent(a, k, v)) } }
+    }
+
+    ExpoUIView<StashQuickSaveProps>("StashQuickSaveView") {
+      val onAction by Event<StashActionEvent>()
+      Content { props -> StashQuickSaveContent(props) { a, k, v -> onAction(StashActionEvent(a, k, v)) } }
+    }
+
+    ExpoUIView<StashNavToolbarProps>("StashNavToolbarView") {
+      val onAction by Event<StashActionEvent>()
+      Content { props -> StashNavToolbarContent(props) { a, k -> onAction(StashActionEvent(a, k)) } }
     }
   }
 }

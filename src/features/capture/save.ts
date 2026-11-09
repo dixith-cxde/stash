@@ -2,7 +2,7 @@ import { newId } from '@/db/client';
 import {
   createBookmark,
   createHighlight,
-  findBookmarkByUrl,
+  findDuplicate,
   updateBookmark,
 } from '@/db/repo';
 import { importFile, makePdfThumbnail } from '@/features/files/storage';
@@ -27,7 +27,7 @@ export async function saveDraft(draft: CaptureDraft, opts: SaveOptions = {}): Pr
   }
 
   if (draft.type === 'link' && draft.url) {
-    const existing = await findBookmarkByUrl(draft.url);
+    const existing = await findDuplicate(draft.url);
     if (existing) {
       await updateBookmark(existing.id, {
         isArchived: false,

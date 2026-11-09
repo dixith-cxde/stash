@@ -3,17 +3,24 @@ export const Icons = {
   addPhotoAlternate: require('@/assets/icons/add_photo_alternate_rounded.xml'),
   add: require('@/assets/icons/add_rounded.xml'),
   archive: require('@/assets/icons/archive_rounded.xml'),
+  arrowBackIosNew: require('@/assets/icons/arrow_back_ios_new_rounded.xml'),
   arrowBack: require('@/assets/icons/arrow_back_rounded.xml'),
   attachFile: require('@/assets/icons/attach_file_rounded.xml'),
+  autoAwesome: require('@/assets/icons/auto_awesome_rounded.xml'),
   bookmarkAdd: require('@/assets/icons/bookmark_add_rounded.xml'),
-  bookmarksFill: require('@/assets/icons/bookmarks_rounded_fill.xml'),
+  bookmark: require('@/assets/icons/bookmark_rounded.xml'),
+  bookmarkFill: require('@/assets/icons/bookmark_rounded_fill.xml'),
   bookmarks: require('@/assets/icons/bookmarks_rounded.xml'),
+  bookmarksFill: require('@/assets/icons/bookmarks_rounded_fill.xml'),
   category: require('@/assets/icons/category_rounded.xml'),
+  checkCircle: require('@/assets/icons/check_circle_rounded.xml'),
+  checkCircleFill: require('@/assets/icons/check_circle_rounded_fill.xml'),
   check: require('@/assets/icons/check_rounded.xml'),
   chevronRight: require('@/assets/icons/chevron_right_rounded.xml'),
   close: require('@/assets/icons/close_rounded.xml'),
-  collectionsBookmarkFill: require('@/assets/icons/collections_bookmark_rounded_fill.xml'),
   collectionsBookmark: require('@/assets/icons/collections_bookmark_rounded.xml'),
+  collectionsBookmarkFill: require('@/assets/icons/collections_bookmark_rounded_fill.xml'),
+  contentCopy: require('@/assets/icons/content_copy_rounded.xml'),
   contentPaste: require('@/assets/icons/content_paste_rounded.xml'),
   createNewFolder: require('@/assets/icons/create_new_folder_rounded.xml'),
   delete: require('@/assets/icons/delete_rounded.xml'),
@@ -22,24 +29,26 @@ export const Icons = {
   download: require('@/assets/icons/download_rounded.xml'),
   driveFileMove: require('@/assets/icons/drive_file_move_rounded.xml'),
   edit: require('@/assets/icons/edit_rounded.xml'),
-  favoriteFill: require('@/assets/icons/favorite_rounded_fill.xml'),
+  expandMore: require('@/assets/icons/expand_more_rounded.xml'),
   favorite: require('@/assets/icons/favorite_rounded.xml'),
+  favoriteFill: require('@/assets/icons/favorite_rounded_fill.xml'),
   filterList: require('@/assets/icons/filter_list_rounded.xml'),
   folderOpen: require('@/assets/icons/folder_open_rounded.xml'),
-  folderFill: require('@/assets/icons/folder_rounded_fill.xml'),
   folder: require('@/assets/icons/folder_rounded.xml'),
+  folderFill: require('@/assets/icons/folder_rounded_fill.xml'),
   formatQuote: require('@/assets/icons/format_quote_rounded.xml'),
   gridView: require('@/assets/icons/grid_view_rounded.xml'),
   history: require('@/assets/icons/history_rounded.xml'),
-  homeFill: require('@/assets/icons/home_rounded_fill.xml'),
   home: require('@/assets/icons/home_rounded.xml'),
+  homeFill: require('@/assets/icons/home_rounded_fill.xml'),
   image: require('@/assets/icons/image_rounded.xml'),
-  inkHighlighterFill: require('@/assets/icons/ink_highlighter_rounded_fill.xml'),
   inkHighlighter: require('@/assets/icons/ink_highlighter_rounded.xml'),
-  labelFill: require('@/assets/icons/label_rounded_fill.xml'),
+  inkHighlighterFill: require('@/assets/icons/ink_highlighter_rounded_fill.xml'),
   label: require('@/assets/icons/label_rounded.xml'),
+  labelFill: require('@/assets/icons/label_rounded_fill.xml'),
   link: require('@/assets/icons/link_rounded.xml'),
   list: require('@/assets/icons/list_rounded.xml'),
+  menuBook: require('@/assets/icons/menu_book_rounded.xml'),
   moreVert: require('@/assets/icons/more_vert_rounded.xml'),
   newLabel: require('@/assets/icons/new_label_rounded.xml'),
   noteAdd: require('@/assets/icons/note_add_rounded.xml'),
@@ -47,18 +56,19 @@ export const Icons = {
   openInNew: require('@/assets/icons/open_in_new_rounded.xml'),
   palette: require('@/assets/icons/palette_rounded.xml'),
   pictureAsPdf: require('@/assets/icons/picture_as_pdf_rounded.xml'),
+  playArrow: require('@/assets/icons/play_arrow_rounded.xml'),
   playlistAdd: require('@/assets/icons/playlist_add_rounded.xml'),
   public: require('@/assets/icons/public_rounded.xml'),
-  searchFill: require('@/assets/icons/search_rounded_fill.xml'),
   search: require('@/assets/icons/search_rounded.xml'),
+  searchFill: require('@/assets/icons/search_rounded_fill.xml'),
   selectAll: require('@/assets/icons/select_all_rounded.xml'),
-  sellFill: require('@/assets/icons/sell_rounded_fill.xml'),
   sell: require('@/assets/icons/sell_rounded.xml'),
+  sellFill: require('@/assets/icons/sell_rounded_fill.xml'),
   settings: require('@/assets/icons/settings_rounded.xml'),
   share: require('@/assets/icons/share_rounded.xml'),
   sort: require('@/assets/icons/sort_rounded.xml'),
-  starFill: require('@/assets/icons/star_rounded_fill.xml'),
   star: require('@/assets/icons/star_rounded.xml'),
+  starFill: require('@/assets/icons/star_rounded_fill.xml'),
   stickyNote2: require('@/assets/icons/sticky_note_2_rounded.xml'),
   tune: require('@/assets/icons/tune_rounded.xml'),
   unarchive: require('@/assets/icons/unarchive_rounded.xml'),
@@ -68,3 +78,16 @@ export const Icons = {
 } as const;
 
 export type IconName = keyof typeof Icons;
+
+/**
+ * Android drawable name for the native Compose screens (modules/expressive), which load the
+ * same files from assets/icons by name: "homeFill" → "home_rounded_fill".
+ */
+export function nativeIcon(name: IconName): string {
+  const fill = name.endsWith('Fill');
+  const base = (fill ? name.slice(0, -4) : name)
+    .replace(/([A-Z])/g, '_$1')
+    .replace(/(\d+)/g, '_$1')
+    .toLowerCase();
+  return `${base}_rounded${fill ? '_fill' : ''}`;
+}

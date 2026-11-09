@@ -27,7 +27,18 @@ android {
   lintOptions {
     abortOnError false
   }
+  sourceSets {
+    main.res.srcDirs += "$buildDir/generated/stashIcons"
+  }
 }
+
+// The native screens draw the same Material Symbols as the JS side: assets/icons/*.xml are
+// synced into a generated res dir and resolved by file name (see StashIcon).
+def syncStashIcons = tasks.register('syncStashIcons', Sync) {
+  from("${projectDir}/../../../assets/icons") { include '*.xml' }
+  into("$buildDir/generated/stashIcons/drawable")
+}
+tasks.named('preBuild').configure { dependsOn syncStashIcons }
 
 // Keep these in lockstep with node_modules/@expo/ui/android/build.gradle.
 dependencies {

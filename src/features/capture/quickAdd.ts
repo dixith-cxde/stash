@@ -54,3 +54,8 @@ export async function pickImages(opts: SaveOptions = {}): Promise<number> {
   }
   return res.assets.length;
 }
+
+/** FAB: prefill a link from the clipboard when there is one, otherwise open a blank capture. */
+export async function openQuickAdd() {
+  if (!(await captureFromClipboard())) router.push('/capture');
+}

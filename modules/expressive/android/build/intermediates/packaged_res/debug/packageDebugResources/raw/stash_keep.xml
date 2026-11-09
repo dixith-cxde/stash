@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- StashIcon resolves Material Symbols by name at runtime; keep them through resource shrinking. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+  tools:keep="@drawable/*_rounded,@drawable/*_rounded_fill" />

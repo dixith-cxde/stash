@@ -1,6 +1,7 @@
-import { and, asc, count, desc, eq, inArray, isNull, max, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNotNull, isNull, like, max, ne, or, sql } from 'drizzle-orm';
 
 import { deleteLocalFiles } from '@/features/files/storage';
+import { canonicalUrl } from '@/features/suggest/suggest';
 
 import { db, newId } from './client';
 import { newestFirst, toFtsQuery, whereForFilter } from './filters';
@@ -124,6 +125,78 @@ export async function countsByType(): Promise<Record<string, number>> {
     .where(eq(bookmarks.isArchived, false))
     .groupBy(bookmarks.type);
   return Object.fromEntries(rows.map((r) => [r.type, r.n]));
+}
+
+/** Not-archived items nobody has opened yet (links and PDFs: the "to read" pile). */
+export async function countUnread(): Promise<number> {
+  const [{ n }] = await db
+    .select({ n: count() })
+    .from(bookmarks)
+    .where(and(whereForFilter({ unread: true }), inArray(bookmarks.type, ['link', 'pdf'])));
+  return n;
+}
+
+/** Artwork of the newest items matching a filter, for collection tiles. */
+export async function recentCovers(filter: SmartFilter, n = 3): Promise<string[]> {
+  const rows = await db
+    .select({ imageUrl: bookmarks.imageUrl, thumbPath: bookmarks.thumbPath })
+    .from(bookmarks)
+    .where(and(whereForFilter(filter), sql`coalesce(${bookmarks.thumbPath}, ${bookmarks.imageUrl}) is not null`))
+    .orderBy(...newestFirst)
+    .limit(n);
+  return rows.map((r) => (r.thumbPath ?? r.imageUrl)!);
+}
+
+/** bookmarkId → number of highlights. */
+export async function highlightCounts(bookmarkIds: string[]): Promise<Map<string, number>> {
+  if (!bookmarkIds.length) return new Map();
+  const rows = await db
+    .select({ id: highlights.bookmarkId, n: count() })
+    .from(highlights)
+    .where(inArray(highlights.bookmarkId, bookmarkIds))
+    .groupBy(highlights.bookmarkId);
+  return new Map(rows.map((r) => [r.id!, r.n]));
+}
+
+function sameSite(host: string) {
+  return or(like(bookmarks.url, `%//${host}/%`), like(bookmarks.url, `%.${host}/%`), like(bookmarks.url, `%//${host}`));
+}
+
+/** An existing bookmark for the same page (ignoring tracking params, www., fragments…). */
+export async function findDuplicate(url: string): Promise<Bookmark | undefined> {
+  const exact = await findBookmarkByUrl(url);
+  if (exact) return exact;
+  const canonical = canonicalUrl(url);
+  let host: string;
+  try {
+    host = new URL(canonical).hostname;
+  } catch {
+    return undefined;
+  }
+  const candidates = await db.select().from(bookmarks).where(sameSite(host)).limit(500);
+  return candidates.find((b) => b.url && canonicalUrl(b.url) === canonical);
+}
+
+/** How you organised other items from this host: tagId → uses, folderId → items. */
+export async function siteHistory(host: string, excludeId?: string) {
+  const site = and(sameSite(host), excludeId ? ne(bookmarks.id, excludeId) : undefined);
+  const [tagRows, folderRows] = await Promise.all([
+    db
+      .select({ tagId: bookmarkTags.tagId, n: count() })
+      .from(bookmarkTags)
+      .innerJoin(bookmarks, eq(bookmarks.id, bookmarkTags.bookmarkId))
+      .where(site)
+      .groupBy(bookmarkTags.tagId),
+    db
+      .select({ folderId: bookmarks.folderId, n: count() })
+      .from(bookmarks)
+      .where(and(site, isNotNull(bookmarks.folderId)))
+      .groupBy(bookmarks.folderId),
+  ]);
+  return {
+    tagCounts: new Map(tagRows.map((r) => [r.tagId, r.n])),
+    folderCounts: new Map(folderRows.map((r) => [r.folderId!, r.n])),
+  };
 }
 
 /* ---------------------------------- Tags ---------------------------------- */
