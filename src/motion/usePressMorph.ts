@@ -48,6 +48,9 @@ type Options = {
   block?: PressBlock;
 };
 
+
+/** Taps on the same surface closer together than this count as one. */
+const REPEAT_GUARD_MS = 350;
 /** A gesture another press can block (see `Options.block`). */
 export type PressBlock = NonNullable<NonNullable<Parameters<typeof useTapGesture>[0]>['block']>;
 
@@ -85,6 +88,8 @@ export function usePressMorph({
   const springs = useSprings();
   const progress = useSharedValue(0);
   const tapped = useSharedValue(false);
+  // Rapid repeat taps on one surface fire once (a double tap must not push a screen twice).
+  const lastFired = useSharedValue(0);
   const pressIn = kind === 'card' ? springs.fastSpatial : springs.fastEffects;
   // Cards come back on bouncy fastSpatial (a slight overshoot back up); buttons on
   // fastEffects, which has no bounce, as the button spec asks.
@@ -104,6 +109,13 @@ export function usePressMorph({
     onActivate: () => {
       'worklet';
       tapped.set(true);
+      const now = Date.now();
+      const repeat = now - lastFired.get() < REPEAT_GUARD_MS;
+      lastFired.set(now);
+      if (repeat) {
+        progress.set(withSequence(withSpring(1, springs.fastEffects), withSpring(0, release)));
+        return;
+      }
       if (onPressWorklet) onPressWorklet();
       if (onPressMeasured) scheduleOnRN(onPressMeasured, measureRef ? measure(measureRef) : null);
       else if (onPress) scheduleOnRN(onPress);

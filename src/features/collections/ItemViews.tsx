@@ -8,6 +8,7 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { collectionTones, HIGHLIGHT_TONES } from '@/theme/palette';
 import { Ico } from '@/ui/Ico';
 import { ProgressBar } from '@/ui/ProgressBar';
+import { PressableSurface } from '@/ui/PressableSurface';
 import { Text } from '@/ui/Text';
 import { TransformCard } from '@/ui/TransformCard';
 
@@ -110,22 +111,45 @@ export function ItemTile({ b }: { b: BookmarkWithTags }) {
 }
 
 /** A highlight as a tinted quote card (design: Item detail highlights). */
-export function HighlightCard({ h, showSource }: { h: HighlightWithTags; showSource?: boolean }) {
+/**
+ * A highlight as a tinted quote card. `unit` names its position ("Page 4" in a PDF). With
+ * `onPress` it is tappable (jump to where it was taken).
+ */
+export function HighlightCard({
+  h,
+  showSource,
+  unit = 'Paragraph',
+  onPress,
+}: {
+  h: HighlightWithTags;
+  showSource?: boolean;
+  unit?: 'Page' | 'Paragraph';
+  onPress?: () => void;
+}) {
   const { dark } = useAppTheme();
   const tone = HIGHLIGHT_TONES[h.color][dark ? 'dark' : 'light'];
-  const where = [h.page ? `Paragraph ${h.page}` : null, h.note ? `your note: ${h.note}` : null, showSource ? h.bookmarkTitle ?? h.sourceTitle : null]
+  const where = [h.page ? `${unit} ${h.page}` : null, h.note ? `your note: ${h.note}` : null, showSource ? h.bookmarkTitle ?? h.sourceTitle : null]
     .filter(Boolean)
     .join(' · ');
-  return (
-    <View style={{ borderRadius: 24, padding: 16, backgroundColor: tone.bg }} accessible accessibilityLabel={`Highlight: ${h.text}`}>
+  const body = (
+    <>
       <Text variant="bodyLarge" color={tone.fg} style={{ fontWeight: '600', lineHeight: 23 }}>
         {`“${h.text}”`}
       </Text>
       {where ? (
         <Text variant="labelSmall" color={tone.fg} style={{ marginTop: 8, opacity: 0.8 }}>
-          {where}
+          {onPress ? `${where} · Go to page` : where}
         </Text>
       ) : null}
+    </>
+  );
+  return onPress ? (
+    <PressableSurface kind="card" corner={24} onPress={onPress} accessibilityLabel={`Highlight: ${h.text}. ${where}. Go to page`} style={{ padding: 16, backgroundColor: tone.bg }}>
+      {body}
+    </PressableSurface>
+  ) : (
+    <View style={{ borderRadius: 24, padding: 16, backgroundColor: tone.bg }} accessible accessibilityLabel={`Highlight: ${h.text}`}>
+      {body}
     </View>
   );
 }

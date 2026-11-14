@@ -11,7 +11,8 @@ import { processPreviewQueue } from '@/features/preview/fetchPreview';
 import { type CaptureDraft, textKindForFile } from './normalize';
 
 export type SaveOptions = { folderId?: string | null; tagIds?: string[]; note?: string };
-export type SaveResult = { kind: 'bookmark' | 'highlight'; id: string; duplicate?: boolean };
+/** `duplicate`: the link was already saved (`savedAt`); that item was reused, nothing new was created. */
+export type SaveResult = { kind: 'bookmark' | 'highlight'; id: string; duplicate?: boolean; savedAt?: Date };
 
 /** Persist one capture draft (copying files and kicking off preview fetching). */
 export async function saveDraft(draft: CaptureDraft, opts: SaveOptions = {}): Promise<SaveResult> {
@@ -33,7 +34,7 @@ export async function saveDraft(draft: CaptureDraft, opts: SaveOptions = {}): Pr
         isArchived: false,
         ...(opts.folderId !== undefined ? { folderId: opts.folderId } : {}),
       });
-      return { kind: 'bookmark', id: existing.id, duplicate: true };
+      return { kind: 'bookmark', id: existing.id, duplicate: true, savedAt: existing.createdAt };
     }
   }
 

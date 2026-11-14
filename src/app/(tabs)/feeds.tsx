@@ -167,12 +167,14 @@ export default function FeedsScreen() {
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <AnimatedFlashList
         data={showFirstRun ? [] : rows}
-        keyExtractor={(r) => r.key}
-        getItemType={(r) => r.k}
+        // FlashList 2 can ask about an index that just left the data (fast filter / source
+        // taps shrink the list mid-layout): guard instead of crashing on undefined.
+        keyExtractor={(r, i) => r?.key ?? `gone-${i}`}
+        getItemType={(r) => r?.k ?? 'gone'}
         maintainVisibleContentPosition={{ disabled: true }}
         drawDistance={400}
         renderItem={({ item: r }) =>
-          r.k === 'lead' ? (
+          !r ? null : r.k === 'lead' ? (
             <View style={styles.lead}>
               <LeadCard a={r.a} />
             </View>

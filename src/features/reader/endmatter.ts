@@ -4,7 +4,8 @@
  * "Written by" line (an author chip) and "Tags: a, b" lines (tag chips). Pure: no React.
  */
 
-export type RelatedLink = { title: string; url: string; image: string | null; host: string | null; blurb: string | null };
+/** A related article; `url` is null when the page listed it without a link (shown, not tappable). */
+export type RelatedLink = { title: string; url: string | null; image: string | null; host: string | null; blurb: string | null };
 export type ArticleTag = { label: string; url: string | null };
 export type ArticleAuthor = { name: string; url: string | null; bio: string | null };
 export type EndMatter = {
@@ -67,6 +68,7 @@ export function plainText(md: string): string {
 }
 
 const isHeading = (b: string) => /^#{1,6}\s/.test(b);
+const headingLevel = (b: string) => /^(#{1,6})\s/.exec(b)?.[1].length ?? 0;
 const isRule = (b: string) => /^\s*([-*_])(\s*\1){2,}\s*$/.test(b);
 const isFence = (b: string) => /^\s*(```|~~~)/.test(b);
 
@@ -134,9 +136,28 @@ function takeRelated(blocks: string[]): EndMatter['related'] {
     if (!title || !RELATED_TITLE.test(title)) continue;
     const links: RelatedLink[] = [];
     let pending: string | null = null;
+    // Sections whose items are sub-headings ("### [Title](url)" + a category line).
+    const sectionLevel = headingLevel(blocks[i]);
+    let fromHeading = false;
     let end = i + 1;
     for (; end < blocks.length; end++) {
       const b = blocks[end];
+      if (isHeading(b) && sectionLevel > 0 && headingLevel(b) > sectionLevel && !b.includes('\n')) {
+        const t = plainText(b);
+        const item = relatedOf(b, pending) ?? (t ? { title: clip(t, 140), url: null, image: pending, host: null, blurb: null } : null);
+        pending = null;
+        if (item) links.push(item);
+        fromHeading = !!item;
+        continue;
+      }
+      // The short line under a heading item (its section or date) is that item's blurb.
+      if (fromHeading && !b.includes('\n') && plainText(b).length <= 80) {
+        const last = links[links.length - 1];
+        if (!last.blurb) last.blurb = plainText(b);
+        fromHeading = false;
+        continue;
+      }
+      fromHeading = false;
       if (isHeading(b) || isFence(b) || /^\|/.test(b) || isByOrTags(b)) break;
       if (isRule(b)) continue;
       const imageOnly = /^\s*!\[[^\]]*\]\([^)]*\)\s*$/.test(b);
@@ -161,7 +182,8 @@ function takeRelated(blocks: string[]): EndMatter['related'] {
       pending = null;
       links.push(...found);
     }
-    const unique = links.filter((l, k) => links.findIndex((x) => x.url === l.url) === k).slice(0, MAX_RELATED);
+    const key = (l: RelatedLink) => l.url ?? l.title;
+    const unique = links.filter((l, k) => links.findIndex((x) => key(x) === key(l)) === k).slice(0, MAX_RELATED);
     const nearEnd = i >= blocks.length * 0.6;
     if (unique.length >= 2 || (unique.length === 1 && nearEnd)) {
       blocks.splice(i, end - i);
@@ -206,6 +228,32 @@ function isTagLinkRow(b: string): boolean {
   if (links.length < 2) return false;
   const leftover = b.replace(LINK, '').replace(/[\s,;·•|/#-]+/g, '');
   return !leftover && links.every((m) => TAG_URL.test(m[2]) && plainText(m[1]).split(/\s+/).length <= 4);
+}
+
+const sameName = (a: string, b: string) => a.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim() === b.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+
+/**
+ * After the author is lifted out, the page often still has their name as a heading ("## Jane
+ * Doe"), an avatar, or a short bio paragraph near the end. Drops the name and avatar; a short
+ * paragraph that names them becomes the bio.
+ */
+function dropAuthorEchoes(blocks: string[], author: ArticleAuthor) {
+  const first = author.name.split(/\s+/)[0] ?? author.name;
+  const start = Math.max(0, blocks.length - TAIL_BLOCKS);
+  for (let i = blocks.length - 1; i >= start; i--) {
+    const b = blocks[i];
+    const t = plainText(b);
+    if ((isHeading(b) || headingOf(b)) && sameName(t.replace(/^(about|by|written by)\s+/i, ''), author.name)) {
+      blocks.splice(i, 1);
+      // Its avatar and bio usually sit right after it.
+      if (/^\s*!\[[^\]]*\]\([^)]*\)\s*$/.test(blocks[i] ?? '')) blocks.splice(i, 1);
+      const next = blocks[i];
+      if (!author.bio && next && !isHeading(next) && plainText(next).length <= 500 && plainText(next).includes(first)) {
+        author.bio = clip(plainText(next), 400);
+        blocks.splice(i, 1);
+      }
+    }
+  }
 }
 
 /** Splits the end matter off an article's Markdown body. */
@@ -267,6 +315,7 @@ export function splitEndMatter(md: string): EndMatter {
     }
   }
 
+  if (author) dropAuthorEchoes(blocks, author);
   while (blocks.length && isRule(blocks[blocks.length - 1])) blocks.pop();
   return { body: blocks.join('\n\n'), related, author, tags };
 }

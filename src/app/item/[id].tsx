@@ -1,18 +1,17 @@
 import { Image } from 'expo-image';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Share, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDbQuery } from '@/db/hooks';
-import { deleteBookmarks, getBookmark, queryHighlights, setArchived, updateBookmark } from '@/db/repo';
+import { type BookmarkWithTags, deleteBookmarks, getBookmark, type HighlightWithTags, queryHighlights, setArchived, updateBookmark } from '@/db/repo';
 import { HighlightCard } from '@/features/collections/ItemViews';
 import { OrganizeCard } from '@/features/detail/OrganizeCard';
 import { FilePreview, hasFilePreview } from '@/features/files/FilePreview';
 import { formatBytes } from '@/features/files/kinds';
-import { linkKind } from '@/features/links/linkKind';
-import { cardKind, hostSeed, kindIcon, kindLabel, readingMinutes, sourceLabel } from '@/features/stash/model';
+import { cardKind, highlightsMarkdown, hostSeed, kindIcon, kindLabel, openAction, readingMinutes, sourceLabel } from '@/features/stash/model';
 import { relativeTime } from '@/lib/format';
 import { openItem } from '@/lib/nav';
 import { haptic } from '@/motion/haptics';
@@ -37,17 +36,6 @@ export default function ItemScreen() {
     </TransitionScreen>
   );
 }
-
-const READ_LABEL = {
-  link: 'Read',
-  video: 'Watch',
-  pdf: 'Open PDF',
-  note: 'Open',
-  image: 'View',
-  file: 'Open',
-  markdown: 'Read',
-  textfile: 'Open',
-} as const;
 
 function ItemBody() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -82,8 +70,7 @@ function ItemBody() {
   // Links: what the URL points at ("App · Play Store", "Repo · owner/name", "Docs · MDN").
   const linkLabel = kind === 'link' ? kindLabel(b) : null;
   const linkIcon = kind === 'link' ? kindIcon(b) : null;
-  const lk = kind === 'link' ? linkKind(b.url).kind : null;
-  const readLabel = lk === 'app' ? 'Open in store' : lk === 'repo' ? 'Open repo' : lk === 'package' ? 'Open package' : READ_LABEL[kind];
+  const action = openAction(b);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
@@ -136,7 +123,7 @@ function ItemBody() {
         </View>
 
         <View style={styles.actions}>
-          <Button label={readLabel} icon={linkIcon ?? 'menuBook'} height={56} corners={[28, 12, 12, 28]} grow onPress={() => void openItem(b)} />
+          <Button label={action.label} icon={action.icon} height={56} corners={[28, 12, 12, 28]} grow onPress={() => void openItem(b)} />
           <IconButton
             icon="star"
             selectedIcon="starFill"
@@ -166,13 +153,23 @@ function ItemBody() {
               <Text variant="titleLarge" accessibilityRole="header">
                 Highlights
               </Text>
-              <Text variant="labelMedium" color="onSurfaceVariant">
+              <Text variant="labelMedium" color="onSurfaceVariant" style={{ flex: 1 }}>
                 {String(hls.length)}
               </Text>
+              <IconButton icon="share" accessibilityLabel="Export highlights as Markdown" variant="tonal" size={40} onPress={() => void exportHighlights(b, hls)} />
             </View>
             <View style={{ gap: 8, paddingHorizontal: 16 }}>
               {hls.map((h) => (
-                <HighlightCard key={h.id} h={h} />
+                <HighlightCard
+                  key={h.id}
+                  h={h}
+                  unit={kind === 'pdf' ? 'Page' : 'Paragraph'}
+                  onPress={
+                    kind === 'pdf' && h.page && b.filePath
+                      ? () => router.push({ pathname: '/pdf/[id]', params: { id: b.id, page: String(h.page) } })
+                      : undefined
+                  }
+                />
               ))}
             </View>
           </>
@@ -217,6 +214,11 @@ function ItemBody() {
   );
 }
 
+/** Shares the item's highlights as Markdown (to notes apps, mail, Obsidian…). */
+async function exportHighlights(b: BookmarkWithTags, hls: HighlightWithTags[]) {
+  await Share.share({ message: highlightsMarkdown(b, hls), title: `Highlights: ${b.title}` });
+}
+
 async function copy(text: string) {
   const Clipboard = await import('expo-clipboard');
   await Clipboard.setStringAsync(text);
@@ -258,6 +260,6 @@ const styles = StyleSheet.create({
   kindChip: { flexDirection: 'row', alignSelf: 'flex-start', alignItems: 'center', gap: 6, marginTop: 12, paddingHorizontal: 12, height: 32, borderRadius: 16 },
   favicon: { width: 20, height: 20, borderRadius: 6, overflow: 'hidden' },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 24, paddingTop: 20 },
-  section: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 28, paddingBottom: 12 },
+  section: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 24, paddingTop: 28, paddingBottom: 12 },
   note: { marginHorizontal: 16, marginTop: 16, borderRadius: 24, paddingVertical: 14, paddingHorizontal: 18 },
 });

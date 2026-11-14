@@ -11,13 +11,19 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { db } from '@/db/client';
 import { CaptureListener } from '@/features/capture/CaptureListener';
 import { processPreviewQueue } from '@/features/preview/fetchPreview';
+import { installNavGuard } from '@/lib/navGuard';
 import { AppThemeProvider, useAppTheme } from '@/theme/AppTheme';
+import { CrashScreen } from '@/ui/CrashScreen';
 import { PortalHost } from '@/ui/Portal';
 import { SnackbarHost } from '@/ui/Snackbar';
 
 import migrations from '../../drizzle/migrations';
 
 SplashScreen.preventAutoHideAsync();
+installNavGuard();
+
+/** Any render error below the root shows the crash screen instead of a red box. */
+export const ErrorBoundary = CrashScreen;
 
 /** Stack options for routes that run their own TransitionScreen animation. */
 const TRANSITION_SCREEN = {
@@ -51,6 +57,9 @@ function ThemedStack() {
         <Stack.Screen name="article/[id]" options={TRANSITION_SCREEN} />
         <Stack.Screen name="pdf/[id]" options={TRANSITION_SCREEN} />
         <Stack.Screen name="file/[id]" options={TRANSITION_SCREEN} />
+        <Stack.Screen name="image/[id]" options={TRANSITION_SCREEN} />
+        <Stack.Screen name="welcome" options={TRANSITION_SCREEN} />
+        <Stack.Screen name="links-check" options={TRANSITION_SCREEN} />
         <Stack.Screen name="note/[id]/edit" options={TRANSITION_SCREEN} />
         <Stack.Screen name="collection/[id]" options={TRANSITION_SCREEN} />
         <Stack.Screen name="collection/new" options={TRANSITION_SCREEN} />

@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { memo } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import type { ArticleAuthor, ArticleTag, RelatedLink } from '@/features/reader/endmatter';
 import { hostSeed } from '@/features/stash/model';
@@ -28,7 +28,7 @@ const initials = (name: string) =>
 
 /**
  * The end of an article: who wrote it (author chip, with a bio when the page had one), its tags
- * as chips, and the "Continue reading" links as a row of article cards.
+ * as chips, and the "Continue reading" links as a grouped list of wide article cards.
  */
 export const EndMatter = memo(function EndMatter({ author, tags, related, onOpen }: Props) {
   if (!author && !tags.length && !related?.links.length) return null;
@@ -49,47 +49,48 @@ function Label({ children }: { children: string }) {
   );
 }
 
+/** Who wrote it: one quiet card with an initials avatar, the name and the bio. */
 function AuthorBlock({ author, onOpen }: { author: ArticleAuthor; onOpen: (url: string) => void }) {
   const { colors, dark } = useAppTheme();
   const tone = collectionTones(hostSeed(author.name), dark);
-  const chip = (
-    <View style={styles.authorChip}>
-      <View style={[styles.avatar, { backgroundColor: tone.container }]}>
-        <Text variant="labelLarge" color={tone.onContainer} style={{ fontWeight: '800' }}>
-          {initials(author.name)}
-        </Text>
-      </View>
-      <Text variant="titleSmall" numberOfLines={1} style={{ flexShrink: 1 }}>
-        {author.name}
-      </Text>
-      {author.url ? <Ico name="openInNew" size={16} color={colors.onSurfaceVariant} /> : null}
-    </View>
-  );
-  return (
-    <View>
-      <Label>Written by</Label>
-      <View style={[styles.authorCard, { backgroundColor: colors.surfaceContainerLow }]}>
-        {author.url ? (
-          <PressableSurface
-            kind="button"
-            corner={24}
-            onPress={() => onOpen(author.url!)}
-            accessibilityLabel={`Author: ${author.name}. Open profile`}
-            style={[styles.authorPress, { backgroundColor: colors.secondaryContainer }]}
-          >
-            {chip}
-          </PressableSurface>
-        ) : (
-          <View style={[styles.authorPress, { backgroundColor: colors.secondaryContainer }]} accessible accessibilityLabel={`Author: ${author.name}`}>
-            {chip}
-          </View>
-        )}
-        {author.bio ? (
-          <Text variant="bodyMedium" color="onSurfaceVariant" selectable style={{ marginTop: 12 }}>
-            {author.bio}
+  const body = (
+    <>
+      <View style={styles.authorRow}>
+        <View style={[styles.avatar, { backgroundColor: tone.container }]}>
+          <Text variant="labelLarge" color={tone.onContainer} style={{ fontWeight: '800' }}>
+            {initials(author.name)}
           </Text>
-        ) : null}
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text variant="labelMedium" color="onSurfaceVariant">
+            Written by
+          </Text>
+          <Text variant="titleMedium" numberOfLines={1}>
+            {author.name}
+          </Text>
+        </View>
+        {author.url ? <Ico name="openInNew" size={18} color={colors.onSurfaceVariant} /> : null}
       </View>
+      {author.bio ? (
+        <Text variant="bodyMedium" color="onSurfaceVariant" style={{ marginTop: 12 }}>
+          {author.bio}
+        </Text>
+      ) : null}
+    </>
+  );
+  return author.url ? (
+    <PressableSurface
+      kind="card"
+      corner={24}
+      onPress={() => onOpen(author.url!)}
+      accessibilityLabel={`Written by ${author.name}. Open profile`}
+      style={[styles.authorCard, { backgroundColor: colors.surfaceContainer }]}
+    >
+      {body}
+    </PressableSurface>
+  ) : (
+    <View style={[styles.authorCard, { backgroundColor: colors.surfaceContainer, borderRadius: 24 }]} accessible accessibilityLabel={`Written by ${author.name}`}>
+      {body}
     </View>
   );
 }
@@ -131,75 +132,73 @@ function TagBlock({ tags, onOpen }: { tags: ArticleTag[]; onOpen: (url: string) 
   );
 }
 
-const CARD_W = 232;
-
+/** Related articles: a grouped list of wide cards, top to bottom (M3 Expressive list group). */
 function RelatedBlock({ title, links, onOpen }: { title: string; links: RelatedLink[]; onOpen: (url: string) => void }) {
   return (
     <View>
       <Label>{title}</Label>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail} style={styles.railBleed}>
+      <View style={styles.group}>
         {links.map((l) => (
-          <RelatedCard key={l.url} link={l} onOpen={onOpen} />
+          <RelatedRow key={l.url ?? l.title} link={l} onOpen={onOpen} />
         ))}
-      </ScrollView>
+      </View>
     </View>
   );
 }
 
-function RelatedCard({ link, onOpen }: { link: RelatedLink; onOpen: (url: string) => void }) {
+function RelatedRow({ link, onOpen }: { link: RelatedLink; onOpen: (url: string) => void }) {
   const { colors, dark } = useAppTheme();
-  const tone = collectionTones(hostSeed(link.url), dark);
-  return (
-    <PressableSurface
-      kind="card"
-      corner={24}
-      onPress={() => onOpen(link.url)}
-      accessibilityLabel={`${link.title}${link.host ? `, ${link.host}` : ''}`}
-      style={[styles.card, { backgroundColor: colors.surfaceContainer }]}
-    >
-      <View style={[styles.cover, { backgroundColor: tone.container }]}>
+  const tone = collectionTones(hostSeed(link.url ?? link.title), dark);
+  const body = (
+    <>
+      <View style={[styles.thumb, { backgroundColor: tone.container }]}>
         {link.image ? (
           <Image source={link.image} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
         ) : (
-          <Ico name="link" size={28} color={tone.onContainer} />
+          <Ico name="article" size={24} color={tone.onContainer} />
         )}
       </View>
-      <View style={styles.cardBody}>
+      <View style={{ flex: 1 }}>
         <Text variant="titleSmall" numberOfLines={3}>
           {link.title}
         </Text>
-        {link.blurb ? (
+        {link.blurb || link.host ? (
           <Text variant="bodySmall" color="onSurfaceVariant" numberOfLines={2} style={{ marginTop: 4 }}>
-            {link.blurb}
+            {[link.blurb, link.host].filter(Boolean).join(' · ')}
           </Text>
         ) : null}
-        {link.host ? (
-          <View style={styles.host}>
-            <Ico name="public" size={14} color={colors.onSurfaceVariant} />
-            <Text variant="labelSmall" color="onSurfaceVariant" numberOfLines={1} style={{ flexShrink: 1 }}>
-              {link.host}
-            </Text>
-          </View>
-        ) : null}
       </View>
+      {link.url ? <Ico name="chevronRight" size={20} color={colors.onSurfaceVariant} /> : null}
+    </>
+  );
+  return link.url ? (
+    <PressableSurface
+      kind="card"
+      corner={6}
+      pressedCorner={20}
+      onPress={() => onOpen(link.url!)}
+      accessibilityLabel={`${link.title}${link.host ? `, ${link.host}` : ''}`}
+      style={[styles.row, { backgroundColor: colors.surfaceContainer }]}
+    >
+      {body}
     </PressableSurface>
+  ) : (
+    <View style={[styles.row, { backgroundColor: colors.surfaceContainer, borderRadius: 6 }]} accessible accessibilityLabel={link.title}>
+      {body}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 22, paddingTop: 28, gap: 24 },
   label: { marginBottom: 10 },
-  authorCard: { borderRadius: 28, padding: 12 },
-  authorPress: { alignSelf: 'flex-start', maxWidth: '100%', borderRadius: 24 },
-  authorChip: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 4, paddingRight: 16, height: 48 },
+  authorCard: { padding: 16 },
+  authorRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   avatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tag: { borderWidth: 1, borderRadius: 10, height: 36, justifyContent: 'center', maxWidth: '100%' },
   tagInner: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12 },
-  railBleed: { marginHorizontal: -22 },
-  rail: { paddingHorizontal: 22, gap: 12 },
-  card: { width: CARD_W, overflow: 'hidden' },
-  cover: { height: 120, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  cardBody: { padding: 14, paddingBottom: 16 },
-  host: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 },
+  group: { borderRadius: 24, overflow: 'hidden', gap: 2 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 12, paddingRight: 14, minHeight: 80 },
+  thumb: { width: 64, height: 64, borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
 });
