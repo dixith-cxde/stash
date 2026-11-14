@@ -437,9 +437,12 @@ export async function listsContaining(bookmarkId: string) {
 
 export type HighlightWithTags = Highlight & { tags: Tag[]; bookmarkTitle: string | null };
 
-export async function queryHighlights(opts: { bookmarkId?: string; tagId?: string; query?: string } = {}) {
+export async function queryHighlights(
+  opts: { bookmarkId?: string; tagId?: string; query?: string; standalone?: boolean } = {},
+) {
   const conditions = [];
   if (opts.bookmarkId) conditions.push(eq(highlights.bookmarkId, opts.bookmarkId));
+  if (opts.standalone) conditions.push(isNull(highlights.bookmarkId));
   if (opts.tagId) {
     conditions.push(
       sql`exists (select 1 from ${highlightTags} where ${highlightTags.highlightId} = ${highlights.id} and ${highlightTags.tagId} = ${opts.tagId})`,

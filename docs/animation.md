@@ -238,6 +238,15 @@ M3 Expressive treats shape as something that moves.
 
 ### Press morph
 
+**Tap handling (Stash):**
+
+- A touch that moves more than 10 dp is a scroll, never a tap.
+- The pressed shape appears only after the finger rests for 70 ms, so scrolling doesn't flash
+  the cards under it.
+- Every completed tap plays the whole morph, even a very quick one: the surface springs
+  into its pressed shape on `fastSpatial` (cards) or `fastEffects` (buttons). The action fires
+  when it lands, then the surface springs back.
+
 A pressed button's corners **tighten**: round → squarer while the finger is down, and back on
 release. From `AX/Button.kt` and the `Button*Tokens`:
 

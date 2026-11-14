@@ -1,14 +1,25 @@
-import { useCallback, useEffect } from 'react';
-import { BackHandler, type LayoutChangeEvent, Pressable, StyleSheet, View } from 'react-native';
-import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
-import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
-import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { scheduleOnRN } from 'react-native-worklets';
+import { useCallback, useEffect } from "react";
+import {
+  BackHandler,
+  type LayoutChangeEvent,
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
+import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
+import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { scheduleOnRN } from "react-native-worklets";
 
-import { springTo, useSprings } from '@/motion/springs';
-import { MotionSpec } from '@/motion/tokens';
-import { useColors } from '@/theme/AppTheme';
+import { springTo, useSprings } from "@/motion/springs";
+import { MotionSpec } from "@/motion/tokens";
+import { useColors } from "@/theme/AppTheme";
+
+import { Portal } from "./Portal";
 
 type Props = {
   /** Called after the sheet has animated away (drag, scrim tap, back, or `close()`). */
@@ -28,7 +39,8 @@ const DISMISS_VELOCITY = 900;
  * defaultSpatial. It follows the finger 1:1, rubber-bands when pulled up, and on release
  * either springs back (defaultSpatial) or dismisses (fastSpatial) carrying the fling
  * velocity. The scrim fades with the sheet's position; the keyboard pushes it up frame by
- * frame. Back and scrim taps dismiss with the same animation.
+ * frame. Back and scrim taps dismiss with the same animation. Renders in the root portal,
+ * so it always sits above the whole screen wherever it is written.
  */
 export function Sheet({ onDismiss, children, accessibilityLabel }: Props) {
   const colors = useColors();
@@ -44,14 +56,16 @@ export function Sheet({ onDismiss, children, accessibilityLabel }: Props) {
   const finish = useCallback(() => onDismiss(), [onDismiss]);
 
   const close = useCallback(() => {
-    y.set(springTo(height.get() + 40, springs.fastSpatial, 0, (done) => {
-      'worklet';
-      if (done) scheduleOnRN(finish);
-    }));
+    y.set(
+      springTo(height.get() + 40, springs.fastSpatial, 0, (done) => {
+        "worklet";
+        if (done) scheduleOnRN(finish);
+      }),
+    );
   }, [y, height, springs, finish]);
 
   useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       close();
       return true;
     });
@@ -72,23 +86,28 @@ export function Sheet({ onDismiss, children, accessibilityLabel }: Props) {
     activeOffsetY: [-8, 8],
     failOffsetX: [-24, 24],
     onBegin: () => {
-      'worklet';
+      "worklet";
       start.set(y.get());
     },
     onUpdate: (e) => {
-      'worklet';
+      "worklet";
       const next = start.get() + e.translationY;
       // Pulling up past the open position resists (rubber band).
       y.set(next < 0 ? -Math.sqrt(-next) * 4 : next);
     },
     onDeactivate: (e) => {
-      'worklet';
+      "worklet";
       const v = e.velocityY;
-      if (v > DISMISS_VELOCITY || (y.get() > height.get() * DISMISS_FRACTION && v > -200)) {
-        y.set(springTo(height.get() + 40, springs.fastSpatial, v, (done) => {
-          'worklet';
-          if (done) scheduleOnRN(finish);
-        }));
+      if (
+        v > DISMISS_VELOCITY ||
+        (y.get() > height.get() * DISMISS_FRACTION && v > -200)
+      ) {
+        y.set(
+          springTo(height.get() + 40, springs.fastSpatial, v, (done) => {
+            "worklet";
+            if (done) scheduleOnRN(finish);
+          }),
+        );
       } else {
         y.set(springTo(0, springs.defaultSpatial, v));
       }
@@ -100,36 +119,56 @@ export function Sheet({ onDismiss, children, accessibilityLabel }: Props) {
   }));
   const scrim = useAnimatedStyle(() => {
     const h = height.get() || 1;
-    return { opacity: MotionSpec.scrimOpacity * Math.max(0, Math.min(1, 1 - y.get() / h)) };
+    return {
+      opacity:
+        MotionSpec.scrimOpacity * Math.max(0, Math.min(1, 1 - y.get() / h)),
+    };
   });
 
   return (
-    <View style={StyleSheet.absoluteFill}>
-      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.scrim }, scrim]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={close} accessibilityLabel="Close" />
-      </Animated.View>
-      <GestureDetector gesture={pan}>
+    <Portal>
+      <View style={StyleSheet.absoluteFill}>
         <Animated.View
-          accessibilityViewIsModal
-          accessibilityLabel={accessibilityLabel}
-          onLayout={onLayout}
           style={[
-            styles.sheet,
-            { backgroundColor: colors.surfaceContainerLow, paddingBottom: insets.bottom + 20 },
-            sheet,
+            StyleSheet.absoluteFill,
+            { backgroundColor: colors.scrim },
+            scrim,
           ]}
         >
-          <View style={[styles.handle, { backgroundColor: colors.outline }]} />
-          {typeof children === 'function' ? children(close) : children}
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={close}
+            accessibilityLabel="Close"
+          />
         </Animated.View>
-      </GestureDetector>
-    </View>
+        <GestureDetector gesture={pan}>
+          <Animated.View
+            accessibilityViewIsModal
+            accessibilityLabel={accessibilityLabel}
+            onLayout={onLayout}
+            style={[
+              styles.sheet,
+              {
+                backgroundColor: colors.surfaceContainerLow,
+                paddingBottom: insets.bottom + 20,
+              },
+              sheet,
+            ]}
+          >
+            <View
+              style={[styles.handle, { backgroundColor: colors.outline }]}
+            />
+            {typeof children === "function" ? children(close) : children}
+          </Animated.View>
+        </GestureDetector>
+      </View>
+    </Portal>
   );
 }
 
 const styles = StyleSheet.create({
   sheet: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
@@ -138,5 +177,11 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingHorizontal: 16,
   },
-  handle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 14 },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 14,
+  },
 });

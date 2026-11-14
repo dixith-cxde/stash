@@ -12,6 +12,7 @@ import { db } from '@/db/client';
 import { CaptureListener } from '@/features/capture/CaptureListener';
 import { processPreviewQueue } from '@/features/preview/fetchPreview';
 import { AppThemeProvider, useAppTheme } from '@/theme/AppTheme';
+import { PortalHost } from '@/ui/Portal';
 import { SnackbarHost } from '@/ui/Snackbar';
 
 import migrations from '../../drizzle/migrations';
@@ -41,7 +42,7 @@ function ThemedStack() {
       <CaptureListener />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.surface }, animation: 'none' }}>
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="capture" options={{ presentation: 'transparentModal', animation: 'none' }} />
+        <Stack.Screen name="capture" options={TRANSITION_SCREEN} />
         {/* Screens animated by TransitionScreen: keep the previous screen visible underneath. */}
         <Stack.Screen name="item/[id]" options={TRANSITION_SCREEN} />
         <Stack.Screen name="note/[id]/index" options={TRANSITION_SCREEN} />
@@ -51,6 +52,7 @@ function ThemedStack() {
         <Stack.Screen name="dev/detail" options={TRANSITION_SCREEN} />
         <Stack.Screen name="dev/axis" options={TRANSITION_SCREEN} />
       </Stack>
+      <PortalHost />
       <SnackbarHost />
     </ThemeProvider>
   );

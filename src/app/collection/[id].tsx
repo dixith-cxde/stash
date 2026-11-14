@@ -79,7 +79,7 @@ function CollectionBody() {
   const { scope } = useScope(id);
   const tone = collectionTones(scope?.seed ?? '#6750A4', dark);
   const { data: feed } = useFeed(scope?.filter ?? { folderId: '__none__' }, { highlights: 'none' });
-  const { data: hls } = useDbQuery(() => (scope?.highlightsOnly ? queryHighlights() : Promise.resolve([])), [scope?.highlightsOnly], []);
+  const { data: hls } = useDbQuery(() => (scope?.highlightsOnly ? queryHighlights({ standalone: true }) : Promise.resolve([])), [scope?.highlightsOnly], []);
   const [filter, setFilter] = useState<FeedFilter>('all');
   const [grid, setGrid] = useState(false);
   const [menu, setMenu] = useState(false);

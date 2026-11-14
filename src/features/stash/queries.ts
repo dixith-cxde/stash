@@ -62,7 +62,7 @@ export function useTotals() {
             and(active, eq(bookmarks.type, 'pdf'), sql`${bookmarks.lastPage} > 1 and ${bookmarks.lastPage} < ${bookmarks.pageCount}`),
           ),
         db.select({ n: count() }).from(bookmarks).where(and(active, eq(bookmarks.type, 'text'))),
-        db.select({ n: count() }).from(highlights),
+        db.select({ n: count() }).from(highlights).where(isNull(highlights.bookmarkId)),
         countUnread(),
       ]);
       return { all: all.n, unread, pdfs: pdfs.n, pdfsInProgress: progress.n, notes: notes.n, highlights: hl.n };
@@ -73,10 +73,9 @@ export function useTotals() {
 }
 
 /**
- * Feed for a scope: bookmarks matching `filter` plus highlights (all of them on Home, or the
- * ones attached to the scope's bookmarks in a collection), newest first.
+ * Feed for a scope: bookmarks matching `filter` plus standalone highlights, newest first.
  */
-export function useFeed(filter: SmartFilter, opts: { highlights?: 'all' | 'scoped' | 'none'; limit?: number } = {}) {
+export function useFeed(filter: SmartFilter, opts: { highlights?: 'all' | 'none'; limit?: number } = {}) {
   const { highlights: hlMode = 'all', limit = 120 } = opts;
   const key = JSON.stringify(filter);
   return useDbQuery(
@@ -85,11 +84,9 @@ export function useFeed(filter: SmartFilter, opts: { highlights?: 'all' | 'scope
       const ids = items.map((i) => i.id);
       const [counts, hls] = await Promise.all([
         highlightCounts(ids),
-        hlMode === 'none'
-          ? Promise.resolve([])
-          : queryHighlights().then((all) =>
-              hlMode === 'all' ? all.slice(0, 40) : all.filter((h) => h.bookmarkId && ids.includes(h.bookmarkId)),
-            ),
+        // Only highlights saved on their own appear as feed cards; ones taken from a saved
+        // item live on that item's page (otherwise one article shows up several times).
+        hlMode === 'none' ? Promise.resolve([]) : queryHighlights({ standalone: true }).then((all) => all.slice(0, 40)),
       ]);
       return mergeFeed(items, hls, counts);
     },

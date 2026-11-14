@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { createContext, use, useCallback, useEffect, useMemo, useState } from 'react';
 import { BackHandler, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
-import Animated, { type SharedValue, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, { type SharedValue, useAnimatedReaction, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { useAppTheme } from '@/theme/AppTheme';
@@ -76,9 +76,9 @@ function useEdgeBack(
  * Animates a pushed screen in and out (docs/animation.md §6). The route must be presented
  * as `transparentModal` with `animation: 'none'` so the previous screen stays visible.
  *
- * - container: grows out of the tapped card (bounds + corners on slowSpatial; returns on
- *   defaultSpatial; scrim 32%,
- *   card content out over 0–25%, page content in over 25–75%) and shrinks back into it.
+ * - container: grows out of the tapped card and shrinks back into it (bounds + corners on
+ *   defaultSpatial; scrim 32%; page content in over 12–45%, card content out over 0–15%).
+ *   Closing hands back to the screen underneath once the page is ~home (p < 0.03).
  * - axisY / axisX: shared axis: slides 30dp and fades (defaultSpatial + defaultEffects).
  *
  * Edge swipes preview the back like Android predictive back: the page scales to 90%,
@@ -101,9 +101,9 @@ export function TransitionScreen({ kind, origin: originId, background, children 
   const closing = useSharedValue(false);
 
   useEffect(() => {
-    p.set(springTo(1, mode === 'container' ? springs.slowSpatial : springs.defaultSpatial));
+    p.set(springTo(1, springs.defaultSpatial));
     fade.set(springTo(1, springs.defaultEffects));
-  }, [p, fade, mode, springs]);
+  }, [p, fade, springs]);
 
   const finish = useCallback(() => {
     if (originId) useTransitions.getState().settle(originId);
@@ -115,15 +115,23 @@ export function TransitionScreen({ kind, origin: originId, background, children 
       'worklet';
       if (closing.get()) return;
       closing.set(true);
-      const done = (ok?: boolean) => {
-        'worklet';
-        if (ok) scheduleOnRN(finish);
-      };
       fade.set(springTo(0, springs.fastEffects));
-      // Return on defaultSpatial: opening is calm (slowSpatial), going back should feel snappy.
-      p.set(springTo(0, springs.defaultSpatial, velocity, done));
+      p.set(springTo(0, springs.defaultSpatial, velocity));
     },
-    [closing, fade, p, springs, finish],
+    [closing, fade, p, springs],
+  );
+
+  // Hand back to the screen underneath as soon as the page is visually home, instead of
+  // waiting for the spring's long, invisible settling tail.
+  const finished = useSharedValue(false);
+  useAnimatedReaction(
+    () => closing.get() && p.get() < 0.03,
+    (done) => {
+      if (done && !finished.get()) {
+        finished.set(true);
+        scheduleOnRN(finish);
+      }
+    },
   );
 
   const closeFromJs = useCallback(() => close(0), [close]);
@@ -189,7 +197,7 @@ export function TransitionScreen({ kind, origin: originId, background, children 
     if (mode !== 'container' || !origin) return { opacity: 1, transform: [{ scale: 1 }] };
     const t = p.get();
     const w = origin.width + (W - origin.width) * t;
-    return { opacity: band(t, 0.25, 0.75), transform: [{ scale: w / W }] };
+    return { opacity: band(t, 0.12, 0.45), transform: [{ scale: w / W }] };
   });
 
   // Card snapshot: drawn at card size, scaled with the container, fading out over 0–25%.
@@ -197,13 +205,13 @@ export function TransitionScreen({ kind, origin: originId, background, children 
     if (!origin) return { opacity: 0 };
     const t = p.get();
     const w = origin.width + (W - origin.width) * t;
-    return { opacity: 1 - band(t, 0, 0.25), transform: [{ scale: w / origin.width }] };
+    return { opacity: 1 - band(t, 0, 0.15), transform: [{ scale: w / origin.width }] };
   });
 
   const containerBg = useAnimatedStyle(() => {
     if (mode !== 'container' || !origin) return { opacity: 0 };
     // The card color shows through while the page content is still fading in.
-    return { opacity: 1 - band(p.get(), 0.25, 0.75) };
+    return { opacity: 1 - band(p.get(), 0.12, 0.45) };
   });
 
   const ctx = useMemo(() => closeFromJs, [closeFromJs]);
