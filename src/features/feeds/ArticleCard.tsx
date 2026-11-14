@@ -125,7 +125,7 @@ export const ArticleRow = memo(function ArticleRow({ a }: { a: FeedItemWithFeed 
           {a.imageUrl ? (
             <Image source={a.imageUrl} style={StyleSheet.absoluteFill} contentFit="cover" recyclingKey={a.id} transition={120} />
           ) : (
-            <Text variant="titleLarge" color={tone.onContainer} style={{ fontWeight: '800' }}>
+            <Text variant="titleLargeEmphasized" color={tone.onContainer} style={{ fontWeight: '700' }}>
               {sourceGlyph(a.feedTitle)}
             </Text>
           )}
@@ -133,15 +133,15 @@ export const ArticleRow = memo(function ArticleRow({ a }: { a: FeedItemWithFeed 
         <View style={{ flex: 1, minWidth: 0 }}>
           <View style={styles.meta}>
             {unread && <View style={[styles.dot, { backgroundColor: colors.primary }]} />}
-            <Text variant="labelSmall" color={unread ? 'primary' : 'onSurfaceVariant'} numberOfLines={1} style={{ fontWeight: '700', flexShrink: 1 }}>
+            <Text variant="labelMedium" color={unread ? 'primary' : 'onSurfaceVariant'} numberOfLines={1} style={{ fontWeight: '700', flexShrink: 1 }}>
               {a.feedTitle}
             </Text>
-            <Text variant="labelSmall" color="onSurfaceVariant" numberOfLines={1} style={{ flexShrink: 0 }}>
+            <Text variant="labelMedium" color="onSurfaceVariant" numberOfLines={1} style={{ flexShrink: 0 }}>
               {`· ${when(a)}`}
             </Text>
           </View>
           <Text
-            variant="titleSmall"
+            variant="titleMediumEmphasized"
             color={unread ? 'onSurface' : 'onSurfaceVariant'}
             numberOfLines={2}
             style={{ marginTop: 3, fontSize: 15, lineHeight: 20, fontWeight: unread ? '700' : '500' }}
@@ -188,7 +188,7 @@ export const LeadCard = memo(function LeadCard({ a }: { a: FeedItemWithFeed }) {
         )}
         <View style={[styles.chip, { backgroundColor: tone.container }]}>
           <Ico name="rssFeed" size={16} color={tone.onContainer} />
-          <Text variant="labelSmall" color={tone.onContainer} style={{ fontWeight: '700' }}>
+          <Text variant="labelMedium" color={tone.onContainer} style={{ fontWeight: '700' }}>
             Top story
           </Text>
         </View>
@@ -196,14 +196,14 @@ export const LeadCard = memo(function LeadCard({ a }: { a: FeedItemWithFeed }) {
       <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 18 }}>
         <View style={styles.meta}>
           <View style={[styles.dot, { backgroundColor: tone.onContainer }]} />
-          <Text variant="labelSmall" color={tone.onContainer} numberOfLines={1} style={{ fontWeight: '700', opacity: 0.85, flexShrink: 1 }}>
+          <Text variant="labelMedium" color={tone.onContainer} numberOfLines={1} style={{ fontWeight: '700', opacity: 0.85, flexShrink: 1 }}>
             {a.feedTitle}
           </Text>
-          <Text variant="labelSmall" color={tone.onContainer} numberOfLines={1} style={{ opacity: 0.85, flexShrink: 0 }}>
+          <Text variant="labelMedium" color={tone.onContainer} numberOfLines={1} style={{ opacity: 0.85, flexShrink: 0 }}>
             {`· ${when(a)}`}
           </Text>
         </View>
-        <Text variant="headlineSmall" color={tone.onContainer} numberOfLines={3} style={{ marginTop: 8, fontWeight: '800' }}>
+        <Text variant="headlineSmallEmphasized" color={tone.onContainer} numberOfLines={3} style={{ marginTop: 8, fontWeight: '700' }}>
           {a.title}
         </Text>
         {cleanTeaser(a.summary) ? (

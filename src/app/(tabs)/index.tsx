@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CollectionPill } from '@/features/collections/CollectionCards';
@@ -17,7 +17,7 @@ import { Layout } from '@/theme/tokens';
 import { ButtonGroup } from '@/ui/ButtonGroup';
 import { EmptyState } from '@/ui/EmptyState';
 import { IconButton } from '@/ui/IconButton';
-import { ScreenHeader } from '@/ui/ScreenHeader';
+import { CollapsedAppBar, ScreenHeader } from '@/ui/ScreenHeader';
 import { SearchPill } from '@/ui/SearchPill';
 
 const FILTERS: { key: FeedFilter; label: string }[] = [
@@ -31,7 +31,8 @@ const FILTERS: { key: FeedFilter; label: string }[] = [
 export default function Home() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const onScroll = useChromeScroll();
+  const scrollY = useSharedValue(0);
+  const onScroll = useChromeScroll(scrollY);
   const { data: totals } = useTotals();
   const { data: collections } = useCollections();
   const { data: feed, loading } = useFeed({});
@@ -55,21 +56,13 @@ export default function Home() {
         <Animated.ScrollView
           onScroll={onScroll}
           scrollEventThrottle={16}
-          contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: Layout.navBarClearance + insets.bottom }}
+          contentContainerStyle={{ paddingTop: insets.top, paddingBottom: Layout.navBarClearance + insets.bottom }}
         >
           <ScreenHeader
             title="Stash"
-            size="displayLarge"
+            size="editorial"
             subtitle={`${totals.all} saved · ${totals.unread} to read`}
-            trailing={
-              <IconButton
-                icon="settings"
-                accessibilityLabel="Settings"
-                variant="tonal"
-                corners={[16, 16, 16, 16]}
-                onPress={() => router.push('/settings')}
-              />
-            }
+            trailing={<SettingsButton />}
           />
           <SearchPill href="/find" />
 
@@ -108,8 +101,13 @@ export default function Home() {
             />
           )}
         </Animated.ScrollView>
+        <CollapsedAppBar title="Stash" scrollY={scrollY} trailing={<SettingsButton />} />
       </>
       {onboarded && !tourDone && <HomeTour onDone={() => setTourDone(true)} />}
     </View>
   );
+}
+
+function SettingsButton() {
+  return <IconButton icon="settings" accessibilityLabel="Settings" onPress={() => router.push('/settings')} />;
 }

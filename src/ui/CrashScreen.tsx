@@ -37,7 +37,7 @@ function Body({ error, retry }: ErrorBoundaryProps) {
   return (
     <View style={[styles.wrap, { backgroundColor: colors.surface, paddingTop: insets.top + 48, paddingBottom: insets.bottom + 24 }]}>
       <Shape name="cookie9Sided" size={96} color={colors.errorContainer} />
-      <Text variant="headlineSmall" style={{ textAlign: 'center' }}>
+      <Text variant="headlineSmallEmphasized" style={{ textAlign: 'center' }}>
         Something went wrong
       </Text>
       <Text variant="bodyMedium" color="onSurfaceVariant" style={{ textAlign: 'center' }}>

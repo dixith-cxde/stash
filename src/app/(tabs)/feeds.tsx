@@ -2,7 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
 import { useCallback, useDeferredValue, useMemo, useRef, useState } from 'react';
 import { RefreshControl, StyleSheet, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDbQuery } from '@/db/hooks';
@@ -21,7 +21,7 @@ import { ActionSheet } from '@/ui/ActionSheet';
 import { ButtonGroup } from '@/ui/ButtonGroup';
 import { EmptyState } from '@/ui/EmptyState';
 import { IconButton } from '@/ui/IconButton';
-import { ScreenHeader } from '@/ui/ScreenHeader';
+import { CollapsedAppBar, ScreenHeader } from '@/ui/ScreenHeader';
 import { showSnackbar } from '@/ui/Snackbar';
 import { Text } from '@/ui/Text';
 
@@ -64,7 +64,8 @@ function toRows(items: FeedItemWithFeed[], withLead: boolean): Row[] {
 export default function FeedsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const onScroll = useChromeScroll();
+  const scrollY = useSharedValue(0);
+  const onScroll = useChromeScroll(scrollY);
   const [feedId, setFeedId] = useState<string | null>(null);
   const [show, setShow] = useState<Show>('new');
   const [adding, setAdding] = useState(false);
@@ -131,11 +132,17 @@ export default function FeedsScreen() {
     { key: 'saved', label: 'Saved' },
   ];
 
+  const barActions = (
+    <>
+      <IconButton icon="moreVert" accessibilityLabel="Feed options" onPress={() => setMenu(true)} />
+      <IconButton icon="add" accessibilityLabel="Follow a site" variant="tonal" width={56} onPress={() => setAdding(true)} />
+    </>
+  );
+
   const header = (
     <>
       <ScreenHeader
         title="Feeds"
-        size="displayLarge"
         subtitle={
           showFirstRun
             ? 'Follow the sites you read'
@@ -143,10 +150,7 @@ export default function FeedsScreen() {
         }
         trailing={
           showFirstRun ? undefined : (
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <IconButton icon="moreVert" accessibilityLabel="Feed options" variant="tonal" corners={[16, 16, 16, 16]} onPress={() => setMenu(true)} />
-              <IconButton icon="add" accessibilityLabel="Follow a site" variant="tonal" corners={[16, 16, 16, 16]} onPress={() => setAdding(true)} />
-            </View>
+            barActions
           )
         }
       />
@@ -180,10 +184,10 @@ export default function FeedsScreen() {
             </View>
           ) : r.k === 'day' ? (
             <View style={styles.day}>
-              <Text variant="titleLarge" style={{ fontWeight: '700' }}>
+              <Text variant="titleLargeEmphasized" style={{ fontWeight: '700' }}>
                 {r.title}
               </Text>
-              <Text variant="titleSmall" color="onSurfaceVariant">
+              <Text variant="titleMediumEmphasized" color="onSurfaceVariant">
                 {String(r.count)}
               </Text>
             </View>
@@ -223,9 +227,10 @@ export default function FeedsScreen() {
             />
           )
         }
-        contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: Layout.navBarClearance + insets.bottom }}
+        contentContainerStyle={{ paddingTop: insets.top, paddingBottom: Layout.navBarClearance + insets.bottom }}
       />
 
+      <CollapsedAppBar title="Feeds" scrollY={scrollY} trailing={showFirstRun ? undefined : barActions} />
       {adding && <AddFeedSheet onDismiss={() => setAdding(false)} onAdded={(id) => setFeedId(id)} />}
       {menu && (
         <ActionSheet

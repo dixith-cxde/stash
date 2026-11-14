@@ -63,7 +63,7 @@ function ImageBody() {
       ) : (
         !loading && (
           <View style={styles.center}>
-            <Text variant="titleMedium">This image is gone.</Text>
+            <Text variant="titleMediumEmphasized">This image is gone.</Text>
           </View>
         )
       )}
@@ -73,7 +73,7 @@ function ImageBody() {
         pointerEvents={hidden ? 'none' : 'box-none'}
       >
         <BackPill label="Back" onPress={close} />
-        <Text variant="titleSmall" numberOfLines={1} style={{ flex: 1 }}>
+        <Text variant="titleMediumEmphasized" numberOfLines={1} style={{ flex: 1 }}>
           {b?.title ?? ''}
         </Text>
         {b?.filePath ? <IconButton icon="moreVert" accessibilityLabel="Image options" variant="tonal" onPress={() => setMenu(true)} /> : null}

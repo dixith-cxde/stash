@@ -58,7 +58,7 @@ export function OrganizeCard({ b, compact }: { b: BookmarkWithTags; compact?: bo
           ) : (
             <Ico name="createNewFolder" size={20} color={colors.onSurfaceVariant} />
           )}
-          <Text variant="labelMedium" color={tone?.onContainer ?? colors.onSurfaceVariant}>
+          <Text variant="labelLarge" color={tone?.onContainer ?? colors.onSurfaceVariant}>
             {folder?.name ?? 'Add to collection'}
           </Text>
         </PressableSurface>
@@ -95,7 +95,7 @@ export function OrganizeCard({ b, compact }: { b: BookmarkWithTags; compact?: bo
               accessibilityLabel={`Add tag ${t.name}`}
               style={{ paddingHorizontal: 4, paddingVertical: 4 }}
             >
-              <Text variant="labelMedium" color="primary" style={{ fontWeight: '700' }}>
+              <Text variant="labelLarge" color="primary" style={{ fontWeight: '700' }}>
                 {`#${t.name}`}
               </Text>
             </PressableSurface>
@@ -111,7 +111,7 @@ export function OrganizeCard({ b, compact }: { b: BookmarkWithTags; compact?: bo
         body
       ) : (
         <View style={{ marginHorizontal: 16, marginTop: 24, padding: 18, borderRadius: 28, backgroundColor: colors.surfaceContainer }}>
-          <Text variant="overline" color="primary">
+          <Text variant="titleSmallEmphasized" color="primary">
             Organize
           </Text>
           {body}

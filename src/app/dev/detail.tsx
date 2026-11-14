@@ -46,7 +46,7 @@ function Body() {
         }}
       >
         <Button label="Back" icon="arrowBack" size="s" height={48} onPress={close} colors={{ bg: '#14121873', fg: tone.onContainer }} style={{ alignSelf: 'flex-start' }} />
-        <Text variant="displaySmall" color={tone.onContainer}>
+        <Text variant="displaySmallEmphasized" color={tone.onContainer}>
           {name}
         </Text>
       </View>

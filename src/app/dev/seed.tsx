@@ -158,7 +158,7 @@ export default function Seed() {
   }, [wipe]);
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface }}>
-      <Text variant="titleLarge">{status}</Text>
+      <Text variant="titleLargeEmphasized">{status}</Text>
     </View>
   );
 }

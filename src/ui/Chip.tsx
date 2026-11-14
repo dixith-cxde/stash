@@ -80,7 +80,7 @@ export function Chip({ label, onPress, selected, icon, accessibilityLabel }: Pro
           </Animated.View>
         )}
         {!filter && icon && <Ico name={icon} size={18} color={colors.primary} />}
-        <Text variant="labelMedium" color={on ? onFg : offFg}>
+        <Text variant="labelLarge" color={on ? onFg : offFg}>
           {label}
         </Text>
       </Animated.View>
@@ -98,7 +98,7 @@ export function TagPill({ label, small }: { label: string; small?: boolean }) {
         { backgroundColor: colors.secondaryContainer, height: small ? 24 : 36, borderRadius: small ? 8 : 12, paddingHorizontal: small ? 10 : 12 },
       ]}
     >
-      <Text variant={small ? 'labelSmall' : 'labelMedium'} color="onSecondaryContainer">
+      <Text variant={small ? 'labelMedium' : 'labelLarge'} color="onSecondaryContainer">
         {label}
       </Text>
     </Animated.View>

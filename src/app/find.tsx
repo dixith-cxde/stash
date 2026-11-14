@@ -76,7 +76,7 @@ function FindBody() {
         ) : (
           <>
             {data.bookmarks.length > 0 && (
-              <Text variant="overline" color="primary" style={styles.section}>
+              <Text variant="titleSmallEmphasized" color="primary" style={styles.section}>
                 {`Items · ${data.bookmarks.length}`}
               </Text>
             )}
@@ -84,7 +84,7 @@ function FindBody() {
               <ItemRow key={b.id} b={b} />
             ))}
             {data.highlights.length > 0 && (
-              <Text variant="overline" color="primary" style={styles.section}>
+              <Text variant="titleSmallEmphasized" color="primary" style={styles.section}>
                 {`Highlights · ${data.highlights.length}`}
               </Text>
             )}

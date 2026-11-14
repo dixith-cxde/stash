@@ -56,7 +56,7 @@ function Art({ b, size }: { b: BookmarkWithTags; size: number }) {
       ) : icon ? (
         <Ico name={icon} size={size * 0.42} color={tile.fg} />
       ) : (
-        <Text variant="labelLarge" color={tile.fg} style={{ fontWeight: '800', fontSize: glyph.length > 1 ? size * 0.23 : size * 0.43 }}>
+        <Text variant="labelLargeEmphasized" color={tile.fg} style={{ fontWeight: '700', fontSize: glyph.length > 1 ? size * 0.23 : size * 0.43 }}>
           {glyph}
         </Text>
       )}
@@ -74,10 +74,10 @@ export function ItemRow({ b }: { b: BookmarkWithTags }) {
         <Art b={b} size={56} />
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text variant="labelSmall" color="onSurfaceVariant" numberOfLines={1}>
+        <Text variant="labelMedium" color="onSurfaceVariant" numberOfLines={1}>
           {meta(b)}
         </Text>
-        <Text variant="labelLarge" numberOfLines={1} style={{ marginTop: 2 }}>
+        <Text variant="labelLargeEmphasized" numberOfLines={1} style={{ marginTop: 2 }}>
           {b.title || 'Untitled'}
         </Text>
         {progress > 0 && (
@@ -99,10 +99,10 @@ export function ItemTile({ b }: { b: BookmarkWithTags }) {
         <Art b={b} size={96} />
       </View>
       <View style={{ paddingHorizontal: 12, paddingTop: 10, paddingBottom: 14 }}>
-        <Text variant="labelSmall" color="onSurfaceVariant" numberOfLines={1} style={{ fontSize: 11 }}>
+        <Text variant="labelMedium" color="onSurfaceVariant" numberOfLines={1} style={{ fontSize: 11 }}>
           {meta(b)}
         </Text>
-        <Text variant="labelMedium" numberOfLines={2} style={{ fontWeight: '700', marginTop: 4, minHeight: 36 }}>
+        <Text variant="labelLarge" numberOfLines={2} style={{ fontWeight: '700', marginTop: 4, minHeight: 36 }}>
           {b.title || 'Untitled'}
         </Text>
       </View>
@@ -137,7 +137,7 @@ export function HighlightCard({
         {`“${h.text}”`}
       </Text>
       {where ? (
-        <Text variant="labelSmall" color={tone.fg} style={{ marginTop: 8, opacity: 0.8 }}>
+        <Text variant="labelMedium" color={tone.fg} style={{ marginTop: 8, opacity: 0.8 }}>
           {onPress ? `${where} · Go to page` : where}
         </Text>
       ) : null}

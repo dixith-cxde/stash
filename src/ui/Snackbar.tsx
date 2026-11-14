@@ -87,7 +87,7 @@ export function SnackbarHost() {
               }}
               style={styles.action}
             >
-              <Text variant="labelLarge" color="inversePrimary">
+              <Text variant="labelLargeEmphasized" color="inversePrimary">
                 {current.action.label}
               </Text>
             </PressableSurface>

@@ -25,9 +25,9 @@ const TOP_ZONE = 24;
  * Scroll handler for tab screens: hides the floating nav bar while scrolling down and brings
  * it back on any upward scroll or near the top (androidx FloatingToolbar exitAlways
  * behaviour; snaps on defaultEffects so it never bounces off-screen). Focusing the screen
- * shows it again.
+ * shows it again. Pass `scrollY` to also track the offset (collapsing app bar).
  */
-export function useChromeScroll() {
+export function useChromeScroll(scrollY?: SharedValue<number>) {
   const hidden = use(ChromeContext);
   const springs = useSprings();
   const last = useSharedValue(0);
@@ -44,8 +44,9 @@ export function useChromeScroll() {
 
   return useAnimatedScrollHandler({
     onScroll: (e) => {
-      if (!hidden) return;
       const y = e.contentOffset.y;
+      if (scrollY) scrollY.set(y);
+      if (!hidden) return;
       const dy = y - last.get();
       last.set(y);
       // Accumulate travel in the current direction; reset when it flips.

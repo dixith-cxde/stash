@@ -112,7 +112,7 @@ export function Button({
       >
         {icon && <Ico name={icon} size={spec.icon} color={fg} />}
         {label ? (
-          <Text variant="labelLarge" color={fg} style={[{ flexShrink: 1 }, size === 'm' && { fontSize: 16 }]} numberOfLines={1}>
+          <Text variant="labelLargeEmphasized" color={fg} style={[{ flexShrink: 1 }, size === 'm' && { fontSize: 16 }]} numberOfLines={1}>
             {label}
           </Text>
         ) : null}

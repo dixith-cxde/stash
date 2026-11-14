@@ -108,10 +108,10 @@ function Viewer({ b, source }: { b: BookmarkWithTags; source: string }) {
           contentContainerStyle={{ paddingTop: top, paddingBottom: insets.bottom + 40, paddingHorizontal: 20 }}
           ListHeaderComponent={
             <View style={{ marginBottom: 16 }}>
-              <Text variant="labelMedium" color="onSurfaceVariant">
+              <Text variant="labelLarge" color="onSurfaceVariant">
                 {meta}
               </Text>
-              <Text variant="headlineSmall" style={{ marginTop: 4 }} accessibilityRole="header">
+              <Text variant="headlineSmallEmphasized" style={{ marginTop: 4 }} accessibilityRole="header">
                 {b.title || 'Untitled'}
               </Text>
             </View>
@@ -132,7 +132,7 @@ function Viewer({ b, source }: { b: BookmarkWithTags; source: string }) {
           ListFooterComponent={
             head.truncated ? (
               <View style={[styles.truncated, { backgroundColor: colors.surfaceContainerHigh }]}>
-                <Text variant="titleSmall">File truncated</Text>
+                <Text variant="titleMediumEmphasized">File truncated</Text>
                 <Text variant="bodySmall" color="onSurfaceVariant">
                   {`Showing the first 200 KB of ${formatBytes(head.size)}. Open it in another app to see the rest.`}
                 </Text>
@@ -153,7 +153,7 @@ function Viewer({ b, source }: { b: BookmarkWithTags; source: string }) {
 
       <View style={[styles.top, { paddingTop: insets.top + 8, backgroundColor: withAlpha(colors.surface, 0.94) }]}>
         <BackPill label="Back" onPress={close} />
-        <Text variant="titleSmall" numberOfLines={1} style={{ flex: 1 }}>
+        <Text variant="titleMediumEmphasized" numberOfLines={1} style={{ flex: 1 }}>
           {b.title}
         </Text>
         <IconButton icon="moreVert" accessibilityLabel="File options" variant="tonal" onPress={() => setMenu(true)} />
@@ -183,7 +183,7 @@ function Problem({ text, onOpen, onBack }: { text: string; onOpen?: () => void; 
     <View style={{ flex: 1, backgroundColor: colors.surface, paddingTop: insets.top + 8, paddingHorizontal: 12 }}>
       {onBack && <BackPill label="Back" onPress={onBack} />}
       <View style={[styles.center, { paddingHorizontal: 24 }]}>
-        <Text variant="titleMedium" style={{ textAlign: 'center' }}>
+        <Text variant="titleMediumEmphasized" style={{ textAlign: 'center' }}>
           {text}
         </Text>
         {onOpen && <Button label="Open in another app" icon="openInNew" variant="tonal" onPress={onOpen} />}

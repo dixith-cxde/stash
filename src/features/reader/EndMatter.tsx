@@ -43,7 +43,7 @@ export const EndMatter = memo(function EndMatter({ author, tags, related, onOpen
 
 function Label({ children }: { children: string }) {
   return (
-    <Text variant="labelLarge" color="onSurfaceVariant" style={styles.label}>
+    <Text variant="labelLargeEmphasized" color="onSurfaceVariant" style={styles.label}>
       {children}
     </Text>
   );
@@ -57,15 +57,15 @@ function AuthorBlock({ author, onOpen }: { author: ArticleAuthor; onOpen: (url: 
     <>
       <View style={styles.authorRow}>
         <View style={[styles.avatar, { backgroundColor: tone.container }]}>
-          <Text variant="labelLarge" color={tone.onContainer} style={{ fontWeight: '800' }}>
+          <Text variant="labelLargeEmphasized" color={tone.onContainer} style={{ fontWeight: '700' }}>
             {initials(author.name)}
           </Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text variant="labelMedium" color="onSurfaceVariant">
+          <Text variant="labelLarge" color="onSurfaceVariant">
             Written by
           </Text>
-          <Text variant="titleMedium" numberOfLines={1}>
+          <Text variant="titleMediumEmphasized" numberOfLines={1}>
             {author.name}
           </Text>
         </View>
@@ -105,7 +105,7 @@ function TagBlock({ tags, onOpen }: { tags: ArticleTag[]; onOpen: (url: string) 
           const body = (
             <View style={styles.tagInner}>
               <Ico name="sell" size={16} color={colors.onSurfaceVariant} />
-              <Text variant="labelLarge" color="onSurfaceVariant" numberOfLines={1}>
+              <Text variant="labelLargeEmphasized" color="onSurfaceVariant" numberOfLines={1}>
                 {t.label}
               </Text>
             </View>
@@ -159,7 +159,7 @@ function RelatedRow({ link, onOpen }: { link: RelatedLink; onOpen: (url: string)
         )}
       </View>
       <View style={{ flex: 1 }}>
-        <Text variant="titleSmall" numberOfLines={3}>
+        <Text variant="titleMediumEmphasized" numberOfLines={3}>
           {link.title}
         </Text>
         {link.blurb || link.host ? (

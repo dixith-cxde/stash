@@ -172,7 +172,7 @@ function Editor() {
           placeholder="Title"
           placeholderTextColor={colors.onSurfaceVariant}
           accessibilityLabel="Title"
-          style={[{ color: colors.onSurface, fontFamily: FONT_FAMILY, padding: 0 }, Type.headlineMedium]}
+          style={[{ color: colors.onSurface, fontFamily: FONT_FAMILY, padding: 0 }, Type.headlineMediumEmphasized]}
         />
         {b && (
           <View style={{ marginTop: 10 }}>
@@ -244,7 +244,7 @@ function Editor() {
                   <Text
                     style={{
                       fontSize: 17,
-                      fontWeight: '800',
+                      fontWeight: '700',
                       fontStyle: t.glyph === 'I' ? 'italic' : 'normal',
                       fontFamily: t.glyph === '[[ ]]' ? MONO_FAMILY : FONT_FAMILY,
                       color: t.glyph === '[[ ]]' ? colors.primary : colors.onSurface,

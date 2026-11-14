@@ -75,7 +75,7 @@ export default function Kit() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: 160, paddingHorizontal: 16, gap: 28 }}>
-        <Text variant="displaySmall">Kit</Text>
+        <Text variant="displaySmallEmphasized">Kit</Text>
 
         <Section title="Buttons">
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -159,7 +159,7 @@ export default function Kit() {
         <Sheet accessibilityLabel="Save to Stash" onDismiss={() => setSheet(false)}>
           {(close) => (
             <View style={{ gap: 16 }}>
-              <Text variant="headlineSmall">Save to Stash</Text>
+              <Text variant="headlineSmallEmphasized">Save to Stash</Text>
               <SegmentedTabs items={[...MODES]} value={mode} onChange={setMode} accessibilityLabel="What to save" />
               <Text color="onSurfaceVariant">Drag down, tap outside or press back to close.</Text>
               <Button label="Done" onPress={close} />
@@ -174,7 +174,7 @@ export default function Kit() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <View style={{ gap: 12 }}>
-      <Text variant="overline" color="primary">
+      <Text variant="titleSmallEmphasized" color="primary">
         {title}
       </Text>
       {children}

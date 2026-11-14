@@ -21,7 +21,7 @@ export function HighlightResult({ h }: { h: HighlightWithTags }) {
         {`“${h.text}”`}
       </Text>
       {source ? (
-        <Text variant="labelSmall" color={tone.fg} numberOfLines={1} style={{ marginTop: 8, opacity: 0.8 }}>
+        <Text variant="labelMedium" color={tone.fg} numberOfLines={1} style={{ marginTop: 8, opacity: 0.8 }}>
           {source}
         </Text>
       ) : null}

@@ -25,7 +25,7 @@ export default function ShapesGallery() {
       style={{ flex: 1, backgroundColor: colors.surface }}
       contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: 48, paddingHorizontal: 16, gap: 24 }}
     >
-      <Text variant="displaySmall">Shapes</Text>
+      <Text variant="displaySmallEmphasized">Shapes</Text>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 24 }}>
         <MorphingShape shape={CYCLE[i % CYCLE.length]} size={120} color={colors.primary} rotation={i * 45} />
         <LoadingIndicator />
@@ -35,7 +35,7 @@ export default function ShapesGallery() {
         {USABLE_SHAPES.map((name) => (
           <View key={name} style={{ width: 76, alignItems: 'center', gap: 4 }}>
             <Shape name={name} size={64} color={colors.primaryContainer} />
-            <Text variant="labelSmall" color="onSurfaceVariant" numberOfLines={1}>
+            <Text variant="labelMedium" color="onSurfaceVariant" numberOfLines={1}>
               {name}
             </Text>
           </View>

@@ -99,7 +99,7 @@ export function SwipeRow({
         <Animated.View style={[StyleSheet.absoluteFill, styles.under, { backgroundColor: start.bg, borderRadius: radius }, startBg]}>
           <Animated.View style={[styles.action, startStyle]}>
             <Ico name={start.icon} size={22} color={start.fg} />
-            <Text variant="labelLarge" color={start.fg} style={{ fontWeight: '700' }}>
+            <Text variant="labelLargeEmphasized" color={start.fg} style={{ fontWeight: '700' }}>
               {start.label}
             </Text>
           </Animated.View>
@@ -108,7 +108,7 @@ export function SwipeRow({
       {end && (
         <Animated.View style={[StyleSheet.absoluteFill, styles.under, { justifyContent: 'flex-end', backgroundColor: end.bg, borderRadius: radius }, endBg]}>
           <Animated.View style={[styles.action, endStyle]}>
-            <Text variant="labelLarge" color={end.fg} style={{ fontWeight: '700' }}>
+            <Text variant="labelLargeEmphasized" color={end.fg} style={{ fontWeight: '700' }}>
               {end.label}
             </Text>
             <Ico name={end.icon} size={22} color={end.fg} />

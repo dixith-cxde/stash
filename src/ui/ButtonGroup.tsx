@@ -139,7 +139,7 @@ function Segment({
         <Animated.Text
           numberOfLines={1}
           maxFontSizeMultiplier={1.2}
-          style={[{ fontFamily: FONT_FAMILY }, Type.labelMedium, selected && { fontWeight: '700' }, text]}
+          style={[{ fontFamily: FONT_FAMILY }, Type.labelLarge, selected && { fontWeight: '700' }, text]}
         >
           {label}
         </Animated.Text>

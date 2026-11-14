@@ -17,7 +17,7 @@ import { type Corners4, cornerStyle, useSelection } from '@/motion/useSelection'
 import { type ColorSource, type ThemeMode, useSettings } from '@/state/settings';
 import { useAppTheme } from '@/theme/AppTheme';
 import type { IconName } from '@/theme/icons';
-import { DEFAULT_SEED, expressivePalette, SEED_COLORS } from '@/theme/palette';
+import { DEFAULT_SEED, vibrantPalette, SEED_COLORS } from '@/theme/palette';
 import { Layout } from '@/theme/tokens';
 import { BackPill } from '@/ui/BackPill';
 import { ButtonGroup, type GroupItem } from '@/ui/ButtonGroup';
@@ -120,7 +120,7 @@ function Settings() {
       <View style={styles.bar}>
         <BackPill label="Back" onPress={close} />
       </View>
-      <Text variant="displaySmall" accessibilityRole="header" style={styles.title}>
+      <Text variant="displaySmallEmphasized" accessibilityRole="header" style={styles.title}>
         Settings
       </Text>
 
@@ -210,7 +210,7 @@ function Settings() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <View style={styles.section}>
-      <Text variant="overline" color="primary" accessibilityRole="header" style={styles.overline}>
+      <Text variant="titleSmallEmphasized" color="primary" accessibilityRole="header" style={styles.overline}>
         {title}
       </Text>
       <View style={styles.group}>{children}</View>
@@ -243,7 +243,7 @@ function Row({ icon, title, supporting, index, count, trailing, children, onPres
           <Ico name={icon} size={22} color={colors.onSecondaryContainer} />
         </View>
         <View style={styles.rowText}>
-          <Text variant="titleMedium">{title}</Text>
+          <Text variant="titleMediumEmphasized">{title}</Text>
           {!!supporting && (
             <Text variant="bodyMedium" color="onSurfaceVariant">
               {supporting}
@@ -324,7 +324,7 @@ function PressRow({
 function Swatches({ value, onChange }: { value: string; onChange: (seed: string) => void }) {
   const { dark } = useAppTheme();
   const tones = useMemo(
-    () => SEED_COLORS.map((seed) => ({ seed, ...pick(expressivePalette(seed, dark)) })),
+    () => SEED_COLORS.map((seed) => ({ seed, ...pick(vibrantPalette(seed, dark)) })),
     [dark],
   );
   return (
@@ -336,7 +336,7 @@ function Swatches({ value, onChange }: { value: string; onChange: (seed: string)
   );
 }
 
-const pick = (p: ReturnType<typeof expressivePalette>) => ({ primary: p.primary, onPrimary: p.onPrimary });
+const pick = (p: ReturnType<typeof vibrantPalette>) => ({ primary: p.primary, onPrimary: p.onPrimary });
 
 const SWATCH = 36;
 

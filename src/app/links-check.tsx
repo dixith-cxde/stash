@@ -89,7 +89,7 @@ function LinksCheck() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 32, gap: 4 }}
         ListHeaderComponent={
           <View style={styles.head}>
-            <Text variant="headlineMedium" accessibilityRole="header">
+            <Text variant="headlineMediumEmphasized" accessibilityRole="header">
               Check saved links
             </Text>
             <Text variant="bodyMedium" color="onSurfaceVariant">
@@ -99,7 +99,7 @@ function LinksCheck() {
               <View style={{ gap: 8, marginTop: 8 }}>
                 <View style={styles.progressRow}>
                   <LoadingIndicator size={28} />
-                  <Text variant="labelLarge" style={{ flex: 1 }}>{`Checked ${done} of ${total}`}</Text>
+                  <Text variant="labelLargeEmphasized" style={{ flex: 1 }}>{`Checked ${done} of ${total}`}</Text>
                   <Button label="Stop" variant="text" size="s" onPress={() => ((stopped.current = true), setState('finished'))} />
                 </View>
                 <ProgressBar value={total ? done / total : 0} />
@@ -122,16 +122,16 @@ function LinksCheck() {
         }
         renderItem={({ item: r }) =>
           'header' in r ? (
-            <Text variant="titleSmall" color="onSurfaceVariant" style={styles.section}>
+            <Text variant="titleMediumEmphasized" color="onSurfaceVariant" style={styles.section}>
               {r.header}
             </Text>
           ) : (
             <View style={[styles.row, { backgroundColor: colors.surfaceContainer }]}>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text variant="labelLarge" numberOfLines={2}>
+                <Text variant="labelLargeEmphasized" numberOfLines={2}>
                   {r.title || hostOf(r.url)}
                 </Text>
-                <Text variant="labelSmall" color="onSurfaceVariant" numberOfLines={1}>
+                <Text variant="labelMedium" color="onSurfaceVariant" numberOfLines={1}>
                   {`${hostOf(r.url)} · saved ${savedOn(r.createdAt)}`}
                 </Text>
               </View>

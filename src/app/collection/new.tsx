@@ -61,7 +61,7 @@ function Editor({ folder }: { folder: { id: string; name: string; color: string 
     <Sheet accessibilityLabel={editing ? 'Edit collection' : 'New collection'} onDismiss={() => router.back()}>
       {(close) => (
         <View style={{ gap: 16, flexShrink: 1 }}>
-          <Text variant="headlineSmall" style={{ paddingHorizontal: 8 }}>
+          <Text variant="headlineSmallEmphasized" style={{ paddingHorizontal: 8 }}>
             {editing ? 'Edit collection' : 'New collection'}
           </Text>
 
@@ -88,12 +88,12 @@ function Editor({ folder }: { folder: { id: string; name: string; color: string 
             <View style={[styles.previewIcon, { backgroundColor: tone.onContainer }]}>
               <Ico name={icon} size={24} color={tone.container} />
             </View>
-            <Text variant="headlineSmall" color={tone.onContainer} numberOfLines={1} style={{ fontWeight: '800', marginTop: 12 }}>
+            <Text variant="headlineSmallEmphasized" color={tone.onContainer} numberOfLines={1} style={{ fontWeight: '700', marginTop: 12 }}>
               {name.trim() || 'Untitled'}
             </Text>
           </View>
 
-          <Text variant="overline" color="primary" style={{ paddingHorizontal: 8 }}>
+          <Text variant="titleSmallEmphasized" color="primary" style={{ paddingHorizontal: 8 }}>
             Color
           </Text>
           <ScrollView
@@ -108,7 +108,7 @@ function Editor({ folder }: { folder: { id: string; name: string; color: string 
             ))}
           </ScrollView>
 
-          <Text variant="overline" color="primary" style={{ paddingHorizontal: 8 }}>
+          <Text variant="titleSmallEmphasized" color="primary" style={{ paddingHorizontal: 8 }}>
             Icon
           </Text>
           <View style={styles.icons}>

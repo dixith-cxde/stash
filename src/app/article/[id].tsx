@@ -168,11 +168,11 @@ function ArticleBody() {
           </View>
           <View style={styles.heroText}>
             <Text
-              variant="headlineLarge"
+              variant="headlineLargeEmphasized"
               color={tone.onContainer}
               accessibilityRole="header"
               selectable
-              style={{ fontSize: 30, lineHeight: 36, fontWeight: '800', letterSpacing: -0.6 }}
+              style={{ fontSize: 30, lineHeight: 36, fontWeight: '700', letterSpacing: -0.6 }}
             >
               {a.title}
             </Text>
@@ -235,7 +235,7 @@ function ArticleBody() {
         {web && (
           <View style={styles.footer}>
             <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />
-            <Text variant="labelLarge" color="onSurfaceVariant">
+            <Text variant="labelLargeEmphasized" color="onSurfaceVariant">
               Original article
             </Text>
             <Button label={`Read on ${host ?? 'the site'}`} icon="openInNew" variant="tonal" height={48} onPress={openWeb} style={{ maxWidth: '100%' }} />

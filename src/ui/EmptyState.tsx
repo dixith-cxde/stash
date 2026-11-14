@@ -12,7 +12,7 @@ export function EmptyState({ shape, title, body }: { shape: MaterialShapeName; t
   return (
     <View style={{ alignItems: 'center', paddingHorizontal: 40, paddingTop: 32, paddingBottom: 24, gap: 12 }}>
       <MorphingShape shape={shape} size={120} color={colors.secondaryContainer} />
-      <Text variant="titleLarge" style={{ textAlign: 'center' }}>
+      <Text variant="titleLargeEmphasized" style={{ textAlign: 'center' }}>
         {title}
       </Text>
       <Text variant="bodyMedium" color="onSurfaceVariant" style={{ textAlign: 'center' }}>

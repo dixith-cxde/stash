@@ -18,7 +18,7 @@ export function ActionSheet({ title, actions, onDismiss }: { title?: string; act
       {(close) => (
         <View style={{ gap: 2 }}>
           {title ? (
-            <Text variant="titleMedium" style={{ paddingHorizontal: 8, paddingBottom: 10 }} numberOfLines={1}>
+            <Text variant="titleMediumEmphasized" style={{ paddingHorizontal: 8, paddingBottom: 10 }} numberOfLines={1}>
               {title}
             </Text>
           ) : null}

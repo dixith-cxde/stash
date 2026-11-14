@@ -72,12 +72,12 @@ export function PopularRow({ f, state, onToggle }: { f: (typeof STARTER_FEEDS)[n
   return (
     <View style={[styles.pop, { backgroundColor: colors.surfaceContainer }]}>
       <View style={[styles.popTile, { backgroundColor: tone.container }]}>
-        <Text variant="titleLarge" color={tone.onContainer} style={{ fontWeight: '800' }}>
+        <Text variant="titleLargeEmphasized" color={tone.onContainer} style={{ fontWeight: '700' }}>
           {sourceGlyph(f.name)}
         </Text>
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text variant="titleSmall" numberOfLines={1} style={{ fontSize: 15, fontWeight: '700' }}>
+        <Text variant="titleMediumEmphasized" numberOfLines={1} style={{ fontSize: 15, fontWeight: '700' }}>
           {f.name}
         </Text>
         <Text variant="bodySmall" color="onSurfaceVariant" numberOfLines={1} style={{ marginTop: 2 }}>
@@ -154,7 +154,7 @@ function AddressForm({ onAdded }: { onAdded: () => void }) {
       </View>
       {msg ? (
         <Animated.View entering={enterFade} exiting={exitFade}>
-          <Text variant="labelLarge" color={colors.onPrimaryContainer} style={{ marginTop: 10 }}>
+          <Text variant="labelLargeEmphasized" color={colors.onPrimaryContainer} style={{ marginTop: 10 }}>
             {msg}
           </Text>
         </Animated.View>
@@ -180,7 +180,7 @@ export function FirstRun({ onDone }: { onDone: () => void }) {
         <View style={[styles.heroIcon, { backgroundColor: colors.onPrimaryContainer }]}>
           <Ico name="rssFeed" size={26} color={colors.primaryContainer} />
         </View>
-        <Text variant="headlineMedium" color="onPrimaryContainer" style={{ marginTop: 16, fontWeight: '800' }}>
+        <Text variant="headlineMediumEmphasized" color="onPrimaryContainer" style={{ marginTop: 16, fontWeight: '700' }}>
           Your reading, delivered
         </Text>
         <Text variant="bodyMedium" color="onPrimaryContainer" style={{ marginTop: 6, fontSize: 15, lineHeight: 21, opacity: 0.85 }}>
@@ -190,11 +190,11 @@ export function FirstRun({ onDone }: { onDone: () => void }) {
       </View>
 
       <View style={styles.sectionHead}>
-        <Text variant="titleLarge" style={{ fontWeight: '700' }}>
+        <Text variant="titleLargeEmphasized" style={{ fontWeight: '700' }}>
           Popular to start
         </Text>
         {following > 0 && (
-          <Text variant="labelLarge" color="onSurfaceVariant">
+          <Text variant="labelLargeEmphasized" color="onSurfaceVariant">
             {`${following} following`}
           </Text>
         )}

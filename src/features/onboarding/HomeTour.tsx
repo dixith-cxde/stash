@@ -66,10 +66,10 @@ export function HomeTour({ onDone }: { onDone: () => void }) {
               <View style={[styles.icon, { backgroundColor: colors.primaryContainer }]}>
                 <Ico name={step.icon} size={22} color={colors.onPrimaryContainer} />
               </View>
-              <Text variant="titleMedium" style={{ flex: 1 }}>
+              <Text variant="titleMediumEmphasized" style={{ flex: 1 }}>
                 {step.title}
               </Text>
-              <Text variant="labelMedium" color="onSurfaceVariant">{`${i + 1} of ${STEPS.length}`}</Text>
+              <Text variant="labelLarge" color="onSurfaceVariant">{`${i + 1} of ${STEPS.length}`}</Text>
             </View>
             <Text variant="bodyMedium" color="onSurfaceVariant">
               {step.body}

@@ -323,7 +323,7 @@ function CaptureForm(p: FormProps) {
           paddingHorizontal: 8,
         }}
       >
-        <Text variant="headlineSmall" accessibilityRole="header">
+        <Text variant="headlineSmallEmphasized" accessibilityRole="header">
           {p.highlightDraft ? "Save highlight" : "Save to Stash"}
         </Text>
         <Button
@@ -457,7 +457,7 @@ function LinkFields(p: FormProps) {
             backgroundColor: tone.container,
           }}
         >
-          <Text variant="headlineSmall" color={tone.onContainer}>
+          <Text variant="headlineSmallEmphasized" color={tone.onContainer}>
             {host
               ? glyphFor({
                   url: link,
@@ -478,7 +478,7 @@ function LinkFields(p: FormProps) {
             autoCorrect={false}
             keyboardType="url"
             accessibilityLabel="Link"
-            style={[inputStyle(colors.onSurfaceVariant), Type.labelSmall]}
+            style={[inputStyle(colors.onSurfaceVariant), Type.labelMedium]}
           />
           <TextInput
             value={p.title}
@@ -488,7 +488,7 @@ function LinkFields(p: FormProps) {
             accessibilityLabel="Title"
             style={[
               inputStyle(colors.onSurface),
-              Type.labelLarge,
+              Type.labelLargeEmphasized,
               { marginTop: 2 },
             ]}
           />
@@ -567,7 +567,7 @@ function NoteFields(p: FormProps) {
           accessibilityLabel="Note title"
           style={[
             inputStyle(colors.onSurface),
-            Type.titleMedium,
+            Type.titleMediumEmphasized,
             {
               fontWeight: "800",
               fontSize: 18,
@@ -628,7 +628,7 @@ function NoteFields(p: FormProps) {
                 <Ico name={t.icon} size={20} color={colors.onSurface} />
               ) : (
                 <Text
-                  variant="labelLarge"
+                  variant="labelLargeEmphasized"
                   style={{
                     fontSize: 16,
                     fontWeight: "800",
@@ -652,7 +652,7 @@ function NoteFields(p: FormProps) {
         }}
       >
         <Ico name="markdown" size={16} color={colors.onSurfaceVariant} />
-        <Text variant="labelSmall" color="onSurfaceVariant">
+        <Text variant="labelMedium" color="onSurfaceVariant">
           Markdown supported
         </Text>
       </View>
@@ -717,8 +717,8 @@ function FileFields(p: FormProps) {
             color={colors.onSecondaryContainer}
           />
         </View>
-        <Text variant="labelLarge">Choose a PDF or file</Text>
-        <Text variant="labelSmall" color="onSurfaceVariant">
+        <Text variant="labelLargeEmphasized">Choose a PDF or file</Text>
+        <Text variant="labelMedium" color="onSurfaceVariant">
           PDF, images, text, any file
         </Text>
       </PressableSurface>
@@ -748,14 +748,14 @@ function FileFields(p: FormProps) {
               }}
             >
               <Text
-                variant="labelSmall"
+                variant="labelMedium"
                 color="onTertiaryContainer"
                 style={{ fontWeight: "800", fontSize: 11 }}
               >
                 {f.type === "pdf" ? "PDF" : f.type === "image" ? "IMG" : "FILE"}
               </Text>
             </View>
-            <Text variant="labelLarge" numberOfLines={1} style={{ flex: 1 }}>
+            <Text variant="labelLargeEmphasized" numberOfLines={1} style={{ flex: 1 }}>
               {f.title}
             </Text>
             <IconButton
@@ -811,7 +811,7 @@ function TagRow(p: FormProps) {
         }}
       >
         <Ico name="autoAwesome" size={16} color={colors.primary} />
-        <Text variant="overline" color="primary">
+        <Text variant="titleSmallEmphasized" color="primary">
           {shown.length ? "Suggested tags" : "Tags"}
         </Text>
       </View>
@@ -876,7 +876,7 @@ function CollectionRow({
           marginBottom: 8,
         }}
       >
-        <Text variant="overline" color="primary">
+        <Text variant="titleSmallEmphasized" color="primary">
           Collection
         </Text>
         {collections.length > 2 && (
@@ -944,7 +944,7 @@ function SavedView({
         </View>
       </View>
       <Text
-        variant="headlineSmall"
+        variant="headlineSmallEmphasized"
         style={{ marginTop: 10, textAlign: "center" }}
       >
         {saved.alreadySavedAt ? "Already in your stash" : `Saved to ${where}`}

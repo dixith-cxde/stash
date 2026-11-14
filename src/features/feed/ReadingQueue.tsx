@@ -23,7 +23,7 @@ export const ReadingQueue = memo(function ReadingQueue({ entries }: { entries: Q
   if (!entries.length) return null;
   return (
     <View style={{ paddingTop: 20 }}>
-      <Text variant="titleMedium" style={styles.title} accessibilityRole="header">
+      <Text variant="titleMediumEmphasized" style={styles.title} accessibilityRole="header">
         Continue reading
       </Text>
       <ScrollView
@@ -64,10 +64,10 @@ function QueueCard({ item, progress }: { item: BookmarkWithTags; progress: numbe
         )}
       </View>
       <View style={{ flex: 1, gap: 4 }}>
-        <Text variant="labelLarge" numberOfLines={2}>
+        <Text variant="labelLargeEmphasized" numberOfLines={2}>
           {item.title || 'Untitled'}
         </Text>
-        <Text variant="labelSmall" color="onSurfaceVariant" numberOfLines={1}>
+        <Text variant="labelMedium" color="onSurfaceVariant" numberOfLines={1}>
           {detail}
         </Text>
         {progress != null && <ProgressBar value={progress} />}

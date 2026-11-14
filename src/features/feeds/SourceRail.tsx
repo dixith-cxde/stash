@@ -51,7 +51,7 @@ function Avatar({
         <Animated.View style={[styles.ring, { borderColor: colors.primary }, ring]} />
         <Animated.View style={[styles.avatar, { backgroundColor: bg }, shape]}>
           {glyph ? (
-            <Text variant="titleLarge" color={fg} style={{ fontWeight: '800' }}>
+            <Text variant="titleLargeEmphasized" color={fg} style={{ fontWeight: '700' }}>
               {glyph}
             </Text>
           ) : (
@@ -60,14 +60,14 @@ function Avatar({
         </Animated.View>
         {count > 0 && (
           <View style={[styles.badge, { backgroundColor: colors.primary, borderColor: colors.surface }]}>
-            <Text variant="labelSmall" color="onPrimary" style={{ fontSize: 11, fontWeight: '800' }}>
+            <Text variant="labelMedium" color="onPrimary" style={{ fontSize: 11, fontWeight: '700' }}>
               {count > 99 ? '99+' : String(count)}
             </Text>
           </View>
         )}
       </View>
       <Text
-        variant="labelSmall"
+        variant="labelMedium"
         color={selected ? 'onSurface' : 'onSurfaceVariant'}
         numberOfLines={1}
         style={{ maxWidth: 64, fontWeight: selected ? '800' : '600' }}

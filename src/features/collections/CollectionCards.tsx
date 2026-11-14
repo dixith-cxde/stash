@@ -44,7 +44,7 @@ export function CollectionCard({ c, index, width, height }: { c: Collection; ind
         <Ico name={folderIcon(c)} size={22} color={tone.container} />
       </View>
       <View>
-        <Text variant="titleMedium" color={tone.onContainer} numberOfLines={1}>
+        <Text variant="titleMediumEmphasized" color={tone.onContainer} numberOfLines={1}>
           {c.name}
         </Text>
         <Text variant="bodySmall" color={tone.onContainer} numberOfLines={1} style={{ marginTop: 2 }}>
@@ -72,10 +72,10 @@ export function CollectionPill({ c }: { c: Collection }) {
       contentStyle={styles.pill}
     >
       <Ico name={folderIcon(c)} size={20} color={tone.onContainer} />
-      <Text variant="labelLarge" color={tone.onContainer} numberOfLines={1} style={{ maxWidth: 160 }}>
+      <Text variant="labelLargeEmphasized" color={tone.onContainer} numberOfLines={1} style={{ maxWidth: 160 }}>
         {c.name}
       </Text>
-      <Text variant="labelMedium" color={tone.onContainer} style={{ opacity: 0.7 }}>
+      <Text variant="labelLarge" color={tone.onContainer} style={{ opacity: 0.7 }}>
         {String(c.itemCount)}
       </Text>
     </TransformCard>
@@ -112,16 +112,16 @@ export function SmartViewTile({
         {icon ? (
           <Ico name={icon} size={20} color={tile.fg} />
         ) : (
-          <Text variant="labelSmall" color={tile.fg} style={{ fontWeight: '800', fontSize: 11 }}>
+          <Text variant="labelMedium" color={tile.fg} style={{ fontWeight: '700', fontSize: 11 }}>
             {glyph ?? ''}
           </Text>
         )}
       </View>
       <View style={{ flex: 1 }}>
-        <Text variant="labelLarge" numberOfLines={1}>
+        <Text variant="labelLargeEmphasized" numberOfLines={1}>
           {label}
         </Text>
-        <Text variant="labelSmall" color="onSurfaceVariant" numberOfLines={1}>
+        <Text variant="labelMedium" color="onSurfaceVariant" numberOfLines={1}>
           {detail}
         </Text>
       </View>

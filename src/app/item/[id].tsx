@@ -83,7 +83,7 @@ function ItemBody() {
               <>
                 <Shape name="sunny" size={360} color={tone.accent} style={{ position: 'absolute', left: -90, top: -40 }} />
                 <Shape name="cookie9Sided" size={150} color={tone.onContainer} style={{ position: 'absolute', right: -20, bottom: -30 }} />
-                <Text variant="displayLarge" color={tone.onContainer} numberOfLines={2} style={styles.siteMark}>
+                <Text variant="editorialLarge" color={tone.onContainer} numberOfLines={2} style={styles.siteMark}>
                   {site.split(/\s+/).slice(0, 2).join('\n')}
                 </Text>
               </>
@@ -107,12 +107,12 @@ function ItemBody() {
           {linkLabel && (
             <View style={[styles.kindChip, { backgroundColor: colors.secondaryContainer }]}>
               {linkIcon && <Ico name={linkIcon} size={16} color={colors.onSecondaryContainer} />}
-              <Text variant="labelMedium" color="onSecondaryContainer" numberOfLines={1}>
+              <Text variant="labelLarge" color="onSecondaryContainer" numberOfLines={1}>
                 {linkLabel}
               </Text>
             </View>
           )}
-          <Text variant="headlineMedium" style={{ marginTop: 12 }} accessibilityRole="header">
+          <Text variant="headlineMediumEmphasized" style={{ marginTop: 12 }} accessibilityRole="header">
             {b.title || 'Untitled'}
           </Text>
           {b.description ? (
@@ -150,10 +150,10 @@ function ItemBody() {
         {hls.length > 0 && (
           <>
             <View style={styles.section}>
-              <Text variant="titleLarge" accessibilityRole="header">
+              <Text variant="titleLargeEmphasized" accessibilityRole="header">
                 Highlights
               </Text>
-              <Text variant="labelMedium" color="onSurfaceVariant" style={{ flex: 1 }}>
+              <Text variant="labelLarge" color="onSurfaceVariant" style={{ flex: 1 }}>
                 {String(hls.length)}
               </Text>
               <IconButton icon="share" accessibilityLabel="Export highlights as Markdown" variant="tonal" size={40} onPress={() => void exportHighlights(b, hls)} />
@@ -233,7 +233,7 @@ function NoteField({ id, initial }: { id: string; initial: string }) {
   useEffect(() => () => clearTimeout(timer.current), []);
   return (
     <View style={[styles.note, { backgroundColor: colors.surfaceContainer }]}>
-      <Text variant="overline" color="primary">
+      <Text variant="titleSmallEmphasized" color="primary">
         Your note
       </Text>
       <TextInput

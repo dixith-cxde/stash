@@ -239,7 +239,7 @@ function Reader({ b, source, startPage }: { b: BookmarkWithTags; source: string;
 
       <Animated.View style={[styles.top, { paddingTop: insets.top + 8, backgroundColor: withAlpha(colors.surfaceContainerLowest, 0.92) }, topStyle]} pointerEvents={hidden ? 'none' : 'box-none'}>
         <BackPill label="Back" onPress={close} />
-        <Text variant="titleSmall" numberOfLines={1} style={styles.title}>
+        <Text variant="titleMediumEmphasized" numberOfLines={1} style={styles.title}>
           {b.title}
         </Text>
         <IconButton icon="moreVert" accessibilityLabel="PDF options" variant="tonal" onPress={() => setMenu(true)} />
@@ -255,7 +255,7 @@ function Reader({ b, source, startPage }: { b: BookmarkWithTags; source: string;
             accessibilityLabel={`Page ${current + 1} of ${pageCount}. Go to page`}
             style={[styles.pill, { backgroundColor: colors.surfaceContainerHigh }]}
           >
-            <Text variant="labelLarge">{`Page ${current + 1} of ${pageCount}`}</Text>
+            <Text variant="labelLargeEmphasized">{`Page ${current + 1} of ${pageCount}`}</Text>
             <View style={{ width: 96 }}>
               <ProgressBar value={(current + 1) / pageCount} />
             </View>
@@ -295,7 +295,7 @@ function GoToSheet({ pageCount, current, onGo, onDismiss }: { pageCount: number;
         };
         return (
           <View style={{ gap: 16 }}>
-            <Text variant="headlineSmall" style={{ paddingHorizontal: 8 }}>
+            <Text variant="headlineSmallEmphasized" style={{ paddingHorizontal: 8 }}>
               Go to page
             </Text>
             <View style={[styles.field, { backgroundColor: colors.surfaceContainerHighest }]}>
@@ -328,7 +328,7 @@ function Problem({ text, onOpen, onBack }: { text: string; onOpen?: () => void; 
     <View style={{ flex: 1, backgroundColor: colors.surface, paddingTop: insets.top + 8, paddingHorizontal: 12 }}>
       {onBack && <BackPill label="Back" onPress={onBack} />}
       <View style={[styles.center, { paddingHorizontal: 24 }]}>
-        <Text variant="titleMedium" style={{ textAlign: 'center' }}>
+        <Text variant="titleMediumEmphasized" style={{ textAlign: 'center' }}>
           {text}
         </Text>
         {onOpen && <Button label="Open in another app" icon="openInNew" variant="tonal" onPress={onOpen} />}

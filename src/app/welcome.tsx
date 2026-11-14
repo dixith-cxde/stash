@@ -81,7 +81,7 @@ function Welcome() {
                 </View>
               </View>
             </View>
-            <Text variant="displaySmall" style={{ fontWeight: '800' }}>
+            <Text variant="displaySmallEmphasized" style={{ fontWeight: '700' }}>
               {p.title}
             </Text>
             <Text variant="bodyLarge" color="onSurfaceVariant">

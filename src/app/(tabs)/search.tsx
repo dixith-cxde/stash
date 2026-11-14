@@ -1,7 +1,7 @@
 import { useFocusEffect } from 'expo-router';
 import { type ComponentRef, useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDbQuery } from '@/db/hooks';
@@ -20,7 +20,7 @@ import { EmptyState } from '@/ui/EmptyState';
 import { Ico } from '@/ui/Ico';
 import { IconButton } from '@/ui/IconButton';
 import { PressableSurface } from '@/ui/PressableSurface';
-import { ScreenHeader } from '@/ui/ScreenHeader';
+import { CollapsedAppBar, ScreenHeader } from '@/ui/ScreenHeader';
 import { Text } from '@/ui/Text';
 
 /** Typing pauses this long (ms) before the query runs. */
@@ -43,7 +43,8 @@ const SCOPES: { key: SmartScope; label: string }[] = [
 export default function SearchScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const onScroll = useChromeScroll();
+  const scrollY = useSharedValue(0);
+  const onScroll = useChromeScroll(scrollY);
   const input = useRef<ComponentRef<typeof TextInput>>(null);
   const [text, setText] = useState('');
   const [query, setQuery] = useState('');
@@ -97,7 +98,6 @@ export default function SearchScreen() {
     <>
       <ScreenHeader
         title="Search"
-        size="displayLarge"
         subtitle={query && !loading ? `${count === 100 ? '100+' : count} result${count === 1 ? '' : 's'}` : 'Find anything you’ve kept'}
       />
       <View style={[styles.field, { backgroundColor: colors.surfaceContainerHigh }]}>
@@ -138,7 +138,7 @@ export default function SearchScreen() {
     <View style={styles.idle}>
       {recent.length > 0 && (
         <>
-          <Text variant="overline" color="primary" style={styles.section}>
+          <Text variant="titleSmallEmphasized" color="primary" style={styles.section}>
             Recent
           </Text>
           {recent.map((r) => (
@@ -160,7 +160,7 @@ export default function SearchScreen() {
       )}
       {suggestions.length > 0 && (
         <>
-          <Text variant="overline" color="primary" style={[styles.section, { marginTop: recent.length ? 20 : 4 }]}>
+          <Text variant="titleSmallEmphasized" color="primary" style={[styles.section, { marginTop: recent.length ? 20 : 4 }]}>
             Try
           </Text>
           <View style={styles.chips}>
@@ -202,10 +202,11 @@ export default function SearchScreen() {
         scrollEventThrottle={16}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: Layout.navBarClearance + insets.bottom }}
+        contentContainerStyle={{ paddingTop: insets.top, paddingBottom: Layout.navBarClearance + insets.bottom }}
         initialNumToRender={10}
         windowSize={7}
       />
+      <CollapsedAppBar title="Search" scrollY={scrollY} />
     </View>
   );
 }
@@ -215,7 +216,7 @@ function ResultRow({ hit }: { hit: SmartHit }) {
     <View style={styles.result}>
       {hit.kind === 'bookmark' ? <ItemRow b={hit.b} /> : <HighlightResult h={hit.h} />}
       {hit.why ? (
-        <Text variant="labelSmall" color="onSurfaceVariant" numberOfLines={1} style={styles.why}>
+        <Text variant="labelMedium" color="onSurfaceVariant" numberOfLines={1} style={styles.why}>
           {hit.why}
         </Text>
       ) : null}
