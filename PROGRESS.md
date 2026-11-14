@@ -23,7 +23,7 @@ No AI / no cloud. Battery matters: no background polling.
   (theme, color, reader mode, backup), new/edit collection sheet, tag pages
   (`/collection/tag-<id>`), deep links open over Home.
 
-## Done this session (uncommitted)
+## Done 2026-11-14 (released as v1.0.0)
 - Phone check: Search tab and Settings look right (the gear at top-left is the dev-client
   tools button, not the app). Collection sheet fixed: Name field sits above the scroll area,
   so the keyboard no longer hides it. "#by" tag on the phone is old test data.
@@ -56,6 +56,7 @@ No AI / no cloud. Battery matters: no background polling.
 - Phase 10 docs: README rewritten for v3, AGENTS.md rules updated, rebuild-plan status.
 
 ## Next
+Start with `docs/next-session.md` (collapsible/real HN discussion, Markdown tables/code/HTML).
 1. On-device feel check of motion (phase 9) and a first open of a real PDF in the reader.
 2. PDF pinch zoom (not built). Remove unused `react-native-pdf` / `react-native-blob-util`
    (+ their config plugins in app.json) at the next native rebuild.
