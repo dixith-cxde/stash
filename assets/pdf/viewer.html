@@ -22,7 +22,7 @@
   .textLayer br::selection { background: transparent; }
   .textLayer .endOfContent { display: block; position: absolute; inset: 100% 0 0; z-index: -1; cursor: default; user-select: none; }
   .textLayer .endOfContent.active { top: 0; }
-  .page .hlbox { position: absolute; z-index: 2; background: rgba(255, 200, 0, 0.42); border-radius: 2px; }
+  .page .hlbox { position: absolute; z-index: 2; background: rgba(255, 200, 0, 0.42); border-radius: 2px; pointer-events: none; }
 </style>
 </head>
 <body>
@@ -347,6 +347,15 @@
     var sel = lastSel;
     if (!sel || !sel.text.trim()) return;
     var pageEl = pages[sel.page] && pages[sel.page].el;
+    // Safety check: the same words (or words inside an existing highlight) are not saved twice.
+    var needle = squash(sel.text);
+    var dup = highlights.some(function (h) {
+      if (h.page !== sel.page + 1) return false;
+      var have = squash(h.text);
+      return have.indexOf(needle) >= 0 || needle.indexOf(have) >= 0;
+    });
+    var clear = window.getSelection(); if (clear) clear.removeAllRanges();
+    if (dup) { lastSel = null; post({ type: 'hldup' }); return; }
     if (pageEl && sel.range) paint(pageEl, sel.range, sel.page + 1, sel.text.trim());
     highlights.push({ page: sel.page + 1, text: sel.text.trim() });
     post({ type: 'highlight', page: sel.page + 1, text: sel.text.trim() });
@@ -365,12 +374,18 @@
 
   // A tap (not a selection) toggles the app's chrome.
   document.addEventListener('click', function (e) {
-    var t = e.target;
-    if (t && t.classList && t.classList.contains('hlbox')) {
-      post({ type: 'hltap', page: Number(t.dataset.page), text: t.dataset.text || '' });
-      return;
-    }
     var s = window.getSelection();
+    if (!(s && s.toString())) {
+      // The text layer sits above the boxes, so find a highlight under the tap by position.
+      var boxes = document.querySelectorAll('.hlbox');
+      for (var b = 0; b < boxes.length; b++) {
+        var r = boxes[b].getBoundingClientRect();
+        if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) {
+          post({ type: 'hltap', page: Number(boxes[b].dataset.page), text: boxes[b].dataset.text || '' });
+          return;
+        }
+      }
+    }
     if (s && s.toString()) return;
     post({ type: 'tap' });
   });

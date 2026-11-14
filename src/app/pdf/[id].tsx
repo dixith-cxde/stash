@@ -60,6 +60,7 @@ type ViewerMessage =
   | { type: 'scrollDown' }
   | { type: 'highlight'; page: number; text: string }
   | { type: 'hltap'; page: number; text: string }
+  | { type: 'hldup' }
   | { type: 'error'; message: string };
 
 /** The bundled viewer page as a local file:// URI (copied out of the app bundle once). */
@@ -170,10 +171,22 @@ function Reader({ b, source, startPage }: { b: BookmarkWithTags; source: string;
           setHidden(true);
           break;
         case 'highlight':
-          haptic.save();
-          void createHighlight({ bookmarkId: b.id, text: m.text, page: m.page, sourceTitle: b.title, sourceApp: 'Stash' }).then(() =>
-            showSnackbar('Highlight saved'),
-          );
+          void (async () => {
+            // Second safety check against the database (the page may hold stale state).
+            const squash = (x: string) => x.replace(/\s+/g, '');
+            const want = squash(m.text);
+            const existing = await queryHighlights({ bookmarkId: b.id });
+            if (existing.some((h) => h.page === m.page && (squash(h.text).includes(want) || want.includes(squash(h.text))))) {
+              showSnackbar('Already highlighted');
+              return;
+            }
+            await createHighlight({ bookmarkId: b.id, text: m.text, page: m.page, sourceTitle: b.title, sourceApp: 'Stash' });
+            haptic.save();
+            showSnackbar('Highlight saved');
+          })();
+          break;
+        case 'hldup':
+          showSnackbar('Already highlighted');
           break;
         case 'hltap':
           setTapped({ page: m.page, text: m.text });

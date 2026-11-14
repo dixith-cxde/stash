@@ -14,6 +14,7 @@ import { formatBytes } from '@/features/files/kinds';
 import { cardKind, highlightsMarkdown, hostSeed, kindIcon, kindLabel, openAction, readingMinutes, sourceLabel } from '@/features/stash/model';
 import { relativeTime } from '@/lib/format';
 import { openItem } from '@/lib/nav';
+import { SwipeRow } from '@/features/feeds/SwipeRow';
 import { haptic } from '@/motion/haptics';
 import { TransitionScreen, useTransitionClose } from '@/motion/transition/TransitionScreen';
 import { Shape } from '@/shapes/Shape';
@@ -138,22 +139,33 @@ function ItemBody() {
             </View>
             <View style={{ gap: 8, paddingHorizontal: 16 }}>
               {hls.map((h) => (
-                <HighlightCard
+                <SwipeRow
                   key={h.id}
-                  h={h}
-                  unit={kind === 'pdf' ? 'Page' : 'Paragraph'}
-                  onDelete={() =>
-                    void deleteHighlight(h.id).then(() => {
-                      haptic.remove();
-                      showSnackbar('Highlight deleted');
-                    })
-                  }
-                  onPress={
-                    kind === 'pdf' && h.page && b.filePath
-                      ? () => router.push({ pathname: '/pdf/[id]', params: { id: b.id, page: String(h.page) } })
-                      : undefined
-                  }
-                />
+                  radius={24}
+                  resetKey={h.id}
+                  end={{
+                    icon: 'delete',
+                    label: 'Delete',
+                    bg: colors.errorContainer,
+                    fg: colors.onErrorContainer,
+                    removes: true,
+                    onCommit: () =>
+                      void deleteHighlight(h.id).then(() => {
+                        haptic.remove();
+                        showSnackbar('Highlight deleted');
+                      }),
+                  }}
+                >
+                  <HighlightCard
+                    h={h}
+                    unit={kind === 'pdf' ? 'Page' : 'Paragraph'}
+                    onPress={
+                      kind === 'pdf' && h.page && b.filePath
+                        ? () => router.push({ pathname: '/pdf/[id]', params: { id: b.id, page: String(h.page) } })
+                        : undefined
+                    }
+                  />
+                </SwipeRow>
               ))}
             </View>
           </>
