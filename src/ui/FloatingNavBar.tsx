@@ -4,6 +4,7 @@ import Animated, { type SharedValue, useAnimatedStyle, useSharedValue } from 're
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { springTo, useSprings } from '@/motion/springs';
+import { useChromeHidden } from '@/motion/ScrollChrome';
 import { useGlide } from '@/motion/useGlide';
 import { useColors } from '@/theme/AppTheme';
 import type { IconName } from '@/theme/icons';
@@ -38,16 +39,22 @@ export function FloatingNavBar({ items, selectedKey, onSelect, onFab, fabLabel }
   const [slot, setSlot] = useState(0);
   const index = Math.max(0, items.findIndex((i) => i.key === selectedKey));
   const indicator = useGlide({ index, slot, start: BAR_PADDING, inset: INDICATOR_INSET, minWidth: INDICATOR_HEIGHT });
+  const hidden = useChromeHidden();
+  const away = Layout.navBarHeight + Layout.navBarBottom + insets.bottom + 16;
+  const barMotion = useAnimatedStyle(() => {
+    const h = hidden ? hidden.get() : 0;
+    return { opacity: 1 - h * 0.6, transform: [{ translateY: h * away }] };
+  });
 
   const onBarLayout = (e: LayoutChangeEvent) =>
     setSlot((e.nativeEvent.layout.width - BAR_PADDING * 2) / Math.max(1, items.length));
 
   return (
     <View pointerEvents="box-none" style={[styles.row, { bottom: insets.bottom + Layout.navBarBottom }]}>
-      <View
+      <Animated.View
         accessibilityRole="tablist"
         onLayout={onBarLayout}
-        style={[styles.bar, { backgroundColor: colors.surfaceContainerHigh }]}
+        style={[styles.bar, { backgroundColor: colors.surfaceContainerHigh }, barMotion]}
       >
         <Animated.View
           pointerEvents="none"
@@ -63,7 +70,7 @@ export function FloatingNavBar({ items, selectedKey, onSelect, onFab, fabLabel }
             }}
           />
         ))}
-      </View>
+      </Animated.View>
       <PressableSurface
         corner={20}
         onPress={onFab}

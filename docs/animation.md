@@ -336,18 +336,18 @@ The card's bounds and corner radius grow into the destination layout:
 - **Scrim** behind the growing container goes 0 → 32% black, using `defaultEffects`.
 - The hero's color matches the card's color, so the surface reads as the same object.
 
-**Implementation:**
+**How it's built** (`src/motion/transition/`):
 
-1. Measure the source card (`measure()` in a worklet).
-2. Navigate.
-3. A root-level portal draws a copy of the card that springs to the destination's measured
-   frame.
-4. When the spring settles, hide the overlay and show the real page.
+- `useContainerSource()` measures the card on tap and passes its frame, color and content
+  snapshot to the route.
+- The route is presented as `transparentModal` with no native animation, so the previous
+  screen stays underneath.
+- `TransitionScreen kind="container"` grows a clip container from the card's frame.
+- The return runs on `defaultSpatial`, so going back feels snappy. Opening stays on `slowSpatial`.
+- The source card hides until the page has shrunk back into it.
 
-Back runs the same steps in reverse with **velocity carried over** from predictive back. Reanimated's
-own shared-element transitions are experimental (static flag
-`ENABLE_SHARED_ELEMENT_TRANSITIONS`, off by default, native stack only, default 500 ms
-`withTiming`), so Stash builds its own.
+Reanimated's own shared-element transitions are experimental (static flag
+`ENABLE_SHARED_ELEMENT_TRANSITIONS`, off by default), so Stash doesn't use them.
 
 ### Shared axis
 
@@ -542,22 +542,16 @@ What each interaction in the canvas becomes in the app.
 
 ## 9. Haptics
 
-**(unverified)** Google's Compose M3 components don't call haptics in their motion code, and no
-primary M3E haptics spec could be fetched. Stash follows Android's own conventions:
+**Stash rule (from the product owner): vibrate only for the main actions.** Expressive motion
+carries the feedback everywhere else. Buzzing on every selection is tiring, and Android's own
+nav bars and filters stay silent.
 
-| Moment | expo-haptics call |
-| --- | --- |
-| Press-in on a card or button | none (the visual is enough) |
-| Selection change (filter, chip, segment), but **not** nav-bar tab switches | `selectionAsync()` |
-| Toggle on (favorite, checkbox) | `impactAsync(Light)` |
-| Save succeeded | `notificationAsync(Success)` |
-| Delete / destructive confirm | `notificationAsync(Warning)` |
-| Sheet or predictive back passes its commit threshold | `impactAsync(Light)`, once per crossing |
-
-Fire the haptic when the action takes effect (selection, threshold, commit), not at the end of
-the spring.
-
----
+| Moment | `haptic.*` (src/motion/haptics.ts) | expo-haptics |
+| --- | --- | --- |
+| Save succeeded (capture, note, edit) | `save()` | `notificationAsync(Success)` |
+| Cancel / discard / undo | `cancel()` | `impactAsync(Light)` |
+| Delete | `remove()` | `notificationAsync(Warning)` |
+| Tabs, filters, chips, toggles, checkboxes, drags, sheets, transitions | none | none |
 
 ## 10. Engineering rules
 

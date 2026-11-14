@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { type LayoutChangeEvent, StyleSheet, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle } from 'react-native-reanimated';
 
-import { haptic } from '@/motion/haptics';
 import { useGlide } from '@/motion/useGlide';
 import { useSelection } from '@/motion/useSelection';
 import { useColors } from '@/theme/AppTheme';
@@ -51,9 +50,7 @@ export function SegmentedTabs<K extends string>({ items, value, onChange, access
           label={item.label}
           selected={i === index}
           onPress={() => {
-            if (i === index) return;
-            haptic.select();
-            onChange(item.key);
+            if (i !== index) onChange(item.key);
           }}
         />
       ))}

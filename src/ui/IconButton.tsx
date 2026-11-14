@@ -3,7 +3,6 @@ import { StyleSheet } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, { interpolateColor, useAnimatedStyle } from 'react-native-reanimated';
 
-import { haptic } from '@/motion/haptics';
 import { usePressMorph } from '@/motion/usePressMorph';
 import { type Corners4, cornerStyle, useSelection } from '@/motion/useSelection';
 import { useColors } from '@/theme/AppTheme';
@@ -43,8 +42,8 @@ type Props = {
 
 /**
  * M3 Expressive icon button. As a toggle (`selected` set) its shape morphs from rounded
- * square to circle on fastSpatial while its colors change on defaultEffects; a light haptic
- * marks turning on. Presses tighten the corners on defaultEffects.
+ * square to circle on fastSpatial while its colors change on defaultEffects. Presses tighten
+ * the corners on defaultEffects.
  */
 export function IconButton({
   icon,
@@ -66,10 +65,7 @@ export function IconButton({
   const { gesture, progress } = usePressMorph({
     kind: 'button',
     corner: 0,
-    onPress: () => {
-      if (toggle && !on) haptic.toggle();
-      onPress?.();
-    },
+    onPress,
   });
 
   const v = VARIANT[variant];

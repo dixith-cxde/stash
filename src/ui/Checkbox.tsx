@@ -1,7 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle } from 'react-native-reanimated';
 
-import { haptic } from '@/motion/haptics';
 import { useSelection } from '@/motion/useSelection';
 import { useColors } from '@/theme/AppTheme';
 
@@ -55,10 +54,7 @@ export function CheckboxRow({ checked, onChange, label }: Props) {
       kind="card"
       corner={16}
       pressedScale={0.98}
-      onPress={() => {
-        if (!checked) haptic.toggle();
-        onChange(!checked);
-      }}
+      onPress={() => onChange(!checked)}
       accessibilityRole="checkbox"
       accessibilityLabel={label}
       accessibilityState={{ checked }}

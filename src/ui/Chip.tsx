@@ -2,7 +2,6 @@ import { StyleSheet } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, { FadeIn, FadeOut, interpolateColor, LinearTransition, useAnimatedStyle } from 'react-native-reanimated';
 
-import { haptic } from '@/motion/haptics';
 import { Spring } from '@/motion/tokens';
 import { usePressMorph } from '@/motion/usePressMorph';
 import { cornerStyle, useSelection } from '@/motion/useSelection';
@@ -44,10 +43,7 @@ export function Chip({ label, onPress, selected, icon, accessibilityLabel }: Pro
     kind: 'card',
     corner: 0,
     pressedScale: 0.96,
-    onPress: () => {
-      if (filter) haptic.select();
-      onPress?.();
-    },
+    onPress,
   });
 
   const offBorder = colors.outline;

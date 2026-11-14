@@ -1,14 +1,15 @@
 import * as Haptics from 'expo-haptics';
 
 /**
- * Haptics paired with motion (docs/animation.md §9). Fire when the action takes effect
- * (selection, threshold, commit), not when the spring settles.
+ * Haptics for the main actions only (user rule): saving, cancelling/discarding and deleting.
+ * Never on navigation, tab or filter changes, toggles, checkboxes, chips or drags.
+ * Fire when the action takes effect, not when an animation settles.
  */
 export const haptic = {
-  /** Filter, chip or segment selection changed inside content. Not for tab switches: Android's nav bars stay silent. */
-  select: () => void Haptics.selectionAsync(),
-  /** Something toggled on (favorite, checkbox), or a gesture crossed its commit threshold. */
-  toggle: () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
-  success: () => void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success),
-  warning: () => void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning),
+  /** Something was saved (capture, note, edit). */
+  save: () => void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success),
+  /** A pending action was cancelled or discarded (Cancel, Discard, Undo). */
+  cancel: () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
+  /** Something was deleted. */
+  remove: () => void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning),
 };

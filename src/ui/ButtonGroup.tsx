@@ -2,7 +2,6 @@ import { StyleSheet, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, { interpolateColor, useAnimatedStyle } from 'react-native-reanimated';
 
-import { haptic } from '@/motion/haptics';
 import { MotionSpec } from '@/motion/tokens';
 import { usePressMorph } from '@/motion/usePressMorph';
 import { useSelection } from '@/motion/useSelection';
@@ -53,9 +52,7 @@ export function ButtonGroup<K extends string>({
           height={height}
           selectedColors={selectedColors}
           onPress={() => {
-            if (item.key === value) return;
-            haptic.select();
-            onChange(item.key);
+            if (item.key !== value) onChange(item.key);
           }}
         />
       ))}

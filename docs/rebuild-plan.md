@@ -1,7 +1,8 @@
 # Stash rebuild plan (v3: fluid React Native)
 
-Status (2026-11-14): phases 1–4 done (clean slate, foundation, shapes, component kit). Next: phase 5,
-navigation transitions. Device galleries: `stash://dev/shapes`, `stash://dev/kit` (`?demo=1` auto-cycles).
+Status (2026-11-14): phases 1–5 done (clean slate, foundation, shapes, component kit, transitions).
+Next: phase 6, screens. Device galleries: `stash://dev/shapes`, `stash://dev/kit`, `stash://dev/transitions`
+(`?demo=1` auto-plays). Haptics: save / cancel / delete only.
 
 Target design: the Design canvas *Stash — M3 Expressive redesign*
 (<https://claude.ai/artifact/ApNigGtc6hbe7MB9Mw5Bte>), seven 390×844 artboards:

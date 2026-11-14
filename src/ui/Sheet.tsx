@@ -6,7 +6,6 @@ import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanima
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { haptic } from '@/motion/haptics';
 import { springTo, useSprings } from '@/motion/springs';
 import { MotionSpec } from '@/motion/tokens';
 import { useColors } from '@/theme/AppTheme';
@@ -41,7 +40,6 @@ export function Sheet({ onDismiss, children, accessibilityLabel }: Props) {
   const y = useSharedValue(10_000);
   const start = useSharedValue(0);
   const opened = useSharedValue(false);
-  const crossed = useSharedValue(false);
 
   const finish = useCallback(() => onDismiss(), [onDismiss]);
 
@@ -76,18 +74,12 @@ export function Sheet({ onDismiss, children, accessibilityLabel }: Props) {
     onBegin: () => {
       'worklet';
       start.set(y.get());
-      crossed.set(false);
     },
     onUpdate: (e) => {
       'worklet';
       const next = start.get() + e.translationY;
       // Pulling up past the open position resists (rubber band).
       y.set(next < 0 ? -Math.sqrt(-next) * 4 : next);
-      const past = y.get() > height.get() * DISMISS_FRACTION;
-      if (past !== crossed.get()) {
-        crossed.set(past);
-        if (past) scheduleOnRN(haptic.toggle);
-      }
     },
     onDeactivate: (e) => {
       'worklet';

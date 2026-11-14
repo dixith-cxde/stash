@@ -18,6 +18,13 @@ import migrations from '../../drizzle/migrations';
 
 SplashScreen.preventAutoHideAsync();
 
+/** Stack options for routes that run their own TransitionScreen animation. */
+const TRANSITION_SCREEN = {
+  presentation: 'transparentModal',
+  animation: 'none',
+  contentStyle: { backgroundColor: 'transparent' },
+} as const;
+
 function ThemedStack() {
   const { colors, dark } = useAppTheme();
   const navTheme = useMemo(() => {
@@ -35,6 +42,9 @@ function ThemedStack() {
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.surface }, animation: 'none' }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="capture" options={{ presentation: 'transparentModal', animation: 'none' }} />
+        {/* Screens animated by TransitionScreen: keep the previous screen visible underneath. */}
+        <Stack.Screen name="dev/detail" options={TRANSITION_SCREEN} />
+        <Stack.Screen name="dev/axis" options={TRANSITION_SCREEN} />
       </Stack>
       <SnackbarHost />
     </ThemeProvider>
