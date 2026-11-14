@@ -47,7 +47,7 @@ export const Layout = {
   gutter: 16,
   /** Text column inset (titles, section headers). */
   textInset: 24,
-  /** Floating nav bar: 64dp, top corners 16 / bottom full, 16dp from the edges, 20dp above the bottom inset. */
+  /** Floating nav bar: 64dp, connected to the FAB (outer ends round, facing ends 8dp), 16dp from the edges, 20dp above the bottom inset. */
   navBarHeight: 64,
   navBarBottom: 20,
   /** Scroll content bottom padding so the last row clears the floating bar. */

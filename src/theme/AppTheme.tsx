@@ -4,7 +4,7 @@ import { AppState, useColorScheme } from 'react-native';
 import { useSettings } from '@/state/settings';
 
 import { ExpressiveModule } from '../../modules/expressive';
-import { type ColorRole, type ColorRoles, DEFAULT_SEED, ROLES, stashPalette, vibrantPalette } from './palette';
+import { type ColorRole, type ColorRoles, DEFAULT_SEED, expressivePalette, ROLES, STASH_PALETTE } from './palette';
 
 type AppTheme = { colors: ColorRoles; dark: boolean };
 
@@ -17,7 +17,7 @@ const ThemeContext = createContext<AppTheme | null>(null);
 function dynamicPalette(dark: boolean): ColorRoles | null {
   const native = ExpressiveModule?.getDynamicColors(dark);
   if (!native?.seed) return null;
-  const out = { ...vibrantPalette(native.seed, dark) };
+  const out = { ...expressivePalette(native.seed, dark) };
   for (const role of ROLES) {
     const value = native[role];
     if (value) out[role as ColorRole] = value;
@@ -45,12 +45,12 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
   const dark = mode === 'system' ? system === 'dark' : mode === 'dark';
 
   const value = useMemo<AppTheme>(() => {
-    const stash = stashPalette(dark);
+    const stash = STASH_PALETTE[dark ? 'dark' : 'light'];
     const colors =
       source === 'wallpaper'
         ? (dynamicPalette(dark) ?? stash)
         : source === 'seed'
-          ? vibrantPalette(seed ?? DEFAULT_SEED, dark)
+          ? expressivePalette(seed ?? DEFAULT_SEED, dark)
           : stash;
     return { colors, dark };
     // tick re-reads the wallpaper colors after the app comes back.

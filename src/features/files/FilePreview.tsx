@@ -5,7 +5,7 @@ import type { BookmarkWithTags } from '@/db/repo';
 import { MarkdownView } from '@/features/notes/MarkdownView';
 import { type CardKind, kindIcon, kindLabel } from '@/features/stash/model';
 import { useAppTheme } from '@/theme/AppTheme';
-import { stashPalette } from '@/theme/palette';
+import { STASH_PALETTE } from '@/theme/palette';
 import { MONO_FAMILY } from '@/theme/type';
 import { Button } from '@/ui/Button';
 import { Ico } from '@/ui/Ico';
@@ -19,7 +19,7 @@ export const hasFilePreview = (k: CardKind, b: Pick<BookmarkWithTags, 'thumbPath
   (k === 'pdf' && !!b.thumbPath) || (k === 'image' && !!(b.thumbPath ?? b.filePath)) || ((k === 'markdown' || k === 'textfile') && !!b.content);
 
 /** A PDF page stays paper-light in both themes. */
-const PAPER = stashPalette(false);
+const PAPER = STASH_PALETTE.light;
 
 /**
  * Item page preview (no file reads: everything comes from the row): the PDF's first-page

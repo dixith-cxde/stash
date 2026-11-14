@@ -19,7 +19,7 @@ import {
 import { relativeTime } from '@/lib/format';
 import { Shape } from '@/shapes/Shape';
 import { useAppTheme } from '@/theme/AppTheme';
-import { collectionTones, stashPalette } from '@/theme/palette';
+import { collectionTones, STASH_PALETTE } from '@/theme/palette';
 import { MONO_FAMILY } from '@/theme/type';
 import { TagPill } from '@/ui/Chip';
 import { Ico } from '@/ui/Ico';
@@ -273,7 +273,7 @@ function PdfCard({ b, highlights, onLongPress }: { b: BookmarkWithTags; highligh
 }
 
 /** Paper and ink stay light in both themes: it is a page. */
-const PAPER = stashPalette(false);
+const PAPER = STASH_PALETTE.light;
 
 /** Placeholder page lines until the PDF thumbnail exists. */
 function PageSketch() {

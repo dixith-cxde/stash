@@ -29,16 +29,21 @@ type Props = {
 const BAR_PADDING = 8;
 /** Active pill: horizontal nav item (androidx ShortNavigationBar start-icon item, 40dp → 48dp touch). */
 const INDICATOR_HEIGHT = 48;
-/** Softer top corners, fully rounded bottom: the bar reads as resting on the bottom edge. */
-const TOP_CORNER = Corner.large;
-const BOTTOM_CORNER = Layout.navBarHeight / 2;
+/**
+ * The bar and the FAB form one connected button group: outer ends fully round, the two
+ * facing ends tight (androidx ConnectedButtonGroup inner corner 8).
+ */
+const OUTER_CORNER = Layout.navBarHeight / 2;
+const INNER_CORNER = Corner.small;
+/** Gap between the bar and the FAB. */
+const GROUP_GAP = 4;
 /** How much wider the active slot grows to make room for its label. */
 const ACTIVE_GROW = 2.5;
 const LABEL_MAX = 96;
 
 /**
- * Floating navigation bar with the add FAB beside it. Asymmetric shape (top corners
- * large, bottom corners full), M3 flexible nav bar colors (secondaryContainer
+ * Floating navigation bar with the add FAB beside it, shaped as one connected group (bar:
+ * round left, tight right; FAB: tight left, round right). M3 flexible nav bar colors (secondaryContainer
  * indicator). Only the active destination shows its label, inside the indicator pill;
  * the active slot widens on a spatial spring like a standard button group.
  */
@@ -74,11 +79,11 @@ export function FloatingNavBar({ items, selectedKey, onSelect, fabLabel, fabItem
         ))}
       </View>
       <PressableSurface
-        corner={BOTTOM_CORNER}
+        corner={OUTER_CORNER}
         pressedCorner={Corner.large}
         onPress={() => setMenu('open')}
         accessibilityLabel={fabLabel}
-        style={[styles.fab, styles.fabTop, { backgroundColor: colors.primary, boxShadow: shadow(colors.shadow) }]}
+        style={[styles.fab, styles.fabInner, { backgroundColor: colors.primary, boxShadow: shadow(colors.shadow) }]}
       >
         <Ico name="add" size={28} color={colors.onPrimary} />
       </PressableSurface>
@@ -88,7 +93,7 @@ export function FloatingNavBar({ items, selectedKey, onSelect, fabLabel, fabItem
           open={menu === 'open'}
           onRequestClose={requestClose}
           onClosed={closed}
-          fab={{ size: Layout.navBarHeight, bottom: insets.bottom + Layout.navBarBottom, right: Layout.gutter, topCorner: TOP_CORNER }}
+          fab={{ size: Layout.navBarHeight, bottom: insets.bottom + Layout.navBarBottom, right: Layout.gutter, innerCorner: INNER_CORNER }}
         />
       )}
     </Animated.View>
@@ -163,13 +168,13 @@ const styles = StyleSheet.create({
     right: Layout.gutter,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: GROUP_GAP,
   },
   shape: {
-    borderTopLeftRadius: TOP_CORNER,
-    borderTopRightRadius: TOP_CORNER,
-    borderBottomLeftRadius: BOTTOM_CORNER,
-    borderBottomRightRadius: BOTTOM_CORNER,
+    borderTopLeftRadius: OUTER_CORNER,
+    borderBottomLeftRadius: OUTER_CORNER,
+    borderTopRightRadius: INNER_CORNER,
+    borderBottomRightRadius: INNER_CORNER,
   },
   bar: {
     flex: 1,
@@ -212,9 +217,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  /** Specific corners win over the morph's borderRadius: the top stays semi-round, the bottom morphs. */
-  fabTop: {
-    borderTopLeftRadius: TOP_CORNER,
-    borderTopRightRadius: TOP_CORNER,
+  /** Specific corners win over the morph's borderRadius: the inner (left) side stays tight, the outer side morphs. */
+  fabInner: {
+    borderTopLeftRadius: INNER_CORNER,
+    borderBottomLeftRadius: INNER_CORNER,
   },
 });

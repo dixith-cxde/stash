@@ -97,6 +97,17 @@ No AI / no cloud. Battery matters: no background polling.
 - Settings → Check saved links (`/links-check`, `src/features/links/check.ts`): user-started,
   4 at a time, lists Not loading / Couldn't check with Open, Archive, Delete.
 
+## Done 2026-11-14 (night, branch feat/m3e-overhaul)
+- M3 Expressive overhaul per `docs/m3-expressive.md`: M3 30-style type scale (+ editorial
+  "Stash"), collapsing large app bars (`ScreenHeader` + `CollapsedAppBar`), floating nav
+  connected to the + FAB (round outer ends, 8dp facing ends, label on active tab only),
+  FAB menu (Link / Note / File or PDF / Images), segmented lists (`src/ui/List.tsx`: feeds,
+  search, smart views, action sheets), item page floating toolbar + extended FAB, wavy
+  progress with stop dot, cookie→circle source avatars.
+- Colors: default palette = TonalSpot (2021) from seed #79D0FD, matched to the user's
+  reference screenshots (neutral blue-gray surfaces, sky-blue primary). A vivid Vibrant
+  palette was tried and rejected.
+
 ## Next
 Roadmap (in order, tracked at https://claude.ai/artifact/AimQzdGP6PGHB7FMd3RHHo): read-later queue
 on Home · highlights per item (jump to page, export) · search inside PDFs · duplicate warning +

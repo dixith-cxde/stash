@@ -24,7 +24,7 @@ const STAGGER_MS = 30;
 type Props = {
   items: FabMenuItem[];
   /** Where the FAB sits, so the close button lands exactly on it. */
-  fab: { size: number; bottom: number; right: number; topCorner: number };
+  fab: { size: number; bottom: number; right: number; innerCorner: number };
   /** False plays the exit; `onClosed` runs when it ends (unmount then). */
   open: boolean;
   /** Scrim, Back, close button or an item: ask the parent to set `open` to false. */
@@ -94,8 +94,8 @@ export function FabMenu({ items, fab, open, onRequestClose, onClosed }: Props) {
               height: fab.size,
               right: fab.right,
               bottom: fab.bottom,
-              borderTopLeftRadius: fab.topCorner,
-              borderTopRightRadius: fab.topCorner,
+              borderTopLeftRadius: fab.innerCorner,
+              borderBottomLeftRadius: fab.innerCorner,
               backgroundColor: colors.primary,
             },
           ]}

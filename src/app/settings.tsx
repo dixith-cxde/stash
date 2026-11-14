@@ -17,7 +17,7 @@ import { type Corners4, cornerStyle, useSelection } from '@/motion/useSelection'
 import { type ColorSource, type ThemeMode, useSettings } from '@/state/settings';
 import { useAppTheme } from '@/theme/AppTheme';
 import type { IconName } from '@/theme/icons';
-import { DEFAULT_SEED, vibrantPalette, SEED_COLORS } from '@/theme/palette';
+import { DEFAULT_SEED, expressivePalette, SEED_COLORS } from '@/theme/palette';
 import { Layout } from '@/theme/tokens';
 import { BackPill } from '@/ui/BackPill';
 import { ButtonGroup, type GroupItem } from '@/ui/ButtonGroup';
@@ -324,7 +324,7 @@ function PressRow({
 function Swatches({ value, onChange }: { value: string; onChange: (seed: string) => void }) {
   const { dark } = useAppTheme();
   const tones = useMemo(
-    () => SEED_COLORS.map((seed) => ({ seed, ...pick(vibrantPalette(seed, dark)) })),
+    () => SEED_COLORS.map((seed) => ({ seed, ...pick(expressivePalette(seed, dark)) })),
     [dark],
   );
   return (
@@ -336,7 +336,7 @@ function Swatches({ value, onChange }: { value: string; onChange: (seed: string)
   );
 }
 
-const pick = (p: ReturnType<typeof vibrantPalette>) => ({ primary: p.primary, onPrimary: p.onPrimary });
+const pick = (p: ReturnType<typeof expressivePalette>) => ({ primary: p.primary, onPrimary: p.onPrimary });
 
 const SWATCH = 36;
 

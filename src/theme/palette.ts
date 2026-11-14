@@ -1,4 +1,4 @@
-import { argbFromHex, Hct, hexFromArgb, SchemeVibrant, TonalPalette } from '@material/material-color-utilities';
+import { argbFromHex, Hct, hexFromArgb, SchemeExpressive, SchemeTonalSpot, TonalPalette } from '@material/material-color-utilities';
 
 export const ROLES = [
   'primary', 'onPrimary', 'primaryContainer', 'onPrimaryContainer', 'inversePrimary',
@@ -19,31 +19,44 @@ export type ColorRole = (typeof ROLES)[number];
 /** Material color roles as `#RRGGBB`. */
 export type ColorRoles = Record<ColorRole, string>;
 
-/** Stash's own seed: a saturated violet. The Vibrant scheme turns it into violet primaries, a
- * pink tertiary and violet-tinted surfaces (M3 Expressive "rich and nuanced color"). */
-export const STASH_SEED = '#6D3FE0';
+/**
+ * Stash's seed: a sky blue. Run through the calm TonalSpot scheme it gives blue-gray neutral
+ * surfaces (#0F1417 → #313539), a light blue primary, a blue-gray secondary for selection
+ * and a muted violet tertiary (matched to the reference screens the palette was chosen from).
+ */
+export const STASH_SEED = '#79D0FD';
 export const DEFAULT_SEED = STASH_SEED;
 
 const hex = (argb: number) => hexFromArgb(argb).toUpperCase();
 const cache = new Map<string, ColorRoles>();
 
 /**
- * Full Material palette from a seed with the *Vibrant* scheme variant and the 2025 color spec:
- * the most colorful M3 scheme, used for the Stash default and for custom seeds.
+ * Full Material palette from a seed using the *Expressive* scheme variant and the 2025
+ * color spec: livelier hues than TonalSpot.
  */
-export function vibrantPalette(seed: string, dark: boolean): ColorRoles {
+export function expressivePalette(seed: string, dark: boolean): ColorRoles {
   const key = `${seed}:${dark}`;
   const hit = cache.get(key);
   if (hit) return hit;
-  const scheme = new SchemeVibrant(Hct.fromInt(argbFromHex(seed)), dark, 0, '2025');
+  const scheme = new SchemeExpressive(Hct.fromInt(argbFromHex(seed)), dark, 0, '2025');
   const out = {} as ColorRoles;
   for (const role of ROLES) out[role] = hex((scheme as unknown as Record<ColorRole, number>)[role]);
   cache.set(key, out);
   return out;
 }
 
-/** The default Stash palette for one theme. */
-export const stashPalette = (dark: boolean) => vibrantPalette(STASH_SEED, dark);
+/** The default Stash palette: TonalSpot (2021 spec) from STASH_SEED, both themes. */
+function tonalSpotPalette(seed: string, dark: boolean): ColorRoles {
+  const scheme = new SchemeTonalSpot(Hct.fromInt(argbFromHex(seed)), dark, 0, '2021');
+  const out = {} as ColorRoles;
+  for (const role of ROLES) out[role] = hex((scheme as unknown as Record<ColorRole, number>)[role]);
+  return out;
+}
+
+export const STASH_PALETTE: Record<'light' | 'dark', ColorRoles> = {
+  dark: tonalSpotPalette(STASH_SEED, true),
+  light: tonalSpotPalette(STASH_SEED, false),
+};
 
 /** Colors for one collection, derived from its seed so they work in both themes. */
 export type CollectionTones = {
@@ -83,7 +96,7 @@ export const COLLECTION_SEEDS = [
 ] as const;
 
 /** Expressive seed palette offered in Settings (besides dynamic color). */
-export const SEED_COLORS = [STASH_SEED, '#B3261E', '#7D5260', '#006A6A', '#386A20', '#8B5000', '#0061A4', '#984061'];
+export const SEED_COLORS = [STASH_SEED, '#6750A4', '#B3261E', '#7D5260', '#006A6A', '#386A20', '#8B5000', '#0061A4', '#984061'];
 
 /** `#RRGGBB` + alpha 0..1 → `#RRGGBBAA`. */
 export function withAlpha(color: string, alpha: number): string {
