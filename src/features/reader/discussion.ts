@@ -32,7 +32,14 @@ export type Discussion = {
   comments: ReaderComment[];
 };
 
-export type ReaderMeta = { byline: string | null; siteName: string | null };
+/** `v`: the reader format the article was extracted with (absent on articles cached before v2). */
+export type ReaderMeta = { byline: string | null; siteName: string | null; v?: number };
+
+/**
+ * Current reader format. Bump it when extraction changes in a way cached articles should pick
+ * up (v2: Markdown tables); the reader re-extracts articles saved with an older one.
+ */
+export const READER_FORMAT = 2;
 
 export type ParsedArticle = { body: string; meta: ReaderMeta | null; discussion: Discussion | null };
 
@@ -55,7 +62,7 @@ const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFi
 /** The trailing block the extractor appends to the Markdown. Empty when there is nothing to add. */
 export function serializeExtras(meta: ReaderMeta | null, discussion: Discussion | null): string {
   const out: string[] = [];
-  if (meta && (meta.byline || meta.siteName)) out.push(`<!-- stash:meta ${json(meta)} -->`);
+  if (meta && (meta.byline || meta.siteName || meta.v)) out.push(`<!-- stash:meta ${json(meta)} -->`);
   if (discussion && discussion.comments.length) {
     out.push(`<!-- stash:discussion ${json({ title: discussion.title, count: discussion.count, url: discussion.url })} -->`);
     let total = 0;
@@ -104,7 +111,10 @@ function parseSerialized(md: string): ParsedArticle | null {
       continue;
     }
     finish();
-    if (m[1] === 'meta') meta = { byline: str(data.byline), siteName: str(data.siteName) };
+    if (m[1] === 'meta') {
+      const v = num(data.v);
+      meta = { byline: str(data.byline), siteName: str(data.siteName), ...(v ? { v } : {}) };
+    }
     else if (m[1] === 'discussion') discussion = { title: str(data.title), count: num(data.count), url: str(data.url), comments: [] };
     else {
       discussion ??= { title: null, count: null, url: null, comments: [] };

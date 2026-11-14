@@ -15,7 +15,7 @@ import {
 import type { Feed } from '@/db/schema';
 import { processPreviewQueue } from '@/features/preview/fetchPreview';
 
-import { extractArticle } from './extract';
+import { extractArticle, feedHtmlToMarkdown } from './extract';
 import { cleanTeaser, dropTitleHeading } from './format';
 import { discoverFeeds, looksLikeFeed, type ParsedFeed, parseFeed } from './parse';
 
@@ -84,7 +84,10 @@ async function resolveFeed(input: string): Promise<{ url: string; parsed: Parsed
 }
 
 function toRows(parsed: ParsedFeed) {
-  return parsed.items.map((i) => ({
+  return parsed.items.map((i) => {
+    // Full-text feeds: keep the article's own formatting (tables, quotes, code) for the reader.
+    const full = i.bodyHtml ? feedHtmlToMarkdown(i.bodyHtml, i.base ?? null) : null;
+    return {
     guid: i.guid,
     url: i.url,
     title: i.title || 'Untitled',
@@ -93,7 +96,9 @@ function toRows(parsed: ParsedFeed) {
     author: i.author,
     imageUrl: i.imageUrl,
     publishedAt: i.publishedAt,
-  }));
+    ...(full ? { article: dropTitleHeading(full.markdown, i.title), articleChars: full.chars } : {}),
+    };
+  });
 }
 
 /** Subscribe to a site or feed URL (autodiscovers the feed on a web page). Returns the feed id. */
@@ -189,15 +194,13 @@ export async function saveFeedItem(itemId: string): Promise<{ bookmarkId: string
   return { bookmarkId, existed: !!dup };
 }
 
-/** Below this many characters a feed body is a teaser: the reader fetches the full page. */
-const FULL_BODY_CHARS = 1500;
-
 const articleLoads = new Map<string, Promise<void>>();
 
 /**
  * Reader mode for one article: the first time it is opened (and only then), fetch its page
- * and extract the readable body as Markdown, cached on the row. Feeds that already carry the
- * full text are left alone. Battery: one request per article actually read.
+ * and extract the readable body as Markdown, cached on the row. Full-text feeds already have it
+ * (stored on sync). `force` re-extracts an article cached in an older reader format; a failed
+ * retry keeps the old copy. Battery: one request per article actually read.
  */
 export function loadArticle(item: {
   id: string;
@@ -205,9 +208,8 @@ export function loadArticle(item: {
   title: string;
   article: string | null;
   content: string | null;
-}): Promise<void> {
-  if (item.article !== null || !item.url || !/^https?:\/\//i.test(item.url)) return Promise.resolve();
-  if ((item.content?.length ?? 0) >= FULL_BODY_CHARS) return Promise.resolve();
+}, force = false): Promise<void> {
+  if ((item.article !== null && !force) || !item.url || !/^https?:\/\//i.test(item.url)) return Promise.resolve();
   const running = articleLoads.get(item.id);
   if (running) return running;
   const url = item.url;
@@ -215,8 +217,9 @@ export function loadArticle(item: {
     try {
       const res = await get(url, { Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.5' });
       const type = res.headers.get('content-type') ?? '';
-      if (!res.ok || !/html|xml/i.test(type)) return void (await setFeedItemArticle(item.id, '', 0));
+      if (!res.ok || !/html|xml/i.test(type)) return void (force || (await setFeedItemArticle(item.id, '', 0)));
       const found = extractArticle(await res.text(), res.url || url);
+      if (!found && force) return;
       await setFeedItemArticle(item.id, found ? dropTitleHeading(found.markdown, item.title) : '', found?.chars ?? 0);
     } catch {
       // Offline or blocked: leave it untried so the next open can retry.

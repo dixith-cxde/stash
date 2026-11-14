@@ -3,6 +3,9 @@ import { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { MarkdownView } from '@/features/notes/MarkdownView';
+import { EndMatter } from '@/features/reader/EndMatter';
+import { splitEndMatter } from '@/features/reader/endmatter';
 import { useColors } from '@/theme/AppTheme';
 import { Button } from '@/ui/Button';
 import { ButtonGroup } from '@/ui/ButtonGroup';
@@ -141,6 +144,15 @@ export default function Kit() {
         <Section title="Sheet">
           <Button label="Open sheet" variant="tonal" onPress={() => setSheet(true)} />
         </Section>
+
+        <Section title="Reader article">
+          <View style={{ marginHorizontal: -20 }}>
+            <View style={{ paddingHorizontal: 22 }}>
+              <MarkdownView markdown={READER_SAMPLE.body} reading baseUrl="https://example.com/post" />
+            </View>
+            <EndMatter author={READER_SAMPLE.author} tags={READER_SAMPLE.tags} related={READER_SAMPLE.related} onOpen={(u) => showSnackbar(u)} />
+          </View>
+        </Section>
       </ScrollView>
 
       {sheet && (
@@ -169,3 +181,32 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     </View>
   );
 }
+
+/** Reader sample: a table, quotes, inline and block code, then end matter (dev only). */
+const READER_SAMPLE = splitEndMatter(`Phones compared on the numbers that matter, with \`adb shell\` checks for each.
+
+| Phone | Battery | Weight | Price |
+| --- | :---: | ---: | ---: |
+| Pixel 10 | 4,970 mAh | 204 g | $799 |
+| Galaxy S26 | 4,000 mAh | 167 g | $799 |
+| **vivo** X300 Pro | 6,510 mAh | 226 g | $1,099 |
+
+> Battery size is not battery life.
+
+> A longer quoted passage keeps its own paragraphs.
+>
+> - and its lists
+> - with \`code\` too
+
+\`\`\`kotlin
+val phones = listOf("Pixel", "Galaxy", "vivo").map { it.uppercase() }.sortedByDescending { it.length }
+\`\`\`
+
+## Continue reading
+
+- [The best Android phones of the year](https://example.com/best)
+- [Why battery tests disagree](https://other.example.org/battery) – a look at the methods
+
+*Written by [Jane Doe](https://example.com/jane)*
+
+**Tags:** [Android](https://example.com/tag/android), [Phones](https://example.com/tag/phones), [Reviews](https://example.com/tag/reviews)`);

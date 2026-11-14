@@ -3,9 +3,10 @@ import { router } from 'expo-router';
 import { Lexer, type Token, type Tokens } from 'marked';
 import { Image } from 'expo-image';
 import { createContext, Fragment, use, useMemo, useState } from 'react';
-import { Platform, type TextStyle, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, type TextStyle, View } from 'react-native';
 
 import { resolveUrl } from '@/features/feeds/parse';
+import { fitColumns, tableColumnWidths } from '@/features/notes/table';
 import { readerImageUrl } from '@/features/reader/images';
 import { ReaderImage } from '@/features/reader/ReaderImage';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -188,16 +189,11 @@ function NoteBlock({ t, next, nextTask, onToggleTask, resolveLink }: BlockProps)
       return <Paragraph tokens={inline} resolveLink={resolveLink} />;
     }
     case 'blockquote':
-      return (
-        <View style={{ borderRadius: 24, padding: 16, paddingHorizontal: 18, backgroundColor: colors.tertiaryContainer, marginTop: 4 }}>
-          <Ico name="formatQuote" size={24} color={colors.onTertiaryContainer} />
-          <Text variant="quote" color="onTertiaryContainer" style={{ marginTop: 4 }}>
-            {(t as Tokens.Blockquote).tokens.map((b, i) =>
-              'tokens' in b && b.tokens ? <Inline key={i} tokens={b.tokens} resolveLink={resolveLink} /> : 'text' in b ? b.text : '',
-            )}
-          </Text>
-        </View>
-      );
+      return <QuoteBlock q={t as Tokens.Blockquote} resolveLink={resolveLink} />;
+    case 'table':
+      return <TableBlock t={t as Tokens.Table} resolveLink={resolveLink} />;
+    case 'html':
+      return <HtmlBlock html={(t as Tokens.HTML).text} />;
     case 'list': {
       const l = t as Tokens.List;
       return (
@@ -286,29 +282,12 @@ function ReaderBlock({ t, caption, resolveLink }: BlockProps) {
         </>
       );
     }
-    case 'blockquote': {
-      const content = (t as Tokens.Blockquote).tokens.map((b, i) =>
-        'tokens' in b && b.tokens ? <Inline key={i} tokens={b.tokens} resolveLink={resolveLink} /> : 'text' in b ? b.text : '',
-      );
-      if (compact) {
-        return (
-          <View style={{ marginTop: 8, flexDirection: 'row', gap: 10, borderRadius: 12, padding: 10, backgroundColor: colors.surfaceContainerHigh }}>
-            <View style={{ width: 3, borderRadius: 2, backgroundColor: colors.outline }} />
-            <Text variant="bodySmall" color="onSurfaceVariant" style={{ flex: 1 }}>
-              {content}
-            </Text>
-          </View>
-        );
-      }
-      return (
-        <View style={{ borderRadius: 24, padding: 16, paddingHorizontal: 18, backgroundColor: colors.tertiaryContainer, marginTop: 20 }}>
-          <Ico name="formatQuote" size={24} color={colors.onTertiaryContainer} />
-          <Text variant="quote" color="onTertiaryContainer" selectable style={{ marginTop: 4 }}>
-            {content}
-          </Text>
-        </View>
-      );
-    }
+    case 'blockquote':
+      return <QuoteBlock q={t as Tokens.Blockquote} resolveLink={resolveLink} />;
+    case 'table':
+      return <TableBlock t={t as Tokens.Table} resolveLink={resolveLink} />;
+    case 'html':
+      return <HtmlBlock html={(t as Tokens.HTML).text} />;
     case 'list':
       return <ReaderList list={t as Tokens.List} resolveLink={resolveLink} />;
     case 'code':
@@ -382,7 +361,7 @@ function Paragraph({ tokens, resolveLink }: { tokens: Token[]; resolveLink?: (ti
 
 function Inline({ tokens, resolveLink }: { tokens?: Token[]; resolveLink?: (title: string) => string | undefined }) {
   const { colors } = useAppTheme();
-  const { onOpenLink, baseUrl } = use(ReadingContext);
+  const { onOpenLink, baseUrl, reading } = use(ReadingContext);
   if (!tokens) return null;
   return (
     <>
@@ -407,11 +386,19 @@ function Inline({ tokens, resolveLink }: { tokens?: Token[]; resolveLink?: (titl
               </Text>
             );
           case 'codespan':
+            // A tonal chip behind the run (thin spaces pad it, nested Text has no padding).
             return (
-              <Text key={i} style={{ fontFamily: MONO_FAMILY, color: colors.tertiary, fontSize: 14 }}>
-                {(t as Tokens.Codespan).text}
+              <Text
+                key={i}
+                style={{ fontFamily: MONO_FAMILY, fontSize: reading ? 15 : 14, color: colors.onSecondaryContainer, backgroundColor: colors.secondaryContainer }}
+              >
+                {`\u2009${(t as Tokens.Codespan).text}\u2009`}
               </Text>
             );
+          case 'html': {
+            const h = (t as Tokens.HTML).text;
+            return /^<br\s*\/?>$/i.test(h.trim()) ? '\n' : '';
+          }
           case 'link': {
             const l = t as Tokens.Link;
             const href = baseUrl ? (resolveUrl(l.href, baseUrl) ?? l.href) : l.href;
@@ -495,9 +482,158 @@ function CodeBlock({ code, lang }: { code: string; lang?: string }) {
           </Text>
         </PressableSurface>
       </View>
-      <Text selectable style={{ fontFamily: MONO_FAMILY, fontSize: 13.5, lineHeight: 21, color: colors.tertiary, padding: 16, paddingTop: 10 }}>
-        {code}
+      {/* Code keeps its lines: long ones scroll sideways instead of wrapping. */}
+      <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingTop: 10 }}>
+        <Text selectable style={{ fontFamily: MONO_FAMILY, fontSize: 13.5, lineHeight: 21, color: colors.onSurface }}>
+          {code}
+        </Text>
+      </ScrollView>
+    </View>
+  );
+}
+
+/** Raw HTML the lexer passed through: its text only (tags dropped, <br> kept as breaks). */
+const htmlText = (html: string) =>
+  html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<\/?(p|div|li|tr|h[1-6])\b[^>]*>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{2,}/g, '\n')
+    .trim();
+
+function HtmlBlock({ html }: { html: string }) {
+  const { reading, compact } = use(ReadingContext);
+  const text = htmlText(html);
+  if (!text) return null;
+  return (
+    <Text variant={compact ? 'bodyMedium' : 'bodyLarge'} selectable={reading} style={{ marginTop: compact ? 8 : reading ? 18 : 16 }}>
+      {text}
+    </Text>
+  );
+}
+
+/**
+ * Block quotes. A short single-paragraph quote is a pull-quote card; longer quoted passages sit
+ * beside an accent bar and keep their own paragraphs, lists, code and nested quotes.
+ */
+function QuoteBlock({ q, resolveLink, nested = false }: { q: Tokens.Blockquote; resolveLink?: (title: string) => string | undefined; nested?: boolean }) {
+  const { colors } = useAppTheme();
+  const { reading, compact } = use(ReadingContext);
+  const blocks = q.tokens.filter((b) => b.type !== 'space');
+  const short = !nested && !compact && blocks.length === 1 && blocks[0].type === 'paragraph' && q.text.length <= 240;
+  if (short) {
+    return (
+      <View style={{ borderRadius: 24, padding: 16, paddingHorizontal: 18, backgroundColor: colors.tertiaryContainer, marginTop: reading ? 20 : 8 }}>
+        <Ico name="formatQuote" size={24} color={colors.onTertiaryContainer} />
+        <Text variant="quote" color="onTertiaryContainer" selectable={reading} style={[{ marginTop: 4 }, reading && { fontSize: 18, lineHeight: 27 }]}>
+          <Inline tokens={(blocks[0] as Tokens.Paragraph).tokens} resolveLink={resolveLink} />
+        </Text>
+      </View>
+    );
+  }
+  return (
+    <View style={{ flexDirection: 'row', gap: compact ? 10 : 14, marginTop: nested ? 10 : compact ? 8 : reading ? 20 : 12 }}>
+      <View style={{ width: compact ? 3 : 4, borderRadius: 2, backgroundColor: compact ? colors.outline : colors.tertiary }} />
+      <View style={{ flex: 1, paddingVertical: 2 }}>
+        <QuoteBody blocks={blocks} resolveLink={resolveLink} />
+      </View>
+    </View>
+  );
+}
+
+function QuoteBody({ blocks, resolveLink }: { blocks: Token[]; resolveLink?: (title: string) => string | undefined }) {
+  const { reading, compact } = use(ReadingContext);
+  const text = compact ? { fontSize: 14, lineHeight: 20 } : reading ? { fontSize: 17, lineHeight: 28 } : { fontSize: 16, lineHeight: 25 };
+  return (
+    <>
+      {blocks.map((b, i) => {
+        const gap = i ? (compact ? 6 : 12) : 0;
+        switch (b.type) {
+          case 'paragraph':
+          case 'text':
+            return (
+              <Text key={i} variant="bodyLarge" color="onSurfaceVariant" selectable={reading} style={[text, { marginTop: gap, fontStyle: 'italic' }]}>
+                <Inline tokens={(b as Tokens.Paragraph).tokens} resolveLink={resolveLink} />
+              </Text>
+            );
+          case 'heading':
+            return (
+              <Text key={i} variant="titleSmall" color="onSurfaceVariant" style={{ marginTop: gap }}>
+                <Inline tokens={(b as Tokens.Heading).tokens} resolveLink={resolveLink} />
+              </Text>
+            );
+          case 'list':
+            return <ReaderList key={i} list={b as Tokens.List} resolveLink={resolveLink} level={1} />;
+          case 'code':
+            return (
+              <View key={i} style={{ marginTop: gap || 4 }}>
+                <CodeBlock code={(b as Tokens.Code).text} lang={(b as Tokens.Code).lang} />
+              </View>
+            );
+          case 'blockquote':
+            return <QuoteBlock key={i} q={b as Tokens.Blockquote} resolveLink={resolveLink} nested />;
+          case 'table':
+            return <TableBlock key={i} t={b as Tokens.Table} resolveLink={resolveLink} />;
+          case 'html':
+            return <HtmlBlock key={i} html={(b as Tokens.HTML).text} />;
+          default:
+            return null;
+        }
+      })}
+    </>
+  );
+}
+
+/** A GFM table: tonal header row, divided rows, column alignment, sideways scroll when wide. */
+function TableBlock({ t, resolveLink }: { t: Tokens.Table; resolveLink?: (title: string) => string | undefined }) {
+  const { colors } = useAppTheme();
+  const { reading, compact } = use(ReadingContext);
+  const [available, setAvailable] = useState(0);
+  const base = useMemo(
+    () =>
+      tableColumnWidths([t.header, ...t.rows].map((r) => r.map((c) => plainOf(c.tokens) || c.text)), compact ? { charWidth: 7.6, max: 200 } : undefined),
+    [t, compact],
+  );
+  const widths = fitColumns(base, Math.max(0, available - 2));
+  const total = widths.reduce((a, b) => a + b, 0);
+  if (!t.rows.length) return null;
+  const cell = (c: Tokens.TableCell, k: number, header: boolean) => (
+    <View key={k} style={{ width: widths[k], paddingHorizontal: 12, paddingVertical: compact ? 6 : 10, justifyContent: 'center' }}>
+      <Text
+        variant={header ? 'labelLarge' : compact ? 'bodySmall' : 'bodyMedium'}
+        selectable={reading}
+        style={{ textAlign: t.align[k] ?? 'left', fontWeight: header ? '800' : undefined }}
+      >
+        <Inline tokens={c.tokens} resolveLink={resolveLink} />
       </Text>
+    </View>
+  );
+  return (
+    <View style={{ marginTop: compact ? 8 : reading ? 20 : 12 }} onLayout={(e) => setAvailable(Math.floor(e.nativeEvent.layout.width))}>
+      <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={total + 2 > available}>
+        <View style={{ width: total + 2, borderRadius: 16, borderWidth: 1, borderColor: colors.outlineVariant, overflow: 'hidden' }}>
+          <View style={{ flexDirection: 'row', backgroundColor: colors.surfaceContainerHigh }}>{t.header.map((c, k) => cell(c, k, true))}</View>
+          {t.rows.map((r, i) => (
+            <View
+              key={i}
+              style={{
+                flexDirection: 'row',
+                backgroundColor: i % 2 ? colors.surfaceContainerLow : colors.surface,
+                borderTopWidth: StyleSheet.hairlineWidth,
+                borderTopColor: colors.outlineVariant,
+              }}
+            >
+              {r.map((c, k) => cell(c, k, false))}
+            </View>
+          ))}
+        </View>
+      </ScrollView>
     </View>
   );
 }

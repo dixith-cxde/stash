@@ -1,8 +1,12 @@
+import { createContext, useContext } from 'react';
 import type { AccessibilityRole, StyleProp, ViewStyle } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, { type AnimatedRef, type MeasuredDimensions } from 'react-native-reanimated';
 
-import { type PressMorphKind, usePressMorph } from '@/motion/usePressMorph';
+import { type PressBlock, type PressMorphKind, usePressMorph } from '@/motion/usePressMorph';
+
+/** The nearest enclosing surface's gesture, for nested surfaces that set `blockParent`. */
+const ParentPress = createContext<PressBlock | null>(null);
 
 type Props = {
   children?: React.ReactNode;
@@ -22,6 +26,8 @@ type Props = {
   accessibilityLabel?: string;
   accessibilityRole?: AccessibilityRole;
   accessibilityState?: { selected?: boolean; checked?: boolean; disabled?: boolean };
+  /** Nested inside another surface (a button on a card): a press here never presses the parent. */
+  blockParent?: boolean;
 };
 
 /** A surface that morphs its shape when pressed. The base of every card, tile and button. */
@@ -41,7 +47,9 @@ export function PressableSurface({
   accessibilityLabel,
   accessibilityRole = 'button',
   accessibilityState,
+  blockParent,
 }: Props) {
+  const parent = useContext(ParentPress);
   const { gesture, style: morph } = usePressMorph({
     kind,
     corner,
@@ -53,20 +61,23 @@ export function PressableSurface({
     measureRef,
     onLongPress,
     disabled,
+    block: blockParent ? (parent ?? undefined) : undefined,
   });
   return (
-    <GestureDetector gesture={gesture}>
-      <Animated.View
-        style={[{ overflow: 'hidden' }, style, morph]}
-        accessible
-        accessibilityRole={accessibilityRole}
-        accessibilityLabel={accessibilityLabel}
-        accessibilityState={{ disabled, ...accessibilityState }}
-        accessibilityActions={[{ name: 'activate' }]}
-        onAccessibilityAction={(e) => e.nativeEvent.actionName === 'activate' && onPress?.()}
-      >
-        {children}
-      </Animated.View>
-    </GestureDetector>
+    <ParentPress.Provider value={gesture}>
+      <GestureDetector gesture={gesture}>
+        <Animated.View
+          style={[{ overflow: 'hidden' }, style, morph]}
+          accessible
+          accessibilityRole={accessibilityRole}
+          accessibilityLabel={accessibilityLabel}
+          accessibilityState={{ disabled, ...accessibilityState }}
+          accessibilityActions={[{ name: 'activate' }]}
+          onAccessibilityAction={(e) => e.nativeEvent.actionName === 'activate' && onPress?.()}
+        >
+          {children}
+        </Animated.View>
+      </GestureDetector>
+    </ParentPress.Provider>
   );
 }

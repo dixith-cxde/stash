@@ -6,6 +6,7 @@
 import {
   type Discussion,
   MAX_COMMENTS,
+  READER_FORMAT,
   type ReaderComment,
   serializeExtras,
   splitInlineThread,
@@ -616,31 +617,87 @@ function renderList(el: El, env: Env): string | null {
   return items.length ? items.join('\n') : null;
 }
 
-const hasBlockContent = (el: El) =>
-  findFirst(el, (d) => d !== el && /^(p|div|table|ul|ol|h[1-6]|blockquote|pre)$/.test(d.tag)) !== null;
+/** Rows of a table, not of tables nested in its cells. */
+function tableRows(table: El): El[] {
+  const rows: El[] = [];
+  const visit = (el: El) => {
+    for (const c of el.children) {
+      if (!isEl(c) || c.tag === 'table') continue;
+      if (c.tag === 'tr') rows.push(c);
+      else if (/^(thead|tbody|tfoot)$/.test(c.tag)) visit(c);
+    }
+  };
+  visit(table);
+  return rows;
+}
+
+const cellsOf = (row: El) => row.children.filter((c): c is El => isEl(c) && (c.tag === 'td' || c.tag === 'th'));
+
+/**
+ * A table used for page layout, not data: marked presentational, nesting another table, one
+ * column wide, or with cells that hold headings, code or long prose.
+ */
+function isLayoutTable(el: El, rows: El[]): boolean {
+  if (el.attrs.role === 'presentation' || el.attrs.role === 'none') return true;
+  if (findFirst(el, (d) => d !== el && d.tag === 'table')) return true;
+  if (!rows.length || Math.max(...rows.map((r) => cellsOf(r).length)) < 2) return true;
+  return rows.some((r) =>
+    cellsOf(r).some((c) => findFirst(c, (d) => HEADINGS.has(d.tag) || d.tag === 'pre') !== null || collapse(textOf(c)).length > 400),
+  );
+}
+
+/** One Markdown table cell: its blocks on one line, list items joined, pipes escaped. */
+function cellMarkdown(cell: El, env: Env): string {
+  return blocksOf(cell.children, env)
+    .map((b) =>
+      b
+        .split('\n')
+        .map((l) => l.replace(/^\s*(?:[-*+]|\d+\.)\s+/, '').trim())
+        .filter(Boolean)
+        .join('; '),
+    )
+    .filter((b) => !/^!\[/.test(b))
+    .join(' ')
+    .replace(/\|/g, '\\|')
+    .trim();
+}
+
+function cellAlign(cell: El | undefined): string {
+  const a = (cell?.attrs.align ?? /text-align\s*:\s*(\w+)/i.exec(cell?.attrs.style ?? '')?.[1] ?? '').toLowerCase();
+  return a === 'center' ? ':---:' : a === 'right' ? '---:' : '---';
+}
 
 function renderTable(el: El, env: Env, ctx: Ctx) {
-  if (hasBlockContent(el)) {
+  const rows = tableRows(el);
+  if (isLayoutTable(el, rows)) {
     // Layout table: treat cells as ordinary block containers.
     for (const c of el.children) walk(c, ctx);
     flush(ctx);
     return;
   }
-  const rows: string[] = [];
-  forEachEl(el, (r) => {
-    if (r.tag !== 'tr') return;
-    const cells = r.children
-      .filter((c): c is El => isEl(c) && (c.tag === 'td' || c.tag === 'th'))
-      .map((c) => inlineText(c.children, env))
-      .filter(Boolean);
-    if (cells.length) rows.push(cells.join(' | '));
-  });
   const caption = el.children.find((c): c is El => isEl(c) && c.tag === 'caption');
   if (caption) {
     const t = inlineText(caption.children, env);
     if (t) ctx.blocks.push(`*${t}*`);
   }
-  if (rows.length) ctx.blocks.push(rows.join('\n'));
+  const grid = rows.map((r) => cellsOf(r)).filter((cells) => cells.length);
+  // A header with no data rows (the page fills it in with script) says nothing on its own.
+  if (grid.length < 2 || grid.slice(1).every((cells) => cells.every((c) => !collapse(textOf(c))))) return;
+  const width = Math.max(...grid.map((cells) => cells.reduce((n, c) => n + Math.max(1, parseInt(c.attrs.colspan ?? '1', 10) || 1), 0)));
+  const lines = grid.map((cells) => {
+    const out: string[] = [];
+    for (const c of cells) {
+      out.push(cellMarkdown(c, env));
+      const span = Math.min(Math.max(1, parseInt(c.attrs.colspan ?? '1', 10) || 1), width);
+      for (let k = 1; k < span; k++) out.push('');
+    }
+    while (out.length < width) out.push('');
+    return `| ${out.slice(0, width).join(' | ')} |`;
+  });
+  if (!lines.length) return;
+  // GFM needs a header row: the first row (usually <th> cells) serves as one.
+  const align = Array.from({ length: width }, (_, k) => cellAlign(cellsOf(rows[Math.min(1, rows.length - 1)])[k]));
+  ctx.blocks.push([lines[0], `| ${align.join(' | ')} |`, ...lines.slice(1)].join('\n'));
 }
 
 const SKIP = words('video audio source track canvas map area object embed input select textarea option head caption');
@@ -940,7 +997,7 @@ export function extractArticle(html: string, pageUrl: string): Extracted | null 
       discussion = inline.discussion;
     }
   }
-  const extras = serializeExtras({ byline: meta.byline, siteName: meta.siteName }, discussion);
+  const extras = serializeExtras({ byline: meta.byline, siteName: meta.siteName, v: READER_FORMAT }, discussion);
   markdown = capMarkdown(markdown, MAX_MARKDOWN - (extras ? extras.length + 2 : 0));
   if (extras) markdown += `\n\n${extras}`;
 
@@ -952,4 +1009,19 @@ export function extractArticle(html: string, pageUrl: string): Extracted | null 
     imageUrl: meta.imageUrl,
     siteName: meta.siteName,
   };
+}
+
+/**
+ * An article body from a feed (`content:encoded`, Atom `content`) as reader Markdown, so
+ * full-text feeds keep their tables, quotes, code and lists. Null when it has too little text.
+ */
+export function feedHtmlToMarkdown(html: string, base: string | null): { markdown: string; chars: number } | null {
+  if (!html || html.length < 200) return null;
+  const doc = parseHtml(html);
+  clean(doc);
+  const chars = collapse(textOf(doc)).length;
+  if (chars < MIN_CHARS) return null;
+  const markdown = capMarkdown(toMarkdown(doc, { base: base ?? '', titles: new Set(), skippedTitle: true }), MAX_MARKDOWN - 200);
+  if (!markdown) return null;
+  return { markdown: `${markdown}\n\n${serializeExtras({ byline: null, siteName: null, v: READER_FORMAT }, null)}`, chars };
 }

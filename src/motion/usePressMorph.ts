@@ -41,7 +41,15 @@ type Options = {
   /** Hold to open a menu. While held long enough, the surface stays pressed, then the menu opens. */
   onLongPress?: () => void;
   disabled?: boolean;
+  /**
+   * Outer gesture(s) this press blocks: they wait for this one to fail, so a button nested in
+   * a card fires alone instead of also opening the card.
+   */
+  block?: PressBlock;
 };
+
+/** A gesture another press can block (see `Options.block`). */
+export type PressBlock = NonNullable<NonNullable<Parameters<typeof useTapGesture>[0]>['block']>;
 
 /** Hold this long (ms) for a long press. */
 const LONG_PRESS = 450;
@@ -72,6 +80,7 @@ export function usePressMorph({
   measureRef,
   onLongPress,
   disabled,
+  block,
 }: Options) {
   const springs = useSprings();
   const progress = useSharedValue(0);
@@ -85,6 +94,7 @@ export function usePressMorph({
     enabled: !disabled,
     maxDuration: 100_000,
     maxDistance: TAP_SLOP,
+    block,
     onBegin: () => {
       'worklet';
       tapped.set(false);
@@ -112,6 +122,7 @@ export function usePressMorph({
     enabled: !disabled && !!onLongPress,
     minDuration: LONG_PRESS,
     maxDistance: TAP_SLOP,
+    block,
     onActivate: () => {
       'worklet';
       tapped.set(true);

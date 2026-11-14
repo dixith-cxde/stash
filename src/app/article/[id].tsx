@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Share, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,10 +9,13 @@ import { useDbQuery } from '@/db/hooks';
 import { getFeedItem, markFeedItemRead } from '@/db/repo';
 import { hideArticle, saveArticle } from '@/features/feeds/ArticleCard';
 import { cleanTeaser, hostOf, markdownTextLength, readMinutes } from '@/features/feeds/format';
+import { FULL_TEXT_CHARS } from '@/features/feeds/parse';
 import { loadArticle } from '@/features/feeds/sync';
 import { MarkdownView } from '@/features/notes/MarkdownView';
-import { aggregatorInfo, parseReaderMarkdown } from '@/features/reader/discussion';
+import { aggregatorInfo, parseReaderMarkdown, READER_FORMAT } from '@/features/reader/discussion';
 import { DiscussionSection } from '@/features/reader/DiscussionSection';
+import { EndMatter } from '@/features/reader/EndMatter';
+import { splitEndMatter } from '@/features/reader/endmatter';
 import { readerImageUrl, sameImage } from '@/features/reader/images';
 import { MetaCard } from '@/features/reader/MetaCard';
 import { ReaderImage } from '@/features/reader/ReaderImage';
@@ -96,6 +99,19 @@ function ArticleBody() {
   // Parsed once per article: the body without its comment thread, the page byline, the thread.
   const full = readerMode && a?.article ? a.article : null;
   const parsed = useMemo(() => (full ? parseReaderMarkdown(full) : null), [full]);
+  // Related links, author and tags at the end become cards and chips instead of loose text.
+  const end = useMemo(() => (parsed ? splitEndMatter(parsed.body) : null), [parsed]);
+
+  // An article cached in an older reader format (before tables) is extracted again, once; the
+  // old copy stays on screen until the new one is saved.
+  const stale = readerMode && !!a?.article && !!parsed && (parsed.meta?.v ?? 0) < READER_FORMAT;
+  const retried = useRef<string | null>(null);
+  useEffect(() => {
+    if (!stale || !a || retried.current === a.id) return;
+    retried.current = a.id;
+    void loadArticle(a, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stale, itemId]);
   const content = a?.content ?? null;
   const summary = a?.summary ?? null;
   const aggregator = useMemo(() => aggregatorInfo(content, summary), [content, summary]);
@@ -106,8 +122,9 @@ function ArticleBody() {
 
   const tone = collectionTones(hostSeed(a.feedSiteUrl ?? a.url ?? a.feedTitle), dark);
   const quote = HIGHLIGHT_TONES.yellow[dark ? 'dark' : 'light'];
-  const fetching = needsFetch && !tried && isWeb(a.url);
   const teaser = cleanTeaser(a.content) ?? cleanTeaser(a.summary) ?? '';
+  // A full-text feed item cached before formatting was kept shows its text while the page loads.
+  const fetching = needsFetch && !tried && isWeb(a.url) && teaser.length < FULL_TEXT_CHARS;
   const paragraphs = teaser
     .split(/\n{2,}/)
     .map((p) => p.trim())
@@ -117,6 +134,8 @@ function ArticleBody() {
   const minutes = readMinutes(parsed ? Math.min(a.chars, markdownTextLength(parsed.body)) : a.chars);
   // On link aggregators the feed's author is whoever posted the link; the page byline is the writer.
   const byline = parsed?.meta?.byline ?? null;
+  const writer =
+    end?.author ?? (byline ? { name: byline, url: null, bio: null } : a.author && !aggregator ? { name: a.author, url: null, bio: null } : null);
   const author = byline ? `By ${byline}` : a.author ? (aggregator ? `Posted by ${a.author}` : `By ${a.author}`) : null;
   const leadImage = readerImageUrl(a.imageUrl, web);
   const showLead = !!leadImage && !(parsed && sameImage(leadImage, readerImageUrl(firstImage(parsed.body), web)));
@@ -162,8 +181,8 @@ function ArticleBody() {
         {showLead && leadImage ? <ReaderImage uri={leadImage} corner={28} style={styles.lead} /> : null}
 
         <View style={styles.body}>
-          {parsed && parsed.body.trim() ? (
-            <MarkdownView markdown={parsed.body} reading baseUrl={web} onOpenLink={openUrl} />
+          {end && end.body.trim() ? (
+            <MarkdownView markdown={end.body} reading baseUrl={web} onOpenLink={openUrl} />
           ) : fetching ? (
             <View style={styles.loading}>
               <LoadingIndicator size={48} />
@@ -198,6 +217,8 @@ function ArticleBody() {
             </View>
           )}
         </View>
+
+        {end && <EndMatter author={writer} tags={end.tags} related={end.related} onOpen={openUrl} />}
 
         <DiscussionSection discussion={parsed?.discussion ?? null} aggregator={aggregator} host={host} baseUrl={web} onOpen={openUrl} />
 

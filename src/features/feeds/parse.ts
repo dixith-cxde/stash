@@ -16,7 +16,14 @@ export type ParsedItem = {
   author: string | null;
   imageUrl: string | null;
   publishedAt: Date | null;
+  /** The item's own HTML body, kept only when it carries a whole article (FULL_TEXT_CHARS). */
+  bodyHtml?: string;
+  /** URL that relative links in `bodyHtml` resolve against. */
+  base?: string | null;
 };
+
+/** Text length from which a feed item's body counts as the whole article, not a teaser. */
+export const FULL_TEXT_CHARS = 1500;
 
 export type ParsedFeed = {
   title: string;
@@ -561,6 +568,7 @@ function finishItem(p: {
     author: p.author,
     imageUrl,
     publishedAt,
+    ...((content?.length ?? 0) >= FULL_TEXT_CHARS && p.bodyHtml ? { bodyHtml: p.bodyHtml, base: p.url ?? p.base } : {}),
   };
 }
 

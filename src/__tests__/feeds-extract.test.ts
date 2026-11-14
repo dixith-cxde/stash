@@ -1,4 +1,5 @@
-import { extractArticle } from '@/features/feeds/extract';
+import { extractArticle, feedHtmlToMarkdown } from '@/features/feeds/extract';
+import { parseReaderMarkdown, READER_FORMAT } from '@/features/reader/discussion';
 
 const LOREM =
   'Reader mode should keep the prose, which is the whole point, and drop everything around it, ' +
@@ -186,12 +187,59 @@ describe('extractArticle', () => {
     expect(b.siteName).toBeNull();
   });
 
-  it('renders tables as rows and caps markdown length', () => {
-    const table = `<table><tr><th>Name</th><th>Score</th></tr><tr><td>Ada</td><td>10</td></tr></table>`;
+  it('renders data tables as GFM tables and caps markdown length', () => {
+    const table = `<table><tr><th>Name</th><th>Score</th></tr><tr><td>Ada</td><td align="right">10</td></tr></table>`;
     const r = extractArticle(`<article><p>${LOREM}</p>${table}</article>`, 'https://x.example.com/')!;
-    expect(r.markdown).toContain('Name | Score\nAda | 10');
+    expect(r.markdown).toContain('| Name | Score |\n| --- | ---: |\n| Ada | 10 |');
 
     const huge = `<article>${Array.from({ length: 800 }, () => `<p>${LOREM}</p>`).join('')}</article>`;
     expect(extractArticle(huge, 'https://x.example.com/')!.markdown.length).toBeLessThanOrEqual(60_000);
+  });
+});
+
+describe('tables', () => {
+  const page = (table: string) => extractArticle(`<article><p>${LOREM}</p>${table}<p>${LOREM}</p></article>`, 'https://x.example.com/')!.markdown;
+
+  it('keeps cell formatting, escapes pipes, pads short rows and spans', () => {
+    const md = page(
+      `<table><thead><tr><th>Key</th><th>Value</th><th>Notes</th></tr></thead><tbody>` +
+        `<tr><td><code>a|b</code></td><td colspan="2"><p><strong>bold</strong></p></td></tr>` +
+        `<tr><td>only</td></tr></tbody></table>`,
+    );
+    expect(md).toContain('| Key | Value | Notes |\n| --- | --- | --- |\n| `a\\|b` | **bold** |  |\n| only |  |  |');
+  });
+
+  it('joins lists inside a cell', () => {
+    const md = page(`<table><tr><th>OS</th><th>Apps</th></tr><tr><td>Android</td><td><ul><li>Files</li><li>Mail</li></ul></td></tr></table>`);
+    expect(md).toContain('| Android | Files; Mail |');
+  });
+
+  it('treats layout tables as blocks', () => {
+    const md = page(`<table role="presentation"><tr><td><p>${LOREM}</p></td><td><p>Second column text here.</p></td></tr></table>`);
+    expect(md).not.toContain('|');
+    const one = page(`<table><tr><td>Just one column</td></tr><tr><td>Another row</td></tr></table>`);
+    expect(one).not.toContain('| ---');
+  });
+
+  it('marks extracted articles with the reader format', () => {
+    const r = extractArticle(`<article><p>${LOREM}</p></article>`, 'https://x.example.com/')!;
+    expect(parseReaderMarkdown(r.markdown).meta?.v).toBe(READER_FORMAT);
+  });
+});
+
+describe('feedHtmlToMarkdown', () => {
+  it('converts a full-text feed body, keeping tables and quotes', () => {
+    const html = `<p>${LOREM}</p><blockquote><p>Quoted words.</p></blockquote><table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table><p><a href="/next">Next</a></p>`;
+    const r = feedHtmlToMarkdown(html, 'https://blog.example.com/post')!;
+    const p = parseReaderMarkdown(r.markdown);
+    expect(p.body).toContain('> Quoted words.');
+    expect(p.body).toContain('| A | B |\n| --- | --- |\n| 1 | 2 |');
+    expect(p.body).toContain('[Next](https://blog.example.com/next)');
+    expect(p.meta?.v).toBe(READER_FORMAT);
+    expect(r.chars).toBeGreaterThan(150);
+  });
+
+  it('returns null for a teaser', () => {
+    expect(feedHtmlToMarkdown('<p>Short teaser.</p>', null)).toBeNull();
   });
 });
