@@ -83,6 +83,11 @@ export function CollectionPill({ c }: { c: Collection }) {
   );
 }
 
+/** Smart views pair up as split pills: full outer ends, 8dp where the two meet. */
+const SMART_H = 72;
+export const PILL_LEFT: Corners4 = [SMART_H / 2, 8, 8, SMART_H / 2];
+export const PILL_RIGHT: Corners4 = [8, SMART_H / 2, SMART_H / 2, 8];
+
 /** Smart view tile on Library (design: 72dp, icon tile + name + count). */
 export function SmartViewTile({
   href,
@@ -109,10 +114,10 @@ export function SmartViewTile({
       corner={24}
       corners={corners}
       accessibilityLabel={`${label}, ${detail}`}
-      style={{ flex: 1, height: 72 }}
+      style={{ flex: 1, height: SMART_H }}
       contentStyle={styles.smart}
     >
-      <View style={[styles.smallTile, { backgroundColor: tile.bg }]}>
+      <View style={[styles.smallTile, { borderRadius: 20, backgroundColor: tile.bg }]}>
         {icon ? (
           <Ico name={icon} size={20} color={tile.fg} />
         ) : (
@@ -137,6 +142,6 @@ const styles = StyleSheet.create({
   card: { padding: 16, justifyContent: 'space-between', overflow: 'hidden' },
   iconTile: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16 },
-  smart: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14 },
+  smart: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16 },
   smallTile: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
 });

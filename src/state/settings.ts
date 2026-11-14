@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
-export type HomeLayout = 'cards' | 'shapes';
+export type HomeLayout = 'cards' | 'compact';
 /** stash = the design's palette · wallpaper = Android dynamic color · seed = Expressive scheme from seedColor. */
 export type ColorSource = 'stash' | 'wallpaper' | 'seed';
 
