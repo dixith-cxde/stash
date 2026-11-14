@@ -4,7 +4,7 @@ import { View } from 'react-native';
 import Animated, { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CollectionRow } from '@/features/collections/CollectionRow';
+import { CollectionCarousel } from '@/features/collections/CollectionCarousel';
 import { Masonry } from '@/features/feed/Masonry';
 import { HomeTour } from '@/features/onboarding/HomeTour';
 import { type FeedFilter, matchesFilter } from '@/features/stash/model';
@@ -63,7 +63,7 @@ export default function Home() {
           />
           <SearchPill href="/find" />
 
-          <CollectionRow collections={collections} />
+          <CollectionCarousel collections={collections} />
 
           <View style={{ paddingHorizontal: Layout.gutter, paddingTop: 20, paddingBottom: 12 }}>
             <ButtonGroup items={FILTERS} value={filter} onChange={setFilter} accessibilityLabel="Filter by type" />
