@@ -21,6 +21,7 @@ import { ActionSheet } from '@/ui/ActionSheet';
 import { ButtonGroup } from '@/ui/ButtonGroup';
 import { EmptyState } from '@/ui/EmptyState';
 import { IconButton } from '@/ui/IconButton';
+import { LIST_GAP, type ListPosition, listPosition } from '@/ui/List';
 import { CollapsedAppBar, ScreenHeader } from '@/ui/ScreenHeader';
 import { showSnackbar } from '@/ui/Snackbar';
 import { Text } from '@/ui/Text';
@@ -38,7 +39,7 @@ const rowSignature = (a: FeedItemWithFeed) =>
 type Row =
   | { k: 'lead'; key: string; a: FeedItemWithFeed }
   | { k: 'day'; key: string; title: string; count: number }
-  | { k: 'item'; key: string; a: FeedItemWithFeed };
+  | { k: 'item'; key: string; a: FeedItemWithFeed; pos: ListPosition };
 
 /** Groups articles by day, the newest unread one lifted out as the top story. */
 function toRows(items: FeedItemWithFeed[], withLead: boolean): Row[] {
@@ -55,7 +56,7 @@ function toRows(items: FeedItemWithFeed[], withLead: boolean): Row[] {
   }
   for (const [title, list] of groups) {
     rows.push({ k: 'day', key: `day-${title}`, title, count: list.length });
-    for (const a of list) rows.push({ k: 'item', key: a.id, a });
+    list.forEach((a, i) => rows.push({ k: 'item', key: a.id, a, pos: listPosition(i, list.length) }));
   }
   return rows;
 }
@@ -193,7 +194,7 @@ export default function FeedsScreen() {
             </View>
           ) : (
             <View style={styles.item}>
-              <ArticleRow a={r.a} />
+              <ArticleRow a={r.a} position={r.pos} />
             </View>
           )
         }
@@ -268,5 +269,5 @@ export default function FeedsScreen() {
 const styles = StyleSheet.create({
   lead: { paddingHorizontal: Layout.gutter, paddingTop: 12 },
   day: { flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingHorizontal: Layout.gutter + 8, paddingTop: 24, paddingBottom: 10 },
-  item: { paddingHorizontal: Layout.gutter, paddingBottom: 4 },
+  item: { paddingHorizontal: Layout.gutter, paddingBottom: LIST_GAP },
 });

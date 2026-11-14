@@ -22,6 +22,7 @@ import { TransformCard } from '@/ui/TransformCard';
 
 import { cleanTeaser, readMinutes } from './format';
 import { SwipeRow } from './SwipeRow';
+import { cornersStyle, type ListPosition, listCorners } from '@/ui/List';
 import { saveFeedItem } from './sync';
 
 /** Hides an article from the list, with Undo. */
@@ -85,17 +86,18 @@ function SaveButton({ a }: { a: FeedItemWithFeed }) {
 }
 
 /** An article row: source tile or thumbnail, unread dot and meta, two-line title, save. */
-export const ArticleRow = memo(function ArticleRow({ a }: { a: FeedItemWithFeed }) {
+export const ArticleRow = memo(function ArticleRow({ a, position = 'single' }: { a: FeedItemWithFeed; position?: ListPosition }) {
   const { colors } = useAppTheme();
   const tone = useSourceTone(a);
   const unread = !a.readAt;
   const saved = !!a.bookmarkId;
   // Recycled by the list: per-row state resets when the cell shows another article.
   const [menu, setMenu] = useRecyclingState(false, [a.id]);
+  const corners = listCorners(position);
   return (
     <>
     <SwipeRow
-      radius={24}
+      radius={corners}
       resetKey={a.id}
       start={
         saved
@@ -111,7 +113,7 @@ export const ArticleRow = memo(function ArticleRow({ a }: { a: FeedItemWithFeed 
         onCommit: () => void hideArticle(a.id),
       }}
     >
-    <View style={[styles.row, { backgroundColor: unread ? colors.surfaceContainer : colors.surfaceContainerLow }]}>
+    <View style={[styles.row, cornersStyle(corners), { backgroundColor: unread ? colors.surfaceContainer : colors.surfaceContainerLow }]}>
       <TransformCard
         href={`/article/${a.id}`}
         color={unread ? colors.surfaceContainer : colors.surfaceContainerLow}
@@ -217,7 +219,7 @@ export const LeadCard = memo(function LeadCard({ a }: { a: FeedItemWithFeed }) {
 });
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingRight: 10, borderRadius: 24, overflow: 'hidden' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingRight: 10, overflow: 'hidden' },
   rowBody: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10 },
   tile: { width: 56, height: 56, borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 6 },

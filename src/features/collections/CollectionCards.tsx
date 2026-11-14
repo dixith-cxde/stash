@@ -9,6 +9,7 @@ import type { IconName } from '@/theme/icons';
 import { collectionTones } from '@/theme/palette';
 import { Ico } from '@/ui/Ico';
 import { Text } from '@/ui/Text';
+import type { Corners4 } from '@/motion/useSelection';
 import { TransformCard } from '@/ui/TransformCard';
 
 export function collectionSummary(c: Collection): string {
@@ -90,7 +91,9 @@ export function SmartViewTile({
   icon,
   glyph,
   tile,
+  corners,
 }: {
+  corners?: Corners4;
   href: `/collection/${string}`;
   label: string;
   detail: string;
@@ -104,6 +107,7 @@ export function SmartViewTile({
       href={href}
       color={colors.surfaceContainer}
       corner={24}
+      corners={corners}
       accessibilityLabel={`${label}, ${detail}`}
       style={{ flex: 1, height: 72 }}
       contentStyle={styles.smart}

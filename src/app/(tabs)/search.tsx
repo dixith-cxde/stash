@@ -19,7 +19,7 @@ import { Chip } from '@/ui/Chip';
 import { EmptyState } from '@/ui/EmptyState';
 import { Ico } from '@/ui/Ico';
 import { IconButton } from '@/ui/IconButton';
-import { PressableSurface } from '@/ui/PressableSurface';
+import { LIST_GAP, ListGroup, ListItem, type ListPosition, listCorners, listPosition } from '@/ui/List';
 import { CollapsedAppBar, ScreenHeader } from '@/ui/ScreenHeader';
 import { Text } from '@/ui/Text';
 
@@ -141,21 +141,18 @@ export default function SearchScreen() {
           <Text variant="titleSmallEmphasized" color="primary" style={styles.section}>
             Recent
           </Text>
-          {recent.map((r) => (
-            <PressableSurface
-              key={r}
-              corner={20}
-              onPress={() => run(r)}
-              accessibilityLabel={`Search for ${r}`}
-              style={[styles.recent, { backgroundColor: colors.surfaceContainerLow }]}
-            >
-              <Ico name="history" size={22} color={colors.onSurfaceVariant} />
-              <Text variant="bodyLarge" numberOfLines={1} style={{ flex: 1 }}>
-                {r}
-              </Text>
-              <IconButton icon="close" accessibilityLabel={`Remove ${r} from recent searches`} onPress={() => forget(r)} size={40} />
-            </PressableSurface>
-          ))}
+          <ListGroup>
+            {recent.map((r) => (
+              <ListItem
+                key={r}
+                title={r}
+                onPress={() => run(r)}
+                accessibilityLabel={`Search for ${r}`}
+                leading={<Ico name="history" size={22} color={colors.onSurfaceVariant} />}
+                trailing={<IconButton icon="close" accessibilityLabel={`Remove ${r} from recent searches`} onPress={() => forget(r)} size={40} />}
+              />
+            ))}
+          </ListGroup>
         </>
       )}
       {suggestions.length > 0 && (
@@ -185,7 +182,7 @@ export default function SearchScreen() {
       <Animated.FlatList
         data={query ? data.hits : []}
         keyExtractor={(h) => h.key}
-        renderItem={({ item }) => <ResultRow hit={item} />}
+        renderItem={({ item, index }) => <ResultRow hit={item} position={listPosition(index, data.hits.length)} />}
         ListHeaderComponent={header}
         ListEmptyComponent={
           !query ? (
@@ -211,10 +208,10 @@ export default function SearchScreen() {
   );
 }
 
-function ResultRow({ hit }: { hit: SmartHit }) {
+function ResultRow({ hit, position }: { hit: SmartHit; position: ListPosition }) {
   return (
-    <View style={styles.result}>
-      {hit.kind === 'bookmark' ? <ItemRow b={hit.b} /> : <HighlightResult h={hit.h} />}
+    <View style={[styles.result, hit.why && position !== 'last' && position !== 'single' ? { paddingBottom: 6 } : null]}>
+      {hit.kind === 'bookmark' ? <ItemRow b={hit.b} corners={listCorners(position)} /> : <HighlightResult h={hit.h} />}
       {hit.why ? (
         <Text variant="labelMedium" color="onSurfaceVariant" numberOfLines={1} style={styles.why}>
           {hit.why}
@@ -243,6 +240,6 @@ const styles = StyleSheet.create({
   section: { marginBottom: 8, paddingHorizontal: 8 },
   recent: { height: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 16, paddingRight: 4, marginBottom: 4 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  result: { paddingHorizontal: Layout.gutter, paddingVertical: 4 },
+  result: { paddingHorizontal: Layout.gutter, paddingBottom: LIST_GAP },
   why: { paddingHorizontal: 12, paddingTop: 4 },
 });

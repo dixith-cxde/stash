@@ -31,9 +31,12 @@ type Props = {
 };
 
 /**
- * M3 Expressive chip. Filter chips go from an outlined rounded square (10dp) to a filled
+ * M3 Expressive chip. Filter chips go from an outlined rounded square (12dp, androidx expressive chips) to a filled
  * pill (18dp) with a ✓ that fades in, widening on fastSpatial; colors use defaultEffects.
  */
+/** Expressive chip rest corner. */
+const REST = 12;
+
 export function Chip({ label, onPress, selected, icon, accessibilityLabel }: Props) {
   const colors = useColors();
   const filter = selected !== undefined;
@@ -46,13 +49,13 @@ export function Chip({ label, onPress, selected, icon, accessibilityLabel }: Pro
     onPress,
   });
 
-  const offBorder = colors.outline;
+  const offBorder = colors.outlineVariant;
   const onBg = colors.secondaryContainer;
   const offFg = colors.onSurfaceVariant;
   const onFg = colors.onSecondaryContainer;
 
   const box = useAnimatedStyle(() => {
-    const r = 10 + (H / 2 - 10) * sel.shape.get();
+    const r = REST + (H / 2 - REST) * sel.shape.get();
     const c = sel.color.get();
     return {
       ...cornerStyle([r, r, r, r], 8, progress.get()),

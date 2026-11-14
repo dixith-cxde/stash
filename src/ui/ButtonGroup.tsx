@@ -24,6 +24,7 @@ type Props<K extends string> = {
 };
 
 const INNER = 8;
+const INNER_PRESSED = 4;
 /** Selected segment grows from flex 1 to 1.4 (design). */
 const SELECTED_GROW = 0.4;
 
@@ -111,7 +112,8 @@ function Segment({
 
   const box = useAnimatedStyle(() => {
     const s = sel.shape.get();
-    const inner = INNER + (outer - INNER) * s;
+    // Inner corners: 8 at rest, 4 while pressed, full when selected (androidx ConnectedButtonGroup).
+    const inner = INNER - (INNER - INNER_PRESSED) * progress.get() * (1 - s) + (outer - INNER) * s;
     const l = first ? outer : inner;
     const r = last ? outer : inner;
     return {

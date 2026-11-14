@@ -10,6 +10,7 @@ import { Ico } from '@/ui/Ico';
 import { ProgressBar } from '@/ui/ProgressBar';
 import { PressableSurface } from '@/ui/PressableSurface';
 import { Text } from '@/ui/Text';
+import type { Corners4 } from '@/motion/useSelection';
 import { TransformCard } from '@/ui/TransformCard';
 
 /** Route for a bookmark: notes open the note reader, everything else the item page. */
@@ -65,11 +66,11 @@ function Art({ b, size }: { b: BookmarkWithTags; size: number }) {
 }
 
 /** Collection list row (design: 56dp art tile, meta, title, optional PDF progress). */
-export function ItemRow({ b }: { b: BookmarkWithTags }) {
+export function ItemRow({ b, corners }: { b: BookmarkWithTags; corners?: Corners4 }) {
   const { colors } = useAppTheme();
   const progress = b.pageCount && b.lastPage && b.lastPage > 1 ? b.lastPage / b.pageCount : 0;
   return (
-    <TransformCard href={itemHref(b)} color={colors.surfaceContainer} corner={20} accessibilityLabel={b.title} contentStyle={styles.row}>
+    <TransformCard href={itemHref(b)} color={colors.surfaceContainer} corner={20} corners={corners} accessibilityLabel={b.title} contentStyle={styles.row}>
       <View style={styles.rowArt}>
         <Art b={b} size={56} />
       </View>

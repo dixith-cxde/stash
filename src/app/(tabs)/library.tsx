@@ -15,6 +15,7 @@ import { Layout } from '@/theme/tokens';
 import { EmptyState } from '@/ui/EmptyState';
 import { Ico } from '@/ui/Ico';
 import { IconButton } from '@/ui/IconButton';
+import { LIST_GAP } from '@/ui/List';
 import { PressableSurface } from '@/ui/PressableSurface';
 import { CollapsedAppBar, Overline, ScreenHeader, SectionHeader } from '@/ui/ScreenHeader';
 import { Text } from '@/ui/Text';
@@ -53,11 +54,12 @@ export default function Library() {
           />
 
           <Overline>Smart views</Overline>
-          <View style={{ paddingHorizontal: Layout.gutter, gap: Layout.gridGap }}>
-            <View style={{ flexDirection: 'row', gap: Layout.gridGap }}>
+          <View style={{ paddingHorizontal: Layout.gutter, gap: LIST_GAP }}>
+            <View style={{ flexDirection: 'row', gap: LIST_GAP }}>
               <SmartViewTile
                 href="/collection/all"
                 label="All items"
+                corners={[24, 4, 4, 4]}
                 detail={String(totals.all)}
                 icon="gridView"
                 tile={{ bg: colors.surfaceContainerHighest, fg: colors.onSecondaryContainer }}
@@ -65,15 +67,17 @@ export default function Library() {
               <SmartViewTile
                 href="/collection/pdfs"
                 label="PDFs"
+                corners={[4, 24, 4, 4]}
                 detail={totals.pdfsInProgress ? `${totals.pdfs} · ${totals.pdfsInProgress} in progress` : String(totals.pdfs)}
                 glyph="PDF"
                 tile={{ bg: colors.tertiaryContainer, fg: colors.onTertiaryContainer }}
               />
             </View>
-            <View style={{ flexDirection: 'row', gap: Layout.gridGap }}>
+            <View style={{ flexDirection: 'row', gap: LIST_GAP }}>
               <SmartViewTile
                 href="/collection/notes"
                 label="Notes"
+                corners={[4, 4, 4, 24]}
                 detail={String(totals.notes)}
                 icon="markdown"
                 tile={{ bg: colors.secondaryContainer, fg: colors.onSecondaryContainer }}
@@ -81,6 +85,7 @@ export default function Library() {
               <SmartViewTile
                 href="/collection/highlights"
                 label="Highlights"
+                corners={[4, 4, 24, 4]}
                 detail={String(totals.highlights)}
                 icon="inkHighlighter"
                 tile={{ bg: colors.primaryContainer, fg: colors.onPrimaryContainer }}
