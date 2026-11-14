@@ -1,102 +1,138 @@
 import { router } from 'expo-router';
-import { memo } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { memo, useMemo } from 'react';
+import { useWindowDimensions, View } from 'react-native';
 import Animated from 'react-native-reanimated';
+import Svg, { ClipPath, Defs, Image as SvgImage, Path } from 'react-native-svg';
 
-import { enterRise, exitShrink, reflow } from '@/motion/layout';
-import { cardKind, type FeedItem, hostSeed, sourceLabel } from '@/features/stash/model';
-import { Shape } from '@/shapes/Shape';
+import type { BookmarkWithTags } from '@/db/repo';
+import { enterRise, exitShrink } from '@/motion/layout';
+import { cardKind, type FeedItem, hostSeed } from '@/features/stash/model';
+import { materialShape } from '@/shapes/materialShapes';
 import type { MaterialShapeName } from '@/shapes/names';
+import { svgPath } from '@/shapes/path';
 import { useAppTheme } from '@/theme/AppTheme';
 import { collectionTones } from '@/theme/palette';
 import { Layout } from '@/theme/tokens';
 import { PressableSurface } from '@/ui/PressableSurface';
 import { Text } from '@/ui/Text';
 
-/** Roomy shapes that leave space for a few lines of text. */
-const SHAPES: MaterialShapeName[] = ['circle', 'ghostish', 'arch', 'pill', 'oval', 'cookie4Sided', 'square', 'slanted', 'clover4Leaf', 'semiCircle'];
+/** How many items the playful face shows: only the main ones. */
+const MAX = 12;
 
-/** Stable pick per item: the same card keeps its shape across renders. */
-function pick(key: string): { shape: MaterialShapeName; rotation: number } {
-  let h = 0;
-  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
-  h = Math.abs(h);
-  const shape = SHAPES[h % SHAPES.length];
-  // Pills and ovals lean a little; the rest stay upright so text sits well.
-  const rotation = shape === 'pill' || shape === 'oval' ? ((h >> 4) % 2 ? -30 : 30) : 0;
-  return { shape, rotation };
+/**
+ * One scattered block (units of the content width): x, y, size, shape, rotation. The
+ * pattern repeats down the page, mirrored every other time.
+ */
+const SLOTS: { x: number; y: number; s: number; shape: MaterialShapeName; rot: number }[] = [
+  { x: 0.27, y: 0.04, s: 0.44, shape: 'cookie6Sided', rot: 0 },
+  { x: 0.76, y: 0.0, s: 0.2, shape: 'square', rot: 12 },
+  { x: 0.02, y: 0.36, s: 0.16, shape: 'circle', rot: 0 },
+  { x: 0.78, y: 0.34, s: 0.2, shape: 'pill', rot: -30 },
+  { x: 0.04, y: 0.58, s: 0.32, shape: 'cookie9Sided', rot: 10 },
+  { x: 0.56, y: 0.6, s: 0.38, shape: 'circle', rot: -8 },
+  { x: 0.4, y: 1.0, s: 0.24, shape: 'ghostish', rot: 0 },
+  { x: 0.02, y: 1.02, s: 0.24, shape: 'arch', rot: 0 },
+  { x: 0.74, y: 1.04, s: 0.22, shape: 'clover4Leaf', rot: 20 },
+];
+const BLOCK_H = 1.3;
+
+/** Main items first: favorites, then anything with a picture, newest first within each. */
+function mainItems(items: FeedItem[]): BookmarkWithTags[] {
+  const books = items.flatMap((f) => (f.kind === 'bookmark' ? [f.item] : []));
+  const art = (b: BookmarkWithTags) => !!(b.thumbPath ?? b.imageUrl);
+  const score = (b: BookmarkWithTags) => (b.isFavorite ? 2 : 0) + (art(b) ? 1 : 0);
+  return books
+    .filter((b) => b.isFavorite || art(b))
+    .sort((a, b) => score(b) - score(a))
+    .slice(0, MAX);
 }
 
 /**
- * Home's playful face: every saved item sits inside a scattered M3 shape (circle, ghost,
- * arch, pill…), two loose columns with the second one offset.
+ * Home's playful face: a loose collage of the main saved items, each cut into an M3 shape
+ * (cookie, circle, pill, arch, ghost…) and scattered across the page.
  */
 export function ShapeWall({ items }: { items: FeedItem[] }) {
   const { width } = useWindowDimensions();
-  const size = Math.floor((width - Layout.gutter * 2 - Layout.gridGap) / 2);
-  const cols: FeedItem[][] = [[], []];
-  items.forEach((f, i) => cols[i % 2].push(f));
+  const w = width - Layout.gutter * 2;
+  const main = useMemo(() => mainItems(items), [items]);
+  if (!main.length) {
+    return (
+      <Text variant="bodyMedium" color="onSurfaceVariant" style={{ paddingHorizontal: Layout.textInset, paddingTop: 8 }}>
+        Favorites and items with pictures show up here.
+      </Text>
+    );
+  }
+  const blocks = Math.ceil(main.length / SLOTS.length);
+  const lastSlot = SLOTS[(main.length - 1) % SLOTS.length];
+  const height = ((blocks - 1) * BLOCK_H + lastSlot.y + lastSlot.s) * w + 16;
   return (
-    <View style={{ flexDirection: 'row', gap: Layout.gridGap, paddingHorizontal: Layout.gutter, alignItems: 'flex-start' }}>
-      {cols.map((col, c) => (
-        <View key={c} style={{ width: size, gap: Layout.gridGap, paddingTop: c === 1 ? size / 3 : 0 }}>
-          {col.map((f) => (
-            <Animated.View key={f.key} layout={reflow} entering={enterRise} exiting={exitShrink}>
-              <ShapeTile f={f} size={size} />
-            </Animated.View>
-          ))}
-        </View>
-      ))}
+    <View style={{ marginHorizontal: Layout.gutter, height }} accessibilityRole="list">
+      {main.map((b, i) => {
+        const block = Math.floor(i / SLOTS.length);
+        const slot = SLOTS[i % SLOTS.length];
+        const mirror = block % 2 === 1;
+        const size = slot.s * w;
+        const left = (mirror ? 1 - slot.x - slot.s : slot.x) * w;
+        const top = (block * BLOCK_H + slot.y) * w;
+        return (
+          <Animated.View key={b.id} entering={enterRise} exiting={exitShrink} style={{ position: 'absolute', left, top }}>
+            <ShapeTile b={b} size={size} shape={slot.shape} rotation={mirror ? -slot.rot : slot.rot} />
+          </Animated.View>
+        );
+      })}
     </View>
   );
 }
 
-const ShapeTile = memo(function ShapeTile({ f, size }: { f: FeedItem; size: number }) {
+const ShapeTile = memo(function ShapeTile({
+  b,
+  size,
+  shape,
+  rotation,
+}: {
+  b: BookmarkWithTags;
+  size: number;
+  shape: MaterialShapeName;
+  rotation: number;
+}) {
   const { colors, dark } = useAppTheme();
-  const { shape, rotation } = pick(f.key);
-  let bg: string;
-  let fg: string;
-  let title: string;
-  let label: string;
-  let href: string;
-  if (f.kind === 'highlight') {
-    const h = f.highlight;
-    bg = colors.tertiaryContainer;
-    fg = colors.onTertiaryContainer;
-    title = `“${h.text}”`;
-    label = 'Highlight';
-    href = h.bookmarkId ? `/item/${h.bookmarkId}` : `/highlight/${h.id}`;
-  } else {
-    const b = f.item;
-    const note = cardKind(b) === 'note';
-    const tone = collectionTones(hostSeed(b.url ?? b.title), dark);
-    bg = note ? colors.secondaryContainer : tone.container;
-    fg = note ? colors.onSecondaryContainer : tone.onContainer;
-    title = b.title || (b.content ?? '').trim() || 'Untitled';
-    label = note ? 'Note' : sourceLabel(b);
-    href = note ? `/note/${b.id}` : `/item/${b.id}`;
-  }
+  const d = useMemo(() => svgPath(materialShape(shape), size, rotation), [shape, size, rotation]);
+  const art = b.thumbPath ?? b.imageUrl;
+  const note = cardKind(b) === 'note';
+  const tone = collectionTones(hostSeed(b.url ?? b.title), dark);
+  const title = b.title || 'Untitled';
+  const clip = `clip-${b.id}`;
   return (
     <PressableSurface
       kind="card"
       corner={size / 2}
-      onPress={() => router.push(href as never)}
-      accessibilityLabel={`${title}. ${label}`}
+      onPress={() => router.push((note ? `/note/${b.id}` : `/item/${b.id}`) as never)}
+      accessibilityLabel={title}
       style={{ width: size, height: size, backgroundColor: 'transparent' }}
     >
-      <Shape name={shape} size={size} color={bg} rotation={rotation} style={StyleSheet.absoluteFill} />
-      <View style={[styles.content, { padding: size * 0.2 }]}>
-        <Text variant="labelLargeEmphasized" color={fg} numberOfLines={3} style={{ textAlign: 'center' }}>
-          {title}
-        </Text>
-        <Text variant="labelSmall" color={fg} numberOfLines={1} style={{ textAlign: 'center', opacity: 0.75, marginTop: 4 }}>
-          {label}
-        </Text>
-      </View>
+      <Svg width={size} height={size} pointerEvents="none">
+        <Defs>
+          <ClipPath id={clip}>
+            <Path d={d} />
+          </ClipPath>
+        </Defs>
+        <Path d={d} fill={note ? colors.secondaryContainer : tone.container} />
+        {art ? (
+          <SvgImage href={art} width={size} height={size} preserveAspectRatio="xMidYMid slice" clipPath={`url(#${clip})`} />
+        ) : null}
+      </Svg>
+      {!art && (
+        <View style={{ position: 'absolute', inset: size * 0.22, alignItems: 'center', justifyContent: 'center' }} pointerEvents="none">
+          <Text
+            variant={size > 120 ? 'labelLargeEmphasized' : 'labelSmall'}
+            color={note ? colors.onSecondaryContainer : tone.onContainer}
+            numberOfLines={3}
+            style={{ textAlign: 'center' }}
+          >
+            {title}
+          </Text>
+        </View>
+      )}
     </PressableSurface>
   );
-});
-
-const styles = StyleSheet.create({
-  content: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
 });

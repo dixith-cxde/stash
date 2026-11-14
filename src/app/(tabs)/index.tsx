@@ -4,7 +4,7 @@ import { ScrollView, View } from 'react-native';
 import Animated, { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BLOCK_H, CollectionBlock, NewCollectionBlock } from '@/features/collections/CollectionCards';
+import { BLOCK_GAP, blockCorners, CollectionBlock, NewCollectionBlock } from '@/features/collections/CollectionCards';
 import { Masonry } from '@/features/feed/Masonry';
 import { ShapeWall } from '@/features/feed/ShapeWall';
 import { HomeTour } from '@/features/onboarding/HomeTour';
@@ -17,6 +17,7 @@ import { Layout } from '@/theme/tokens';
 import { ButtonGroup } from '@/ui/ButtonGroup';
 import { EmptyState } from '@/ui/EmptyState';
 import { IconButton } from '@/ui/IconButton';
+import { IconToggleGroup } from '@/ui/IconToggleGroup';
 import { CollapsedAppBar, ScreenHeader } from '@/ui/ScreenHeader';
 import { SearchPill } from '@/ui/SearchPill';
 
@@ -40,10 +41,10 @@ export default function Home() {
   const visible = feed.filter((f) => matchesFilter(f, filter));
   const layout = useSettings((s) => s.homeLayout);
   const setLayout = useSettings((s) => s.setHomeLayout);
-  // Collections in columns of two, then the "New collection" block.
-  const blocks: (string | (typeof collections)[number])[] = [...collections, 'new'];
-  const columns: (typeof blocks)[] = [];
-  for (let i = 0; i < blocks.length; i += 2) columns.push(blocks.slice(i, i + 2));
+  // Collections as one connected group in two rows; "New collection" closes it.
+  const blocks: ((typeof collections)[number] | 'new')[] = [...collections, 'new'];
+  const half = Math.ceil(blocks.length / 2);
+  const rows = [blocks.slice(0, half), blocks.slice(half)].filter((r) => r.length);
 
   // First launch: the welcome pages, then a short tour of Home.
   const onboarded = useSettings((s) => s.onboarded);
@@ -57,10 +58,14 @@ export default function Home() {
 
   const actions = (
     <>
-      <IconButton
-        icon={layout === 'shapes' ? 'gridView' : 'category'}
-        accessibilityLabel={layout === 'shapes' ? 'Show as cards' : 'Show as shapes'}
-        onPress={() => setLayout(layout === 'shapes' ? 'cards' : 'shapes')}
+      <IconToggleGroup
+        items={[
+          { key: 'cards', icon: 'gridView', label: 'Cards' },
+          { key: 'shapes', icon: 'category', label: 'Playful' },
+        ]}
+        value={layout === 'shapes' ? 'shapes' : 'cards'}
+        onChange={setLayout}
+        accessibilityLabel="Home layout"
       />
       <SettingsButton />
     </>
@@ -85,21 +90,20 @@ export default function Home() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: Layout.gutter, paddingTop: 16, gap: 8 }}
+            contentContainerStyle={{ paddingHorizontal: Layout.gutter, paddingTop: 16 }}
             accessibilityRole="list"
             accessibilityLabel="Collections"
           >
-            {columns.map((col, i) => (
-              <View key={i} style={{ gap: 8, height: BLOCK_H * 2 + 8 }}>
-                {col.map((c) =>
-                  c === 'new' ? (
-                    <NewCollectionBlock key="new" onPress={() => router.push('/collection/new')} />
-                  ) : typeof c === 'string' ? null : (
-                    <CollectionBlock key={c.id} c={c} />
-                  ),
-                )}
-              </View>
-            ))}
+            <View style={{ gap: BLOCK_GAP }}>
+              {rows.map((row, r) => (
+                <View key={r} style={{ flexDirection: 'row', gap: BLOCK_GAP }}>
+                  {row.map((c, i) => {
+                    const corners = blockCorners(r as 0 | 1, i, row.length, rows[1 - r]?.length ?? 0);
+                    return c === 'new' ? <NewCollectionBlock key="new" corners={corners} /> : <CollectionBlock key={c.id} c={c} corners={corners} />;
+                  })}
+                </View>
+              ))}
+            </View>
           </ScrollView>
 
           <View style={{ paddingHorizontal: Layout.gutter, paddingTop: 20, paddingBottom: 12 }}>

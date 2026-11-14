@@ -8,7 +8,6 @@ import { useAppTheme } from '@/theme/AppTheme';
 import type { IconName } from '@/theme/icons';
 import { collectionTones } from '@/theme/palette';
 import { Ico } from '@/ui/Ico';
-import { PressableSurface } from '@/ui/PressableSurface';
 import { Text } from '@/ui/Text';
 import type { Corners4 } from '@/motion/useSelection';
 import { TransformCard } from '@/ui/TransformCard';
@@ -84,25 +83,41 @@ export function CollectionPill({ c }: { c: Collection }) {
   );
 }
 
-export const BLOCK_W = 184;
-export const BLOCK_H = 64;
+export const BLOCK_W = 176;
+export const BLOCK_H = 60;
+/** Connected group gap and corners (like the nav bar and add button). */
+export const BLOCK_GAP = 3;
+const OUTER = 28;
+const INNER = 8;
 
-/** Long collection block for Home's collection group: icon tile, name and counts. */
-export function CollectionBlock({ c }: { c: Collection }) {
+/**
+ * Corners for a block in Home's two-row collection group: the group's four outside corners
+ * are large, every corner where blocks meet is small.
+ */
+export function blockCorners(row: 0 | 1, col: number, rowLen: number, otherLen: number): Corners4 {
+  const first = col === 0;
+  const last = col === rowLen - 1;
+  // A longer top row also closes the group's bottom-right corner.
+  const sticksOut = row === 0 && last && rowLen > otherLen;
+  return row === 0
+    ? [first ? OUTER : INNER, last ? OUTER : INNER, sticksOut ? OUTER : INNER, first && otherLen === 0 ? OUTER : INNER]
+    : [INNER, last && rowLen > otherLen ? OUTER : INNER, last ? OUTER : INNER, first ? OUTER : INNER];
+}
+
+/** Long collection block inside Home's connected collection group. */
+export function CollectionBlock({ c, corners }: { c: Collection; corners: Corners4 }) {
   const { dark } = useAppTheme();
   const tone = collectionTones(folderSeed(c), dark);
   return (
     <TransformCard
       href={`/collection/${c.id}`}
       color={tone.container}
-      corner={20}
+      corners={corners}
       accessibilityLabel={`${c.name}, ${collectionSummary(c)}`}
       style={{ width: BLOCK_W, height: BLOCK_H }}
       contentStyle={styles.block}
     >
-      <View style={[styles.smallTile, { backgroundColor: tone.onContainer }]}>
-        <Ico name={folderIcon(c)} size={20} color={tone.container} />
-      </View>
+      <Ico name={folderIcon(c)} size={22} color={tone.onContainer} />
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text variant="labelLargeEmphasized" color={tone.onContainer} numberOfLines={1}>
           {c.name}
@@ -115,24 +130,23 @@ export function CollectionBlock({ c }: { c: Collection }) {
   );
 }
 
-/** "New collection" block: same size as the others, outlined so it reads as an action. */
-export function NewCollectionBlock({ onPress }: { onPress: () => void }) {
+/** The group's last block: "New collection", same shape language, primary so it reads as the action. */
+export function NewCollectionBlock({ corners }: { corners: Corners4 }) {
   const { colors } = useAppTheme();
   return (
-    <PressableSurface
-      kind="card"
-      corner={20}
-      onPress={onPress}
+    <TransformCard
+      href="/collection/new"
+      color={colors.primaryContainer}
+      corners={corners}
       accessibilityLabel="New collection"
-      style={[styles.block, { width: BLOCK_W, height: BLOCK_H, borderWidth: 1, borderColor: colors.outlineVariant }]}
+      style={{ width: BLOCK_W, height: BLOCK_H }}
+      contentStyle={styles.block}
     >
-      <View style={[styles.smallTile, { backgroundColor: colors.secondaryContainer }]}>
-        <Ico name="add" size={22} color={colors.onSecondaryContainer} />
-      </View>
-      <Text variant="labelLargeEmphasized" color="onSurfaceVariant">
+      <Ico name="add" size={24} color={colors.onPrimaryContainer} />
+      <Text variant="labelLargeEmphasized" color={colors.onPrimaryContainer}>
         New collection
       </Text>
-    </PressableSurface>
+    </TransformCard>
   );
 }
 
@@ -189,7 +203,7 @@ export function SmartViewTile({
 const styles = StyleSheet.create({
   card: { padding: 16, justifyContent: 'space-between', overflow: 'hidden' },
   iconTile: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  block: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12 },
+  block: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18 },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16 },
   smart: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14 },
   smallTile: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
