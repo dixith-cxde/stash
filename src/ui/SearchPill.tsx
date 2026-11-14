@@ -8,6 +8,7 @@ import { Layout } from '@/theme/tokens';
 import { Ico } from './Ico';
 import { PressableSurface } from './PressableSurface';
 import { Text } from './Text';
+import { TourTarget } from './TourTarget';
 
 const CORNER = 28;
 
@@ -26,6 +27,7 @@ export function SearchPill({ href, placeholder = 'Search your stash' }: { href: 
       collapsable={false}
       style={{ marginHorizontal: Layout.gutter, marginTop: 16, opacity: hidden ? 0 : 1 }}
     >
+      <TourTarget id="search" radius={CORNER}>
       <PressableSurface
         corner={CORNER}
         pressedCorner={20}
@@ -42,6 +44,7 @@ export function SearchPill({ href, placeholder = 'Search your stash' }: { href: 
           {placeholder}
         </Text>
       </PressableSurface>
+      </TourTarget>
     </Animated.View>
   );
 }
