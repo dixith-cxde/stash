@@ -75,7 +75,8 @@ with their folders and tags.
 
 ## License
 
-Stash is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE). You can use,
-change and share it for personal, hobby, research, educational or other noncommercial purposes.
-You may not use it, or anything built from it, to make money or run a business. For commercial
-use, ask the author for a separate license.
+Stash is licensed under [CC BY-NC-SA 4.0](LICENSE) (Creative Commons
+Attribution-NonCommercial-ShareAlike 4.0). You can use, fork, change and share it freely, as long
+as you credit the author ([dixith-cxde](https://github.com/dixith-cxde/stash)), don't use it to
+make money or run a business, and release your changed versions under the same license. For
+commercial use, ask the author for a separate license.
