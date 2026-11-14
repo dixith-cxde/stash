@@ -51,3 +51,8 @@ modules/**/android/build/
 
 # IDE
 .idea/
+
+# AI assistant files (kept locally, not in the repo)
+.claude/
+CLAUDE.md
+AGENTS.md
