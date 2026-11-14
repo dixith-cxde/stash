@@ -2,7 +2,7 @@
   "expo": {
     "name": "Stash",
     "slug": "stash",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "stash",
@@ -19,7 +19,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": true,
-      "package": "app.stash.bookmarks"
+      "package": "app.stash.bookmarks",
+      "versionCode": 2
     },
     "web": {
       "output": "server",
@@ -32,7 +33,7 @@
         {
           "backgroundColor": "#FEF7FF",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76,
+          "imageWidth": 100,
           "dark": {
             "backgroundColor": "#141218",
             "image": "./assets/images/splash-icon-dark.png"
