@@ -14,6 +14,7 @@ import { formatBytes } from '@/features/files/kinds';
 import { cardKind, highlightsMarkdown, hostSeed, kindIcon, kindLabel, openAction, readingMinutes, sourceLabel } from '@/features/stash/model';
 import { relativeTime } from '@/lib/format';
 import { openItem } from '@/lib/nav';
+import { EditItemSheet } from '@/features/detail/EditItemSheet';
 import { SwipeRow } from '@/features/feeds/SwipeRow';
 import { haptic } from '@/motion/haptics';
 import { TransitionScreen, useTransitionClose } from '@/motion/transition/TransitionScreen';
@@ -46,6 +47,7 @@ function ItemBody() {
   const { data: b } = useDbQuery(() => getBookmark(id), [id], null);
   const { data: hls } = useDbQuery(() => queryHighlights({ bookmarkId: id }), [id], []);
   const [menu, setMenu] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => scrollY.set(e.contentOffset.y));
@@ -190,11 +192,13 @@ function ItemBody() {
         <IconButton icon="moreVert" accessibilityLabel="More" onPress={() => setMenu(true)} />
       </FloatingToolbar>
 
+      {editing && <EditItemSheet b={b} onDismiss={() => setEditing(false)} />}
       {menu && (
         <ActionSheet
           title={b.title}
           onDismiss={() => setMenu(false)}
           actions={[
+            { label: 'Edit', icon: 'edit' as const, onPress: () => setEditing(true) },
             ...(b.url ? [{ label: 'Copy link', icon: 'contentCopy' as const, onPress: () => void copy(b.url!) }] : []),
             {
               label: b.isArchived ? 'Unarchive' : 'Archive',

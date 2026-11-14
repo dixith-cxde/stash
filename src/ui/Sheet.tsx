@@ -7,6 +7,7 @@ import {
 } from "react";
 import {
   BackHandler,
+  Keyboard,
   type LayoutChangeEvent,
   Pressable,
   type ScrollViewProps,
@@ -40,6 +41,11 @@ type Props = {
   /** Content; a function receives `close` to dismiss with the exit animation. */
   children: React.ReactNode | ((close: () => void) => React.ReactNode);
   accessibilityLabel: string;
+  /**
+   * Only an explicit action closes it (its buttons, Back): scrim taps just hide the keyboard
+   * and a drag down springs back. For forms where an accidental close loses typing.
+   */
+  persistent?: boolean;
 };
 
 /** Fraction of the sheet height past which a release dismisses it. */
@@ -64,7 +70,7 @@ const SheetPanContext = createContext<PanGesture | null>(null);
  * long part in a `SheetScrollView`, which shrinks to fit and scrolls. Drags on that list
  * scroll it; drags anywhere else (handle, title, buttons) still move the sheet.
  */
-export function Sheet({ onDismiss, children, accessibilityLabel }: Props) {
+export function Sheet({ onDismiss, children, accessibilityLabel, persistent = false }: Props) {
   const colors = useColors();
   const springs = useSprings();
   const insets = useSafeAreaInsets();
@@ -123,8 +129,9 @@ export function Sheet({ onDismiss, children, accessibilityLabel }: Props) {
       "worklet";
       const v = e.velocityY;
       if (
-        v > DISMISS_VELOCITY ||
-        (y.get() > height.get() * DISMISS_FRACTION && v > -200)
+        !persistent &&
+        (v > DISMISS_VELOCITY ||
+          (y.get() > height.get() * DISMISS_FRACTION && v > -200))
       ) {
         y.set(
           springTo(height.get() + 40, springs.fastSpatial, v, (done) => {
@@ -164,7 +171,11 @@ export function Sheet({ onDismiss, children, accessibilityLabel }: Props) {
         >
           <Pressable
             style={StyleSheet.absoluteFill}
-            onPress={close}
+            onPress={() => {
+              // With the keyboard up, a tap outside only puts it away.
+              if (Keyboard.isVisible()) Keyboard.dismiss();
+              else if (!persistent) close();
+            }}
             accessibilityLabel="Close"
           />
         </Animated.View>
