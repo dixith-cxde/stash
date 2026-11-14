@@ -95,7 +95,7 @@ export function TagPill({ label, small }: { label: string; small?: boolean }) {
     <Animated.View
       style={[
         styles.tag,
-        { backgroundColor: colors.secondaryContainer, height: small ? 24 : 32, borderRadius: small ? 8 : 10 },
+        { backgroundColor: colors.secondaryContainer, height: small ? 24 : 36, borderRadius: small ? 8 : 12, paddingHorizontal: small ? 10 : 12 },
       ]}
     >
       <Text variant={small ? 'labelSmall' : 'labelMedium'} color="onSecondaryContainer">

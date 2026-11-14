@@ -33,7 +33,10 @@ export const folders = sqliteTable(
     name: text('name').notNull(),
     /** MaterialShapes name used for the folder avatar, e.g. "cookie9Sided". */
     shape: text('shape').notNull().default('cookie9Sided'),
+    /** Seed color (#RRGGBB); the UI derives container/content tones for both themes. */
     color: text('color'),
+    /** Icon name from src/theme/icons.ts shown on the collection's card and hero. */
+    icon: text('icon'),
     sort: integer('sort').notNull().default(0),
     pinned: integer('pinned', { mode: 'boolean' }).notNull().default(false),
     ...timestamps,
@@ -65,6 +68,13 @@ export const bookmarks = sqliteTable(
     isFavorite: integer('is_favorite', { mode: 'boolean' }).notNull().default(false),
     isArchived: integer('is_archived', { mode: 'boolean' }).notNull().default(false),
     readAt: integer('read_at', { mode: 'timestamp_ms' }),
+    /** PDFs: total pages and the last page the reader showed (1-based), for progress. */
+    pageCount: integer('page_count'),
+    lastPage: integer('last_page'),
+    /** Links: article length, for "7 min read". */
+    wordCount: integer('word_count'),
+    /** Videos: length in seconds, when the page exposes it. */
+    durationSec: integer('duration_sec'),
     fetchStatus: text('fetch_status', { enum: FETCH_STATUS }).notNull().default('idle'),
     ...timestamps,
   },

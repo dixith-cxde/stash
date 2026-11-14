@@ -101,6 +101,17 @@ export async function setArchived(ids: string[], isArchived: boolean) {
   await db.update(bookmarks).set({ isArchived, updatedAt: new Date() }).where(inArray(bookmarks.id, ids));
 }
 
+/** Bookmarks whose titles match exactly (case-insensitive), for [[wiki links]] in notes. */
+export async function bookmarksByTitles(titles: string[]): Promise<Map<string, Bookmark>> {
+  if (!titles.length) return new Map();
+  const lower = titles.map((t) => t.toLowerCase());
+  const rows = await db
+    .select()
+    .from(bookmarks)
+    .where(inArray(sql`lower(${bookmarks.title})`, lower));
+  return new Map(rows.map((r) => [r.title.toLowerCase(), r]));
+}
+
 export async function findBookmarkByUrl(url: string): Promise<Bookmark | undefined> {
   return db.query.bookmarks.findFirst({ where: eq(bookmarks.url, url) });
 }
@@ -265,6 +276,7 @@ export async function folderTree(): Promise<FolderNode[]> {
     name: string;
     shape: string;
     color: string | null;
+    icon: string | null;
     sort: number;
     pinned: number;
     created_at: number;
@@ -290,6 +302,7 @@ export async function folderTree(): Promise<FolderNode[]> {
     name: r.name,
     shape: r.shape,
     color: r.color,
+    icon: r.icon,
     sort: r.sort,
     pinned: !!r.pinned,
     createdAt: new Date(r.created_at),
@@ -312,14 +325,23 @@ export async function childFolders(parentId: string | null) {
     .orderBy(asc(folders.sort), asc(folders.name));
 }
 
-export async function createFolder(input: { name: string; parentId?: string | null; shape?: string; color?: string }) {
+export async function createFolder(input: {
+  name: string;
+  parentId?: string | null;
+  shape?: string;
+  color?: string;
+  icon?: string;
+}) {
   const id = newId();
   const [{ m }] = await db.select({ m: max(folders.sort) }).from(folders);
   await db.insert(folders).values({ id, ...input, sort: (m ?? 0) + 1 });
   return id;
 }
 
-export async function updateFolder(id: string, patch: Partial<Pick<Folder, 'name' | 'parentId' | 'shape' | 'color' | 'pinned'>>) {
+export async function updateFolder(
+  id: string,
+  patch: Partial<Pick<Folder, 'name' | 'parentId' | 'shape' | 'color' | 'icon' | 'pinned'>>,
+) {
   await db.update(folders).set({ ...patch, updatedAt: new Date() }).where(eq(folders.id, id));
 }
 

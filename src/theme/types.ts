@@ -35,11 +35,3 @@ export const PICKABLE_SHAPES: MaterialShapeName[] = [
   'cookie9Sided', 'clover4Leaf', 'sunny', 'softBurst', 'cookie4Sided', 'pentagon',
   'cookie7Sided', 'ghostish', 'gem', 'arch', 'boom', 'clover8Leaf',
 ];
-
-export const HIGHLIGHT_SWATCH: Record<string, { light: string; dark: string }> = {
-  yellow: { light: '#FFF3B0', dark: '#5C4E00' },
-  green: { light: '#CDEFC4', dark: '#1E4D1A' },
-  blue: { light: '#CFE4FF', dark: '#11365C' },
-  pink: { light: '#FFD8E4', dark: '#5C1F35' },
-  purple: { light: '#E8DDFF', dark: '#3B2A63' },
-};

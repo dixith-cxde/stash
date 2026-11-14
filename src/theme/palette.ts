@@ -126,3 +126,17 @@ export function withAlpha(color: string, alpha: number): string {
     .padStart(2, '0');
   return `${color.slice(0, 7)}${a.toUpperCase()}`;
 }
+
+/**
+ * Highlight swatches (design: yellow #5C4E00/#FFF3B0, blue #11365C/#CFE4FF…): one hue per
+ * highlight color at container/content tones for each theme.
+ */
+const HIGHLIGHT_SEEDS = { yellow: '#776500', green: '#386A20', blue: '#2E5E8C', pink: '#984061', purple: '#6750A4' } as const;
+
+export const HIGHLIGHT_TONES = Object.fromEntries(
+  Object.entries(HIGHLIGHT_SEEDS).map(([k, seed]) => {
+    const d = collectionTones(seed, true);
+    const l = collectionTones(seed, false);
+    return [k, { dark: { bg: d.container, fg: d.onContainer }, light: { bg: l.container, fg: l.onContainer } }];
+  }),
+) as Record<keyof typeof HIGHLIGHT_SEEDS, Record<'dark' | 'light', { bg: string; fg: string }>>;
