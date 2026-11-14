@@ -8,6 +8,7 @@ import { useAppTheme } from '@/theme/AppTheme';
 import type { IconName } from '@/theme/icons';
 import { collectionTones } from '@/theme/palette';
 import { Ico } from '@/ui/Ico';
+import { PressableSurface } from '@/ui/PressableSurface';
 import { Text } from '@/ui/Text';
 import type { Corners4 } from '@/motion/useSelection';
 import { TransformCard } from '@/ui/TransformCard';
@@ -83,6 +84,58 @@ export function CollectionPill({ c }: { c: Collection }) {
   );
 }
 
+export const BLOCK_W = 184;
+export const BLOCK_H = 64;
+
+/** Long collection block for Home's collection group: icon tile, name and counts. */
+export function CollectionBlock({ c }: { c: Collection }) {
+  const { dark } = useAppTheme();
+  const tone = collectionTones(folderSeed(c), dark);
+  return (
+    <TransformCard
+      href={`/collection/${c.id}`}
+      color={tone.container}
+      corner={20}
+      accessibilityLabel={`${c.name}, ${collectionSummary(c)}`}
+      style={{ width: BLOCK_W, height: BLOCK_H }}
+      contentStyle={styles.block}
+    >
+      <View style={[styles.smallTile, { backgroundColor: tone.onContainer }]}>
+        <Ico name={folderIcon(c)} size={20} color={tone.container} />
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text variant="labelLargeEmphasized" color={tone.onContainer} numberOfLines={1}>
+          {c.name}
+        </Text>
+        <Text variant="labelMedium" color={tone.onContainer} numberOfLines={1} style={{ opacity: 0.75 }}>
+          {plural(c.itemCount, 'item')}
+        </Text>
+      </View>
+    </TransformCard>
+  );
+}
+
+/** "New collection" block: same size as the others, outlined so it reads as an action. */
+export function NewCollectionBlock({ onPress }: { onPress: () => void }) {
+  const { colors } = useAppTheme();
+  return (
+    <PressableSurface
+      kind="card"
+      corner={20}
+      onPress={onPress}
+      accessibilityLabel="New collection"
+      style={[styles.block, { width: BLOCK_W, height: BLOCK_H, borderWidth: 1, borderColor: colors.outlineVariant }]}
+    >
+      <View style={[styles.smallTile, { backgroundColor: colors.secondaryContainer }]}>
+        <Ico name="add" size={22} color={colors.onSecondaryContainer} />
+      </View>
+      <Text variant="labelLargeEmphasized" color="onSurfaceVariant">
+        New collection
+      </Text>
+    </PressableSurface>
+  );
+}
+
 /** Smart view tile on Library (design: 72dp, icon tile + name + count). */
 export function SmartViewTile({
   href,
@@ -136,6 +189,7 @@ export function SmartViewTile({
 const styles = StyleSheet.create({
   card: { padding: 16, justifyContent: 'space-between', overflow: 'hidden' },
   iconTile: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  block: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12 },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16 },
   smart: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14 },
   smallTile: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },

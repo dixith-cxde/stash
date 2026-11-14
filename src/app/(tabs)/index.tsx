@@ -1,14 +1,14 @@
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import Animated, { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CollectionPill } from '@/features/collections/CollectionCards';
+import { BLOCK_H, CollectionBlock, NewCollectionBlock } from '@/features/collections/CollectionCards';
 import { Masonry } from '@/features/feed/Masonry';
-import { ReadingQueue } from '@/features/feed/ReadingQueue';
+import { ShapeWall } from '@/features/feed/ShapeWall';
 import { HomeTour } from '@/features/onboarding/HomeTour';
-import { type FeedFilter, matchesFilter, readingQueue } from '@/features/stash/model';
+import { type FeedFilter, matchesFilter } from '@/features/stash/model';
 import { useCollections, useFeed, useTotals } from '@/features/stash/queries';
 import { useChromeScroll } from '@/motion/ScrollChrome';
 import { useSettings } from '@/state/settings';
@@ -38,7 +38,12 @@ export default function Home() {
   const { data: feed, loading } = useFeed({});
   const [filter, setFilter] = useState<FeedFilter>('all');
   const visible = feed.filter((f) => matchesFilter(f, filter));
-  const queue = useMemo(() => readingQueue(feed.flatMap((f) => (f.kind === 'bookmark' ? [f.item] : []))), [feed]);
+  const layout = useSettings((s) => s.homeLayout);
+  const setLayout = useSettings((s) => s.setHomeLayout);
+  // Collections in columns of two, then the "New collection" block.
+  const blocks: (string | (typeof collections)[number])[] = [...collections, 'new'];
+  const columns: (typeof blocks)[] = [];
+  for (let i = 0; i < blocks.length; i += 2) columns.push(blocks.slice(i, i + 2));
 
   // First launch: the welcome pages, then a short tour of Home.
   const onboarded = useSettings((s) => s.onboarded);
@@ -49,6 +54,17 @@ export default function Home() {
     const t = setTimeout(() => router.push('/welcome'), 300);
     return () => clearTimeout(t);
   }, [onboarded]);
+
+  const actions = (
+    <>
+      <IconButton
+        icon={layout === 'shapes' ? 'gridView' : 'category'}
+        accessibilityLabel={layout === 'shapes' ? 'Show as cards' : 'Show as shapes'}
+        onPress={() => setLayout(layout === 'shapes' ? 'cards' : 'shapes')}
+      />
+      <SettingsButton />
+    </>
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
@@ -62,33 +78,36 @@ export default function Home() {
             title="Stash"
             size="editorial"
             subtitle={`${totals.all} saved · ${totals.unread} to read`}
-            trailing={<SettingsButton />}
+            trailing={actions}
           />
           <SearchPill href="/find" />
 
-          {collections.length > 0 && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: Layout.gutter, paddingTop: 16, gap: 8, alignItems: 'center' }}
-              accessibilityRole="list"
-              accessibilityLabel="Collections"
-            >
-              {collections.map((c) => (
-                <CollectionPill key={c.id} c={c} />
-              ))}
-              <IconButton icon="add" accessibilityLabel="New collection" variant="tonal" size={48} onPress={() => router.push('/collection/new')} />
-            </ScrollView>
-          )}
-
-          <ReadingQueue entries={queue} />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: Layout.gutter, paddingTop: 16, gap: 8 }}
+            accessibilityRole="list"
+            accessibilityLabel="Collections"
+          >
+            {columns.map((col, i) => (
+              <View key={i} style={{ gap: 8, height: BLOCK_H * 2 + 8 }}>
+                {col.map((c) =>
+                  c === 'new' ? (
+                    <NewCollectionBlock key="new" onPress={() => router.push('/collection/new')} />
+                  ) : typeof c === 'string' ? null : (
+                    <CollectionBlock key={c.id} c={c} />
+                  ),
+                )}
+              </View>
+            ))}
+          </ScrollView>
 
           <View style={{ paddingHorizontal: Layout.gutter, paddingTop: 20, paddingBottom: 12 }}>
             <ButtonGroup items={FILTERS} value={filter} onChange={setFilter} accessibilityLabel="Filter by type" />
           </View>
 
           {visible.length > 0 ? (
-            <Masonry items={visible} />
+            layout === 'shapes' ? <ShapeWall items={visible} /> : <Masonry items={visible} />
           ) : loading ? null : (
             <EmptyState
               shape={filter === 'all' ? 'cookie9Sided' : 'clover4Leaf'}
@@ -101,7 +120,7 @@ export default function Home() {
             />
           )}
         </Animated.ScrollView>
-        <CollapsedAppBar title="Stash" scrollY={scrollY} trailing={<SettingsButton />} />
+        <CollapsedAppBar title="Stash" scrollY={scrollY} trailing={actions} />
       </>
       {onboarded && !tourDone && <HomeTour onDone={() => setTourDone(true)} />}
     </View>

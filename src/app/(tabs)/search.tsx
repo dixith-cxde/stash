@@ -5,7 +5,7 @@ import Animated, { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDbQuery } from '@/db/hooks';
-import { type SmartHit, type SmartResults, type SmartScope, smartSearch, type TagWithCount, topTags } from '@/db/repo';
+import { type SmartHit, type SmartResults, type SmartScope, smartSearch } from '@/db/repo';
 import { ItemRow } from '@/features/collections/ItemViews';
 import { HighlightResult } from '@/features/search/HighlightResult';
 import { useChromeScroll } from '@/motion/ScrollChrome';
@@ -15,7 +15,6 @@ import { Layout } from '@/theme/tokens';
 import { FONT_FAMILY, Type } from '@/theme/type';
 import { Button } from '@/ui/Button';
 import { ButtonGroup } from '@/ui/ButtonGroup';
-import { Chip } from '@/ui/Chip';
 import { EmptyState } from '@/ui/EmptyState';
 import { Ico } from '@/ui/Ico';
 import { IconButton } from '@/ui/IconButton';
@@ -26,7 +25,6 @@ import { Text } from '@/ui/Text';
 /** Typing pauses this long (ms) before the query runs. */
 const DEBOUNCE = 150;
 const EMPTY: SmartResults = { hits: [], corrected: null };
-const NO_TAGS: TagWithCount[] = [];
 
 const SCOPES: { key: SmartScope; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -68,7 +66,6 @@ export default function SearchScreen() {
     [query, scope, exact],
     EMPTY,
   );
-  const { data: suggestions } = useDbQuery(() => topTags(5), [], NO_TAGS);
 
   // A search that found something is kept in history when the user leaves the tab (usually
   // by opening a result), so half-typed queries never land there.
@@ -107,7 +104,7 @@ export default function SearchScreen() {
           value={text}
           onChangeText={setText}
           onSubmitEditing={() => text.trim() && run(text.trim())}
-          placeholder="Search your stash"
+          placeholder="Search names or #tags"
           placeholderTextColor={colors.onSurfaceVariant}
           returnKeyType="search"
           autoCorrect={false}
@@ -155,23 +152,11 @@ export default function SearchScreen() {
           </ListGroup>
         </>
       )}
-      {suggestions.length > 0 && (
-        <>
-          <Text variant="titleSmallEmphasized" color="primary" style={[styles.section, { marginTop: recent.length ? 20 : 4 }]}>
-            Try
-          </Text>
-          <View style={styles.chips}>
-            {suggestions.map((t) => (
-              <Chip key={t.id} label={`#${t.name}`} icon="sell" onPress={() => run(t.name)} accessibilityLabel={`Search for ${t.name}`} />
-            ))}
-          </View>
-        </>
-      )}
-      {!recent.length && !suggestions.length && (
+      {!recent.length && (
         <EmptyState
           shape="cookie9Sided"
           title="Search smarter"
-          body="Finds close spellings, related words and matches in tags, collections and sites."
+          body="Type a name, or #tag to find things you tagged. Close spellings work too."
         />
       )}
     </View>
@@ -239,7 +224,6 @@ const styles = StyleSheet.create({
   idle: { paddingHorizontal: Layout.gutter, paddingTop: 8 },
   section: { marginBottom: 8, paddingHorizontal: 8 },
   recent: { height: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 16, paddingRight: 4, marginBottom: 4 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   result: { paddingHorizontal: Layout.gutter, paddingBottom: LIST_GAP },
   why: { paddingHorizontal: 12, paddingTop: 4 },
 });
