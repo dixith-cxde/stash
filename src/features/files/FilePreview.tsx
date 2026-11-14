@@ -41,11 +41,11 @@ export function FilePreview({ b, kind, onOpen }: { b: BookmarkWithTags; kind: Ca
     <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
       <View style={styles.head}>
         <Ico name={icon} size={20} color={colors.primary} />
-        <Text variant="overline" color="primary" style={{ flex: 1 }}>
+        <Text variant="titleSmallEmphasized" color="primary" style={{ flex: 1 }}>
           {`Preview · ${label}`}
         </Text>
         {where && (
-          <Text variant="labelMedium" color="onSurfaceVariant">
+          <Text variant="labelLarge" color="onSurfaceVariant">
             {where}
           </Text>
         )}

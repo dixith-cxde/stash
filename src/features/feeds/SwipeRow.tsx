@@ -6,7 +6,9 @@ import { scheduleOnRN } from 'react-native-worklets';
 
 import { springTo, useSprings } from '@/motion/springs';
 import type { IconName } from '@/theme/icons';
+import type { Corners4 } from '@/motion/useSelection';
 import { Ico } from '@/ui/Ico';
+import { cornersStyle } from '@/ui/List';
 import { Text } from '@/ui/Text';
 
 export type SwipeAction = {
@@ -43,7 +45,8 @@ export function SwipeRow({
   start?: SwipeAction;
   /** Revealed when swiping left. */
   end?: SwipeAction;
-  radius: number;
+  /** Uniform radius, or per-corner radii (a row inside a segmented group). */
+  radius: number | Corners4;
   children: React.ReactNode;
 }) {
   const springs = useSprings();
@@ -96,19 +99,19 @@ export function SwipeRow({
   return (
     <View>
       {start && (
-        <Animated.View style={[StyleSheet.absoluteFill, styles.under, { backgroundColor: start.bg, borderRadius: radius }, startBg]}>
+        <Animated.View style={[StyleSheet.absoluteFill, styles.under, { backgroundColor: start.bg, ...radiusStyle(radius) }, startBg]}>
           <Animated.View style={[styles.action, startStyle]}>
             <Ico name={start.icon} size={22} color={start.fg} />
-            <Text variant="labelLarge" color={start.fg} style={{ fontWeight: '700' }}>
+            <Text variant="labelLargeEmphasized" color={start.fg} style={{ fontWeight: '700' }}>
               {start.label}
             </Text>
           </Animated.View>
         </Animated.View>
       )}
       {end && (
-        <Animated.View style={[StyleSheet.absoluteFill, styles.under, { justifyContent: 'flex-end', backgroundColor: end.bg, borderRadius: radius }, endBg]}>
+        <Animated.View style={[StyleSheet.absoluteFill, styles.under, { justifyContent: 'flex-end', backgroundColor: end.bg, ...radiusStyle(radius) }, endBg]}>
           <Animated.View style={[styles.action, endStyle]}>
-            <Text variant="labelLarge" color={end.fg} style={{ fontWeight: '700' }}>
+            <Text variant="labelLargeEmphasized" color={end.fg} style={{ fontWeight: '700' }}>
               {end.label}
             </Text>
             <Ico name={end.icon} size={22} color={end.fg} />
@@ -126,3 +129,5 @@ const styles = StyleSheet.create({
   under: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24 },
   action: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 });
+
+const radiusStyle = (r: number | Corners4) => (typeof r === 'number' ? { borderRadius: r } : cornersStyle(r));

@@ -120,7 +120,7 @@ const ago = (d: Date) => relativeTime(d).replace(' ago', '');
 
 function Meta({ children, color = 'onSurfaceVariant' }: { children: string; color?: string }) {
   return (
-    <Text variant="labelSmall" color={color} numberOfLines={1}>
+    <Text variant="labelMedium" color={color} numberOfLines={1}>
       {children}
     </Text>
   );
@@ -144,7 +144,7 @@ function LinkCard({ b, copy, onLongPress }: { b: BookmarkWithTags; copy: CopyTar
         ) : (
           <>
             <Shape name={DECOR_SHAPES[0]} size={150} color={tone.accent} style={{ position: 'absolute', left: -40, top: -50 }} />
-            <Text variant="headlineSmall" color={tone.onContainer} numberOfLines={1} style={styles.siteMark}>
+            <Text variant="headlineSmallEmphasized" color={tone.onContainer} numberOfLines={1} style={styles.siteMark}>
               {site}
             </Text>
           </>
@@ -160,7 +160,7 @@ function LinkCard({ b, copy, onLongPress }: { b: BookmarkWithTags; copy: CopyTar
           </View>
           <CopyButton copy={copy} color={colors.onSurfaceVariant} />
         </View>
-        <Text variant="titleSmall" numberOfLines={3} style={{ marginTop: 6 }}>
+        <Text variant="titleMediumEmphasized" numberOfLines={3} style={{ marginTop: 6 }}>
           {b.title}
         </Text>
         <LinkKindRow b={b} />
@@ -206,7 +206,7 @@ function VideoCard({ b, copy, onLongPress }: { b: BookmarkWithTags; copy: CopyTa
         </View>
         {duration && (
           <View style={[styles.badge, { backgroundColor: colors.surface, right: 10, bottom: 8 }]}>
-            <Text variant="labelSmall" style={{ fontWeight: '700' }}>
+            <Text variant="labelMedium" style={{ fontWeight: '700' }}>
               {duration}
             </Text>
           </View>
@@ -219,7 +219,7 @@ function VideoCard({ b, copy, onLongPress }: { b: BookmarkWithTags; copy: CopyTa
           </View>
           <CopyButton copy={copy} color={colors.onSurfaceVariant} />
         </View>
-        <Text variant="titleSmall" numberOfLines={3} style={{ marginTop: 6 }}>
+        <Text variant="titleMediumEmphasized" numberOfLines={3} style={{ marginTop: 6 }}>
           {b.title}
         </Text>
       </View>
@@ -250,13 +250,13 @@ function PdfCard({ b, highlights, onLongPress }: { b: BookmarkWithTags; highligh
           )}
         </View>
         <View style={[styles.badge, { backgroundColor: colors.tertiaryContainer, top: 10, right: 10 }]}>
-          <Text variant="labelSmall" color="onTertiaryContainer" style={{ fontWeight: '700' }}>
+          <Text variant="labelMedium" color="onTertiaryContainer" style={{ fontWeight: '700' }}>
             {`PDF · ${pages}`}
           </Text>
         </View>
       </View>
       <View style={styles.body}>
-        <Text variant="titleSmall" numberOfLines={3}>
+        <Text variant="titleMediumEmphasized" numberOfLines={3}>
           {b.title}
         </Text>
         <View style={{ marginTop: 6 }}>
@@ -264,7 +264,7 @@ function PdfCard({ b, highlights, onLongPress }: { b: BookmarkWithTags; highligh
         </View>
         {progress > 0 && (
           <View style={{ marginTop: 10 }}>
-            <ProgressBar value={progress} trackColor={colors.surfaceVariant} />
+            <ProgressBar value={progress} wavy />
           </View>
         )}
       </View>
@@ -303,7 +303,7 @@ function NoteCard({ b, copy, onLongPress }: { b: BookmarkWithTags; copy: CopyTar
       onLongPress={onLongPress}
     >
       <View style={styles.noteTop}>
-        <Text variant="overline" color="onSecondaryContainer" style={{ letterSpacing: 0.6 }}>
+        <Text variant="titleSmallEmphasized" color="onSecondaryContainer" style={{ letterSpacing: 0.6 }}>
           Note
         </Text>
         <View style={styles.topEnd}>
@@ -311,7 +311,7 @@ function NoteCard({ b, copy, onLongPress }: { b: BookmarkWithTags; copy: CopyTar
           <Ico name="markdown" size={20} color={colors.onSecondaryContainer} />
         </View>
       </View>
-      <Text variant="titleSmall" color="onSecondaryContainer" numberOfLines={2} style={{ marginTop: 6 }}>
+      <Text variant="titleMediumEmphasized" color="onSecondaryContainer" numberOfLines={2} style={{ marginTop: 6 }}>
         {b.title || 'Untitled note'}
       </Text>
       {tasks.length > 0 ? (
@@ -344,7 +344,7 @@ function NoteCard({ b, copy, onLongPress }: { b: BookmarkWithTags; copy: CopyTar
           {preview}
         </Text>
       ) : null}
-      <Text variant="labelSmall" color="onSurfaceVariant" style={{ marginTop: 12 }}>
+      <Text variant="labelMedium" color="onSurfaceVariant" style={{ marginTop: 12 }}>
         {tasks.length ? `${done} of ${tasks.length} done · ${ago(b.updatedAt)} ago` : `Edited ${ago(b.updatedAt)} ago`}
       </Text>
     </TransformCard>
@@ -370,7 +370,7 @@ function QuoteCard({ h, copy, onLongPress }: { h: HighlightWithTags; copy: CopyT
       <Text variant="quote" color="onTertiaryContainer" numberOfLines={8} style={{ marginTop: 6 }}>
         {h.text}
       </Text>
-      <Text variant="labelSmall" color="onTertiaryContainer" numberOfLines={1} style={{ marginTop: 10, opacity: 0.8 }}>
+      <Text variant="labelMedium" color="onTertiaryContainer" numberOfLines={1} style={{ marginTop: 10, opacity: 0.8 }}>
         {`Highlight · ${source}`}
       </Text>
     </TransformCard>
@@ -393,7 +393,7 @@ function ImageCard({ b, onLongPress }: { b: BookmarkWithTags } & CardProps) {
         )}
       </View>
       <View style={styles.body}>
-        <Text variant="titleSmall" numberOfLines={2}>
+        <Text variant="titleMediumEmphasized" numberOfLines={2}>
           {b.title}
         </Text>
       </View>
@@ -407,11 +407,11 @@ function FileCard({ b, onLongPress }: { b: BookmarkWithTags } & CardProps) {
   return (
     <TransformCard href={`/item/${b.id}`} color={colors.surfaceContainer} corner={R} accessibilityLabel={b.title} contentStyle={{ padding: 14, gap: 10 }} onLongPress={onLongPress}>
       <View style={[styles.glyph, { backgroundColor: tone.container }]}>
-        <Text variant="labelLarge" color={tone.onContainer} style={{ fontWeight: '800' }}>
+        <Text variant="labelLargeEmphasized" color={tone.onContainer} style={{ fontWeight: '700' }}>
           {glyphFor(b)}
         </Text>
       </View>
-      <Text variant="titleSmall" numberOfLines={3}>
+      <Text variant="titleMediumEmphasized" numberOfLines={3}>
         {b.title}
       </Text>
       <Meta>{`${sourceLabel(b)} · ${ago(b.createdAt)}`}</Meta>
@@ -434,7 +434,7 @@ function TextFileCard({ b, copy, onLongPress }: { b: BookmarkWithTags; copy: Cop
       onLongPress={onLongPress}
     >
       <View style={styles.noteTop}>
-        <Text variant="overline" color="primary" numberOfLines={1} style={{ letterSpacing: 0.6, flexShrink: 1 }}>
+        <Text variant="titleSmallEmphasized" color="primary" numberOfLines={1} style={{ letterSpacing: 0.6, flexShrink: 1 }}>
           {kindLabel(b) ?? 'File'}
         </Text>
         <View style={styles.topEnd}>
@@ -442,7 +442,7 @@ function TextFileCard({ b, copy, onLongPress }: { b: BookmarkWithTags; copy: Cop
           <Ico name={kindIcon(b) ?? 'description'} size={20} color={colors.primary} />
         </View>
       </View>
-      <Text variant="titleSmall" numberOfLines={2} style={{ marginTop: 6 }}>
+      <Text variant="titleMediumEmphasized" numberOfLines={2} style={{ marginTop: 6 }}>
         {b.title || 'Untitled file'}
       </Text>
       {preview ? (

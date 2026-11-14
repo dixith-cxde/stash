@@ -1,21 +1,23 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CollectionCard, NewCollectionCard } from '@/features/collections/CollectionCards';
+import { CollectionPill } from '@/features/collections/CollectionCards';
 import { Masonry } from '@/features/feed/Masonry';
-import { type FeedFilter, matchesFilter } from '@/features/stash/model';
+import { ReadingQueue } from '@/features/feed/ReadingQueue';
+import { HomeTour } from '@/features/onboarding/HomeTour';
+import { type FeedFilter, matchesFilter, readingQueue } from '@/features/stash/model';
 import { useCollections, useFeed, useTotals } from '@/features/stash/queries';
 import { useChromeScroll } from '@/motion/ScrollChrome';
+import { useSettings } from '@/state/settings';
 import { useColors } from '@/theme/AppTheme';
 import { Layout } from '@/theme/tokens';
-import { Button } from '@/ui/Button';
 import { ButtonGroup } from '@/ui/ButtonGroup';
 import { EmptyState } from '@/ui/EmptyState';
 import { IconButton } from '@/ui/IconButton';
-import { ScreenHeader, SectionHeader } from '@/ui/ScreenHeader';
+import { CollapsedAppBar, ScreenHeader } from '@/ui/ScreenHeader';
 import { SearchPill } from '@/ui/SearchPill';
 
 const FILTERS: { key: FeedFilter; label: string }[] = [
@@ -26,19 +28,27 @@ const FILTERS: { key: FeedFilter; label: string }[] = [
   { key: 'quotes', label: 'Quotes' },
 ];
 
-const RAIL_W = 148;
-const RAIL_H = 176;
-const RAIL_GAP = 10;
-
 export default function Home() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const onScroll = useChromeScroll();
+  const scrollY = useSharedValue(0);
+  const onScroll = useChromeScroll(scrollY);
   const { data: totals } = useTotals();
   const { data: collections } = useCollections();
   const { data: feed, loading } = useFeed({});
   const [filter, setFilter] = useState<FeedFilter>('all');
   const visible = feed.filter((f) => matchesFilter(f, filter));
+  const queue = useMemo(() => readingQueue(feed.flatMap((f) => (f.kind === 'bookmark' ? [f.item] : []))), [feed]);
+
+  // First launch: the welcome pages, then a short tour of Home.
+  const onboarded = useSettings((s) => s.onboarded);
+  const tourDone = useSettings((s) => s.tourDone);
+  const setTourDone = useSettings((s) => s.setTourDone);
+  useEffect(() => {
+    if (onboarded) return;
+    const t = setTimeout(() => router.push('/welcome'), 300);
+    return () => clearTimeout(t);
+  }, [onboarded]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
@@ -46,45 +56,34 @@ export default function Home() {
         <Animated.ScrollView
           onScroll={onScroll}
           scrollEventThrottle={16}
-          contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: Layout.navBarClearance + insets.bottom }}
+          contentContainerStyle={{ paddingTop: insets.top, paddingBottom: Layout.navBarClearance + insets.bottom }}
         >
           <ScreenHeader
             title="Stash"
-            size="displayLarge"
+            size="editorial"
             subtitle={`${totals.all} saved · ${totals.unread} to read`}
-            trailing={
-              <IconButton
-                icon="settings"
-                accessibilityLabel="Settings"
-                variant="tonal"
-                corners={[16, 16, 16, 16]}
-                onPress={() => router.push('/settings')}
-              />
-            }
+            trailing={<SettingsButton />}
           />
           <SearchPill href="/find" />
 
-          <SectionHeader
-            title="Collections"
-            count={collections.length}
-            trailing={<Button label="See all" variant="text" size="xs" onPress={() => router.navigate('/library')} />}
-          />
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            snapToInterval={RAIL_W + RAIL_GAP}
-            decelerationRate="fast"
-            contentContainerStyle={{ paddingHorizontal: Layout.gutter, gap: RAIL_GAP }}
-            accessibilityRole="list"
-            accessibilityLabel="Collections"
-          >
-            {collections.map((c, i) => (
-              <CollectionCard key={c.id} c={c} index={i} width={RAIL_W} height={RAIL_H} />
-            ))}
-            <NewCollectionCard height={RAIL_H} onPress={() => router.push('/collection/new')} />
-          </ScrollView>
+          {collections.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: Layout.gutter, paddingTop: 16, gap: 8, alignItems: 'center' }}
+              accessibilityRole="list"
+              accessibilityLabel="Collections"
+            >
+              {collections.map((c) => (
+                <CollectionPill key={c.id} c={c} />
+              ))}
+              <IconButton icon="add" accessibilityLabel="New collection" variant="tonal" size={48} onPress={() => router.push('/collection/new')} />
+            </ScrollView>
+          )}
 
-          <View style={{ paddingHorizontal: Layout.gutter, paddingTop: 28, paddingBottom: 12 }}>
+          <ReadingQueue entries={queue} />
+
+          <View style={{ paddingHorizontal: Layout.gutter, paddingTop: 20, paddingBottom: 12 }}>
             <ButtonGroup items={FILTERS} value={filter} onChange={setFilter} accessibilityLabel="Filter by type" />
           </View>
 
@@ -102,7 +101,13 @@ export default function Home() {
             />
           )}
         </Animated.ScrollView>
+        <CollapsedAppBar title="Stash" scrollY={scrollY} trailing={<SettingsButton />} />
       </>
+      {onboarded && !tourDone && <HomeTour onDone={() => setTourDone(true)} />}
     </View>
   );
+}
+
+function SettingsButton() {
+  return <IconButton icon="settings" accessibilityLabel="Settings" onPress={() => router.push('/settings')} />;
 }

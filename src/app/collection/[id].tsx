@@ -136,10 +136,10 @@ function CollectionBody() {
             <View style={[styles.heroIcon, { backgroundColor: tone.onContainer }]}>
               <Ico name={scope?.icon ?? 'folder'} size={26} color={tone.container} />
             </View>
-            <Text variant="displaySmall" color={tone.onContainer} numberOfLines={2} style={{ marginTop: 14 }} accessibilityRole="header">
+            <Text variant="displaySmallEmphasized" color={tone.onContainer} numberOfLines={2} style={{ marginTop: 14 }} accessibilityRole="header">
               {scope?.title ?? ''}
             </Text>
-            <Text variant="labelMedium" color={tone.onContainer} style={{ marginTop: 4 }}>
+            <Text variant="labelLarge" color={tone.onContainer} style={{ marginTop: 4 }}>
               {summary}
             </Text>
           </View>

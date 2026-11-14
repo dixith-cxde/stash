@@ -8,8 +8,8 @@ import { useAppTheme } from '@/theme/AppTheme';
 import type { IconName } from '@/theme/icons';
 import { collectionTones } from '@/theme/palette';
 import { Ico } from '@/ui/Ico';
-import { PressableSurface } from '@/ui/PressableSurface';
 import { Text } from '@/ui/Text';
+import type { Corners4 } from '@/motion/useSelection';
 import { TransformCard } from '@/ui/TransformCard';
 
 export function collectionSummary(c: Collection): string {
@@ -45,7 +45,7 @@ export function CollectionCard({ c, index, width, height }: { c: Collection; ind
         <Ico name={folderIcon(c)} size={22} color={tone.container} />
       </View>
       <View>
-        <Text variant="titleMedium" color={tone.onContainer} numberOfLines={1}>
+        <Text variant="titleMediumEmphasized" color={tone.onContainer} numberOfLines={1}>
           {c.name}
         </Text>
         <Text variant="bodySmall" color={tone.onContainer} numberOfLines={1} style={{ marginTop: 2 }}>
@@ -56,23 +56,30 @@ export function CollectionCard({ c, index, width, height }: { c: Collection; ind
   );
 }
 
-/** Dashed "New collection" card at the end of the Home rail. */
-export function NewCollectionCard({ onPress, height }: { onPress: () => void; height: number }) {
-  const { colors } = useAppTheme();
+/**
+ * Compact collection pill for the Home row: tonal container, icon, name and item count.
+ * Opens the collection with a container transform.
+ */
+export function CollectionPill({ c }: { c: Collection }) {
+  const { dark } = useAppTheme();
+  const tone = collectionTones(folderSeed(c), dark);
   return (
-    <PressableSurface
-      corner={28}
-      onPress={onPress}
-      accessibilityLabel="New collection"
-      style={[styles.newCard, { height, borderColor: colors.outline }]}
+    <TransformCard
+      href={`/collection/${c.id}`}
+      color={tone.container}
+      corner={20}
+      accessibilityLabel={`${c.name}, ${collectionSummary(c)}`}
+      style={{ height: 48 }}
+      contentStyle={styles.pill}
     >
-      <View style={[styles.plus, { backgroundColor: colors.surfaceContainerHigh }]}>
-        <Ico name="add" size={24} color={colors.primary} />
-      </View>
-      <Text variant="labelMedium" color="onSurfaceVariant" style={{ fontWeight: '700', textAlign: 'center' }}>
-        New collection
+      <Ico name={folderIcon(c)} size={20} color={tone.onContainer} />
+      <Text variant="labelLargeEmphasized" color={tone.onContainer} numberOfLines={1} style={{ maxWidth: 160 }}>
+        {c.name}
       </Text>
-    </PressableSurface>
+      <Text variant="labelLarge" color={tone.onContainer} style={{ opacity: 0.7 }}>
+        {String(c.itemCount)}
+      </Text>
+    </TransformCard>
   );
 }
 
@@ -84,7 +91,9 @@ export function SmartViewTile({
   icon,
   glyph,
   tile,
+  corners,
 }: {
+  corners?: Corners4;
   href: `/collection/${string}`;
   label: string;
   detail: string;
@@ -98,6 +107,7 @@ export function SmartViewTile({
       href={href}
       color={colors.surfaceContainer}
       corner={24}
+      corners={corners}
       accessibilityLabel={`${label}, ${detail}`}
       style={{ flex: 1, height: 72 }}
       contentStyle={styles.smart}
@@ -106,16 +116,16 @@ export function SmartViewTile({
         {icon ? (
           <Ico name={icon} size={20} color={tile.fg} />
         ) : (
-          <Text variant="labelSmall" color={tile.fg} style={{ fontWeight: '800', fontSize: 11 }}>
+          <Text variant="labelMedium" color={tile.fg} style={{ fontWeight: '700', fontSize: 11 }}>
             {glyph ?? ''}
           </Text>
         )}
       </View>
       <View style={{ flex: 1 }}>
-        <Text variant="labelLarge" numberOfLines={1}>
+        <Text variant="labelLargeEmphasized" numberOfLines={1}>
           {label}
         </Text>
-        <Text variant="labelSmall" color="onSurfaceVariant" numberOfLines={1}>
+        <Text variant="labelMedium" color="onSurfaceVariant" numberOfLines={1}>
           {detail}
         </Text>
       </View>
@@ -126,16 +136,7 @@ export function SmartViewTile({
 const styles = StyleSheet.create({
   card: { padding: 16, justifyContent: 'space-between', overflow: 'hidden' },
   iconTile: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  newCard: {
-    width: 120,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    padding: 16,
-  },
-  plus: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16 },
   smart: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14 },
   smallTile: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
 });

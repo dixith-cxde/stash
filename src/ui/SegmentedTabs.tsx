@@ -75,7 +75,7 @@ function Tab({ label, selected, onPress }: { label: string; selected: boolean; o
       accessibilityState={{ selected }}
       style={styles.tab}
     >
-      <Animated.Text maxFontSizeMultiplier={1.2} numberOfLines={1} style={[{ fontFamily: FONT_FAMILY }, Type.labelMedium, { fontWeight: '700' }, text]}>{label}</Animated.Text>
+      <Animated.Text maxFontSizeMultiplier={1.2} numberOfLines={1} style={[{ fontFamily: FONT_FAMILY }, Type.labelLarge, { fontWeight: '700' }, text]}>{label}</Animated.Text>
     </PressableSurface>
   );
 }

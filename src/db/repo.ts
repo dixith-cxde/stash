@@ -748,6 +748,25 @@ export async function markAllFeedItemsRead(feedId?: string) {
     .where(and(isNull(feedItems.readAt), feedId ? eq(feedItems.feedId, feedId) : undefined));
 }
 
+/** Every saved web link (not archived), for the dead-link check. */
+export async function savedLinks(): Promise<{ id: string; title: string; url: string; createdAt: Date }[]> {
+  const rows = await db
+    .select({ id: bookmarks.id, title: bookmarks.title, url: bookmarks.url, createdAt: bookmarks.createdAt })
+    .from(bookmarks)
+    .where(and(eq(bookmarks.type, 'link'), isNotNull(bookmarks.url), eq(bookmarks.isArchived, false)))
+    .orderBy(desc(bookmarks.createdAt));
+  return rows.filter((r): r is typeof r & { url: string } => !!r.url && /^https?:\/\//i.test(r.url));
+}
+
+/** The feed article a saved bookmark came from (by link, else by URL), for the in-app reader. */
+export async function feedItemIdForBookmark(bookmarkId: string, url: string | null): Promise<string | null> {
+  const linked = await db.select({ id: feedItems.id }).from(feedItems).where(eq(feedItems.bookmarkId, bookmarkId)).limit(1);
+  if (linked[0]) return linked[0].id;
+  if (!url) return null;
+  const byUrl = await db.select({ id: feedItems.id }).from(feedItems).where(eq(feedItems.url, url)).limit(1);
+  return byUrl[0]?.id ?? null;
+}
+
 export async function linkFeedItemBookmark(id: string, bookmarkId: string | null) {
   await db.update(feedItems).set({ bookmarkId }).where(eq(feedItems.id, id));
 }

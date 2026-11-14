@@ -27,7 +27,7 @@ function Body() {
   }, [demo, close]);
   return (
     <View style={{ flex: 1, padding: 24, paddingTop: insets.top + 24, gap: 16 }}>
-      <Text variant="headlineMedium">Editor</Text>
+      <Text variant="headlineMediumEmphasized">Editor</Text>
       <Text color="onSurfaceVariant">Slid up 30dp and faded in. Back reverses it.</Text>
       <Button label="Done" onPress={close} style={{ alignSelf: 'flex-start' }} />
     </View>

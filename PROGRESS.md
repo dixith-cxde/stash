@@ -55,10 +55,66 @@ No AI / no cloud. Battery matters: no background polling.
   `linkKind(url)` → app / repo / package / docs / video / link, shown on cards and item page.
 - Phase 10 docs: README rewritten for v3, AGENTS.md rules updated, rebuild-plan status.
 
+## Done 2026-11-14 (after v1.0.2, not on device yet)
+- Item page action by type (`openAction` in model.ts): links say "Open" unless known to be an
+  article; Watch / Get app / Open repo / Open docs / View image / Open PDF / Open note.
+- `src/ui/ZoomPan.tsx`: UI-thread pinch, pan + fling, double-tap zoom. PDF reader uses it for
+  the whole document (pages mounted ±3, sharper re-render of on-screen pages when zoomed,
+  `hiResWidth`). New image viewer `/image/[id]` (`ZoomableImage`); reader images zoom too.
+
+## Done 2026-11-14 (later, on device via Metro :8082, dev build rebuilt)
+- PDF reader is now pdf.js in a WebView (`react-native-webview`), bundled offline:
+  `src/features/pdf/viewer/template.html` → `npm run pdf-viewer` → `assets/pdf/viewer.html`
+  (metro assetExts += html). Vector-sharp at any zoom (visible region re-rendered at zoom),
+  native pinch/scroll, text layer: select → Copy / Highlight / Share. Highlights save to
+  `highlights` with page and are painted on reopen. Scanned PDFs have no text to select.
+  `react-native-pdf` / `react-native-blob-util` and their plugins removed.
+- Capture success: "View item" is the filled primary, "Undo save" a text button; View item
+  replaces the capture screen after the sheet closes (it used to be popped by the sheet's back()).
+- Home: collections are one row of compact pills (+ new), no section header.
+- Reader: `src/features/reader/cleanup.ts` drops byline/date/"Story by"/share scraps and empty
+  headings, converts stray HTML, takes the writer from "Story by"; related sections with
+  sub-heading items parse; author name/bio echoes go; related links are a grouped list of rows.
+
+## Done 2026-11-14 (evening)
+- Crash fix: Feeds FlashList asked getItemType/keyExtractor about a removed index (`r.k` of
+  undefined) on fast taps; guarded. Repeat taps on one surface fire once (usePressMorph,
+  350 ms); router.push/navigate ignore a second push within 600 ms (`src/lib/navGuard.ts`).
+  Root `ErrorBoundary` = `src/ui/CrashScreen.tsx` (Try again / Go home).
+- Reader: aggregator (HN) teasers never show as the article; "By Name" / "3 hours ago" lines
+  at the top are dropped (name kept as byline); Written by is one card (no pill in a pill).
+- Saved feed articles open in the reader (`feedItemIdForBookmark`), item button says Read.
+- Onboarding: `/welcome` (2 pages) on first launch, then `HomeTour` (3 tips) on Home.
+  Flags `onboarded` / `tourDone` in settings.
+
+## Done 2026-11-14 (roadmap 1, 2, 4)
+- Home "Continue reading" row (`readingQueue` in model.ts, `src/features/feed/ReadingQueue.tsx`):
+  part-read PDFs with progress, then unread PDFs / Feeds articles / Markdown / docs.
+- Item highlights: tap a PDF highlight → `/pdf/[id]?page=N`; share icon exports Markdown
+  (`highlightsMarkdown`). Highlight cards say "Page N" for PDFs.
+- Capture: "You saved this on Nov 2 · Open" banner while typing a known link; saving it again
+  says "Already in your stash" and hides Undo (Undo used to delete the original item).
+- Settings → Check saved links (`/links-check`, `src/features/links/check.ts`): user-started,
+  4 at a time, lists Not loading / Couldn't check with Open, Archive, Delete.
+
+## Done 2026-11-14 (night, branch feat/m3e-overhaul)
+- M3 Expressive overhaul per `docs/m3-expressive.md`: M3 30-style type scale (+ editorial
+  "Stash"), collapsing large app bars (`ScreenHeader` + `CollapsedAppBar`), floating nav
+  connected to the + FAB (round outer ends, 8dp facing ends, label on active tab only),
+  FAB menu (Link / Note / File or PDF / Images), segmented lists (`src/ui/List.tsx`: feeds,
+  search, smart views, action sheets), item page floating toolbar + extended FAB, wavy
+  progress with stop dot, cookie→circle source avatars.
+- Colors: default palette = TonalSpot (2021) from seed #79D0FD, matched to the user's
+  reference screenshots (neutral blue-gray surfaces, sky-blue primary). A vivid Vibrant
+  palette was tried and rejected.
+
 ## Next
+Roadmap (in order, tracked at https://claude.ai/artifact/AimQzdGP6PGHB7FMd3RHHo): read-later queue
+on Home · highlights per item (jump to page, export) · search inside PDFs · duplicate warning +
+dead-link cleanup · home-screen widget · OCR for scanned PDFs.
 Start with `docs/next-session.md` (collapsible/real HN discussion, Markdown tables/code/HTML).
 1. On-device feel check of motion (phase 9) and a first open of a real PDF in the reader.
-2. PDF pinch zoom (not built). Remove unused `react-native-pdf` / `react-native-blob-util`
+2. Phone check of PDF zoom/pan and the image viewer. Remove unused `react-native-pdf` / `react-native-blob-util`
    (+ their config plugins in app.json) at the next native rebuild.
 Known: dev-only `isFocused()` warning from a library; extractor keeps some page chrome
 (dates, "Story by"); test data on phone (Hacker News feed, 2 saved articles, 1 hidden article).

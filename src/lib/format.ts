@@ -25,3 +25,13 @@ export function fileSize(bytes: number | null | undefined): string | null {
 export function plural(n: number, one: string, many = `${one}s`) {
   return `${n} ${n === 1 ? one : many}`;
 }
+
+/** "today", "yesterday", "on Nov 2", "on Nov 2, 2025": when something was saved. */
+export function savedOn(date: Date, now = new Date()): string {
+  const day = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diff = Math.round((day(now) - day(date)) / 86_400_000);
+  if (diff <= 0) return 'today';
+  if (diff === 1) return 'yesterday';
+  const sameYear = date.getFullYear() === now.getFullYear();
+  return `on ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) })}`;
+}

@@ -155,11 +155,11 @@ function NoteBlock({ t, next, nextTask, onToggleTask, resolveLink }: BlockProps)
       return (
         <View style={{ marginTop: 26, marginBottom: tasks.length ? 0 : 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
-            <Text variant={h.depth <= 2 ? 'titleMediumEmphasized' : 'titleSmall'} accessibilityRole="header" style={{ flex: 1 }}>
+            <Text variant={h.depth <= 2 ? 'titleLargeEmphasized' : 'titleMediumEmphasized'} accessibilityRole="header" style={{ flex: 1 }}>
               <Inline tokens={h.tokens} resolveLink={resolveLink} />
             </Text>
             {tasks.length > 0 && (
-              <Text variant="labelMedium" color="onSurfaceVariant" style={{ fontWeight: '700' }}>
+              <Text variant="labelLarge" color="onSurfaceVariant" style={{ fontWeight: '700' }}>
                 {`${done} of ${tasks.length} done`}
               </Text>
             )}
@@ -250,7 +250,7 @@ function ReaderBlock({ t, caption, resolveLink }: BlockProps) {
       }
       return (
         <Text
-          variant={h.depth <= 2 ? 'titleMediumEmphasized' : 'titleMedium'}
+          variant={h.depth <= 2 ? 'titleLargeEmphasized' : 'titleMediumEmphasized'}
           accessibilityRole="header"
           selectable
           style={{ marginTop: h.depth <= 2 ? 32 : 26, marginBottom: 2 }}
@@ -369,7 +369,7 @@ function Inline({ tokens, resolveLink }: { tokens?: Token[]; resolveLink?: (titl
         switch (t.type) {
           case 'strong':
             return (
-              <Text key={i} style={{ fontWeight: '800' }}>
+              <Text key={i} style={{ fontWeight: '700' }}>
                 <Inline tokens={(t as Tokens.Strong).tokens} resolveLink={resolveLink} />
               </Text>
             );
@@ -477,7 +477,7 @@ function CodeBlock({ code, lang }: { code: string; lang?: string }) {
           style={{ height: 36, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, backgroundColor: colors.surfaceContainerHighest }}
         >
           <Ico name={copied ? 'check' : 'contentCopy'} size={16} color={colors.onSecondaryContainer} />
-          <Text variant="labelMedium" color="onSecondaryContainer" style={{ fontWeight: '700' }}>
+          <Text variant="labelLarge" color="onSecondaryContainer" style={{ fontWeight: '700' }}>
             {copied ? 'Copied' : 'Copy'}
           </Text>
         </PressableSurface>
@@ -564,7 +564,7 @@ function QuoteBody({ blocks, resolveLink }: { blocks: Token[]; resolveLink?: (ti
             );
           case 'heading':
             return (
-              <Text key={i} variant="titleSmall" color="onSurfaceVariant" style={{ marginTop: gap }}>
+              <Text key={i} variant="titleMediumEmphasized" color="onSurfaceVariant" style={{ marginTop: gap }}>
                 <Inline tokens={(b as Tokens.Heading).tokens} resolveLink={resolveLink} />
               </Text>
             );
@@ -606,7 +606,7 @@ function TableBlock({ t, resolveLink }: { t: Tokens.Table; resolveLink?: (title:
   const cell = (c: Tokens.TableCell, k: number, header: boolean) => (
     <View key={k} style={{ width: widths[k], paddingHorizontal: 12, paddingVertical: compact ? 6 : 10, justifyContent: 'center' }}>
       <Text
-        variant={header ? 'labelLarge' : compact ? 'bodySmall' : 'bodyMedium'}
+        variant={header ? 'labelLargeEmphasized' : compact ? 'bodySmall' : 'bodyMedium'}
         selectable={reading}
         style={{ textAlign: t.align[k] ?? 'left', fontWeight: header ? '800' : undefined }}
       >

@@ -30,7 +30,7 @@ export default function Transitions() {
       style={{ flex: 1, backgroundColor: colors.surface }}
       contentContainerStyle={{ paddingTop: insets.top + 16, paddingHorizontal: 16, gap: 16, paddingBottom: 48 }}
     >
-      <Text variant="displaySmall">Transitions</Text>
+      <Text variant="displaySmallEmphasized">Transitions</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         {CARDS.map((name, i) => (
           <Card key={name} name={name} seed={COLLECTION_SEEDS[i]} demo={demo} registerRef={i === 0 ? first : undefined} />
@@ -56,7 +56,7 @@ function Card({
   const tone = collectionTones(seed, dark);
   const body = (
     <View style={{ flex: 1, padding: 16, justifyContent: 'flex-end' }}>
-      <Text variant="titleMedium" color={tone.onContainer}>
+      <Text variant="titleMediumEmphasized" color={tone.onContainer}>
         {name}
       </Text>
     </View>

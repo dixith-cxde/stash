@@ -8,7 +8,9 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { collectionTones, HIGHLIGHT_TONES } from '@/theme/palette';
 import { Ico } from '@/ui/Ico';
 import { ProgressBar } from '@/ui/ProgressBar';
+import { PressableSurface } from '@/ui/PressableSurface';
 import { Text } from '@/ui/Text';
+import type { Corners4 } from '@/motion/useSelection';
 import { TransformCard } from '@/ui/TransformCard';
 
 /** Route for a bookmark: notes open the note reader, everything else the item page. */
@@ -55,7 +57,7 @@ function Art({ b, size }: { b: BookmarkWithTags; size: number }) {
       ) : icon ? (
         <Ico name={icon} size={size * 0.42} color={tile.fg} />
       ) : (
-        <Text variant="labelLarge" color={tile.fg} style={{ fontWeight: '800', fontSize: glyph.length > 1 ? size * 0.23 : size * 0.43 }}>
+        <Text variant="labelLargeEmphasized" color={tile.fg} style={{ fontWeight: '700', fontSize: glyph.length > 1 ? size * 0.23 : size * 0.43 }}>
           {glyph}
         </Text>
       )}
@@ -64,24 +66,24 @@ function Art({ b, size }: { b: BookmarkWithTags; size: number }) {
 }
 
 /** Collection list row (design: 56dp art tile, meta, title, optional PDF progress). */
-export function ItemRow({ b }: { b: BookmarkWithTags }) {
+export function ItemRow({ b, corners }: { b: BookmarkWithTags; corners?: Corners4 }) {
   const { colors } = useAppTheme();
   const progress = b.pageCount && b.lastPage && b.lastPage > 1 ? b.lastPage / b.pageCount : 0;
   return (
-    <TransformCard href={itemHref(b)} color={colors.surfaceContainer} corner={20} accessibilityLabel={b.title} contentStyle={styles.row}>
+    <TransformCard href={itemHref(b)} color={colors.surfaceContainer} corner={20} corners={corners} accessibilityLabel={b.title} contentStyle={styles.row}>
       <View style={styles.rowArt}>
         <Art b={b} size={56} />
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text variant="labelSmall" color="onSurfaceVariant" numberOfLines={1}>
+        <Text variant="labelMedium" color="onSurfaceVariant" numberOfLines={1}>
           {meta(b)}
         </Text>
-        <Text variant="labelLarge" numberOfLines={1} style={{ marginTop: 2 }}>
+        <Text variant="labelLargeEmphasized" numberOfLines={1} style={{ marginTop: 2 }}>
           {b.title || 'Untitled'}
         </Text>
         {progress > 0 && (
           <View style={{ marginTop: 8 }}>
-            <ProgressBar value={progress} trackColor={colors.surfaceVariant} />
+            <ProgressBar value={progress} wavy />
           </View>
         )}
       </View>
@@ -98,10 +100,10 @@ export function ItemTile({ b }: { b: BookmarkWithTags }) {
         <Art b={b} size={96} />
       </View>
       <View style={{ paddingHorizontal: 12, paddingTop: 10, paddingBottom: 14 }}>
-        <Text variant="labelSmall" color="onSurfaceVariant" numberOfLines={1} style={{ fontSize: 11 }}>
+        <Text variant="labelMedium" color="onSurfaceVariant" numberOfLines={1} style={{ fontSize: 11 }}>
           {meta(b)}
         </Text>
-        <Text variant="labelMedium" numberOfLines={2} style={{ fontWeight: '700', marginTop: 4, minHeight: 36 }}>
+        <Text variant="labelLarge" numberOfLines={2} style={{ fontWeight: '700', marginTop: 4, minHeight: 36 }}>
           {b.title || 'Untitled'}
         </Text>
       </View>
@@ -110,22 +112,45 @@ export function ItemTile({ b }: { b: BookmarkWithTags }) {
 }
 
 /** A highlight as a tinted quote card (design: Item detail highlights). */
-export function HighlightCard({ h, showSource }: { h: HighlightWithTags; showSource?: boolean }) {
+/**
+ * A highlight as a tinted quote card. `unit` names its position ("Page 4" in a PDF). With
+ * `onPress` it is tappable (jump to where it was taken).
+ */
+export function HighlightCard({
+  h,
+  showSource,
+  unit = 'Paragraph',
+  onPress,
+}: {
+  h: HighlightWithTags;
+  showSource?: boolean;
+  unit?: 'Page' | 'Paragraph';
+  onPress?: () => void;
+}) {
   const { dark } = useAppTheme();
   const tone = HIGHLIGHT_TONES[h.color][dark ? 'dark' : 'light'];
-  const where = [h.page ? `Paragraph ${h.page}` : null, h.note ? `your note: ${h.note}` : null, showSource ? h.bookmarkTitle ?? h.sourceTitle : null]
+  const where = [h.page ? `${unit} ${h.page}` : null, h.note ? `your note: ${h.note}` : null, showSource ? h.bookmarkTitle ?? h.sourceTitle : null]
     .filter(Boolean)
     .join(' · ');
-  return (
-    <View style={{ borderRadius: 24, padding: 16, backgroundColor: tone.bg }} accessible accessibilityLabel={`Highlight: ${h.text}`}>
+  const body = (
+    <>
       <Text variant="bodyLarge" color={tone.fg} style={{ fontWeight: '600', lineHeight: 23 }}>
         {`“${h.text}”`}
       </Text>
       {where ? (
-        <Text variant="labelSmall" color={tone.fg} style={{ marginTop: 8, opacity: 0.8 }}>
-          {where}
+        <Text variant="labelMedium" color={tone.fg} style={{ marginTop: 8, opacity: 0.8 }}>
+          {onPress ? `${where} · Go to page` : where}
         </Text>
       ) : null}
+    </>
+  );
+  return onPress ? (
+    <PressableSurface kind="card" corner={24} onPress={onPress} accessibilityLabel={`Highlight: ${h.text}. ${where}. Go to page`} style={{ padding: 16, backgroundColor: tone.bg }}>
+      {body}
+    </PressableSurface>
+  ) : (
+    <View style={{ borderRadius: 24, padding: 16, backgroundColor: tone.bg }} accessible accessibilityLabel={`Highlight: ${h.text}`}>
+      {body}
     </View>
   );
 }

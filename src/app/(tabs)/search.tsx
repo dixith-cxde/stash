@@ -1,7 +1,7 @@
 import { useFocusEffect } from 'expo-router';
 import { type ComponentRef, useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDbQuery } from '@/db/hooks';
@@ -19,8 +19,8 @@ import { Chip } from '@/ui/Chip';
 import { EmptyState } from '@/ui/EmptyState';
 import { Ico } from '@/ui/Ico';
 import { IconButton } from '@/ui/IconButton';
-import { PressableSurface } from '@/ui/PressableSurface';
-import { ScreenHeader } from '@/ui/ScreenHeader';
+import { LIST_GAP, ListGroup, ListItem, type ListPosition, listCorners, listPosition } from '@/ui/List';
+import { CollapsedAppBar, ScreenHeader } from '@/ui/ScreenHeader';
 import { Text } from '@/ui/Text';
 
 /** Typing pauses this long (ms) before the query runs. */
@@ -43,7 +43,8 @@ const SCOPES: { key: SmartScope; label: string }[] = [
 export default function SearchScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const onScroll = useChromeScroll();
+  const scrollY = useSharedValue(0);
+  const onScroll = useChromeScroll(scrollY);
   const input = useRef<ComponentRef<typeof TextInput>>(null);
   const [text, setText] = useState('');
   const [query, setQuery] = useState('');
@@ -97,7 +98,6 @@ export default function SearchScreen() {
     <>
       <ScreenHeader
         title="Search"
-        size="displayLarge"
         subtitle={query && !loading ? `${count === 100 ? '100+' : count} result${count === 1 ? '' : 's'}` : 'Find anything you’ve kept'}
       />
       <View style={[styles.field, { backgroundColor: colors.surfaceContainerHigh }]}>
@@ -138,29 +138,26 @@ export default function SearchScreen() {
     <View style={styles.idle}>
       {recent.length > 0 && (
         <>
-          <Text variant="overline" color="primary" style={styles.section}>
+          <Text variant="titleSmallEmphasized" color="primary" style={styles.section}>
             Recent
           </Text>
-          {recent.map((r) => (
-            <PressableSurface
-              key={r}
-              corner={20}
-              onPress={() => run(r)}
-              accessibilityLabel={`Search for ${r}`}
-              style={[styles.recent, { backgroundColor: colors.surfaceContainerLow }]}
-            >
-              <Ico name="history" size={22} color={colors.onSurfaceVariant} />
-              <Text variant="bodyLarge" numberOfLines={1} style={{ flex: 1 }}>
-                {r}
-              </Text>
-              <IconButton icon="close" accessibilityLabel={`Remove ${r} from recent searches`} onPress={() => forget(r)} size={40} />
-            </PressableSurface>
-          ))}
+          <ListGroup>
+            {recent.map((r) => (
+              <ListItem
+                key={r}
+                title={r}
+                onPress={() => run(r)}
+                accessibilityLabel={`Search for ${r}`}
+                leading={<Ico name="history" size={22} color={colors.onSurfaceVariant} />}
+                trailing={<IconButton icon="close" accessibilityLabel={`Remove ${r} from recent searches`} onPress={() => forget(r)} size={40} />}
+              />
+            ))}
+          </ListGroup>
         </>
       )}
       {suggestions.length > 0 && (
         <>
-          <Text variant="overline" color="primary" style={[styles.section, { marginTop: recent.length ? 20 : 4 }]}>
+          <Text variant="titleSmallEmphasized" color="primary" style={[styles.section, { marginTop: recent.length ? 20 : 4 }]}>
             Try
           </Text>
           <View style={styles.chips}>
@@ -185,7 +182,7 @@ export default function SearchScreen() {
       <Animated.FlatList
         data={query ? data.hits : []}
         keyExtractor={(h) => h.key}
-        renderItem={({ item }) => <ResultRow hit={item} />}
+        renderItem={({ item, index }) => <ResultRow hit={item} position={listPosition(index, data.hits.length)} />}
         ListHeaderComponent={header}
         ListEmptyComponent={
           !query ? (
@@ -202,20 +199,21 @@ export default function SearchScreen() {
         scrollEventThrottle={16}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: Layout.navBarClearance + insets.bottom }}
+        contentContainerStyle={{ paddingTop: insets.top, paddingBottom: Layout.navBarClearance + insets.bottom }}
         initialNumToRender={10}
         windowSize={7}
       />
+      <CollapsedAppBar title="Search" scrollY={scrollY} />
     </View>
   );
 }
 
-function ResultRow({ hit }: { hit: SmartHit }) {
+function ResultRow({ hit, position }: { hit: SmartHit; position: ListPosition }) {
   return (
-    <View style={styles.result}>
-      {hit.kind === 'bookmark' ? <ItemRow b={hit.b} /> : <HighlightResult h={hit.h} />}
+    <View style={[styles.result, hit.why && position !== 'last' && position !== 'single' ? { paddingBottom: 6 } : null]}>
+      {hit.kind === 'bookmark' ? <ItemRow b={hit.b} corners={listCorners(position)} /> : <HighlightResult h={hit.h} />}
       {hit.why ? (
-        <Text variant="labelSmall" color="onSurfaceVariant" numberOfLines={1} style={styles.why}>
+        <Text variant="labelMedium" color="onSurfaceVariant" numberOfLines={1} style={styles.why}>
           {hit.why}
         </Text>
       ) : null}
@@ -242,6 +240,6 @@ const styles = StyleSheet.create({
   section: { marginBottom: 8, paddingHorizontal: 8 },
   recent: { height: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 16, paddingRight: 4, marginBottom: 4 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  result: { paddingHorizontal: Layout.gutter, paddingVertical: 4 },
+  result: { paddingHorizontal: Layout.gutter, paddingBottom: LIST_GAP },
   why: { paddingHorizontal: 12, paddingTop: 4 },
 });

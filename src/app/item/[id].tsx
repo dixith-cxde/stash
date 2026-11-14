@@ -1,18 +1,17 @@
 import { Image } from 'expo-image';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Share, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDbQuery } from '@/db/hooks';
-import { deleteBookmarks, getBookmark, queryHighlights, setArchived, updateBookmark } from '@/db/repo';
+import { type BookmarkWithTags, deleteBookmarks, getBookmark, type HighlightWithTags, queryHighlights, setArchived, updateBookmark } from '@/db/repo';
 import { HighlightCard } from '@/features/collections/ItemViews';
 import { OrganizeCard } from '@/features/detail/OrganizeCard';
 import { FilePreview, hasFilePreview } from '@/features/files/FilePreview';
 import { formatBytes } from '@/features/files/kinds';
-import { linkKind } from '@/features/links/linkKind';
-import { cardKind, hostSeed, kindIcon, kindLabel, readingMinutes, sourceLabel } from '@/features/stash/model';
+import { cardKind, highlightsMarkdown, hostSeed, kindIcon, kindLabel, openAction, readingMinutes, sourceLabel } from '@/features/stash/model';
 import { relativeTime } from '@/lib/format';
 import { openItem } from '@/lib/nav';
 import { haptic } from '@/motion/haptics';
@@ -22,8 +21,8 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { collectionTones, withAlpha } from '@/theme/palette';
 import { FONT_FAMILY, Type } from '@/theme/type';
 import { ActionSheet } from '@/ui/ActionSheet';
-import { BackPill, HeroIconButton } from '@/ui/BackPill';
-import { Button } from '@/ui/Button';
+import { BackPill } from '@/ui/BackPill';
+import { FloatingToolbar, TOOLBAR_CLEARANCE } from '@/ui/FloatingToolbar';
 import { Ico } from '@/ui/Ico';
 import { IconButton } from '@/ui/IconButton';
 import { showSnackbar } from '@/ui/Snackbar';
@@ -37,17 +36,6 @@ export default function ItemScreen() {
     </TransitionScreen>
   );
 }
-
-const READ_LABEL = {
-  link: 'Read',
-  video: 'Watch',
-  pdf: 'Open PDF',
-  note: 'Open',
-  image: 'View',
-  file: 'Open',
-  markdown: 'Read',
-  textfile: 'Open',
-} as const;
 
 function ItemBody() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -82,12 +70,11 @@ function ItemBody() {
   // Links: what the URL points at ("App · Play Store", "Repo · owner/name", "Docs · MDN").
   const linkLabel = kind === 'link' ? kindLabel(b) : null;
   const linkIcon = kind === 'link' ? kindIcon(b) : null;
-  const lk = kind === 'link' ? linkKind(b.url).kind : null;
-  const readLabel = lk === 'app' ? 'Open in store' : lk === 'repo' ? 'Open repo' : lk === 'package' ? 'Open package' : READ_LABEL[kind];
+  const action = openAction(b);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
-      <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={{ paddingBottom: 40 + insets.bottom }}>
+      <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={{ paddingBottom: TOOLBAR_CLEARANCE + insets.bottom }}>
         <View style={[styles.hero, { backgroundColor: tone.container }]}>
           <Animated.View style={[StyleSheet.absoluteFill, parallax]} pointerEvents="none">
             {art ? (
@@ -96,7 +83,7 @@ function ItemBody() {
               <>
                 <Shape name="sunny" size={360} color={tone.accent} style={{ position: 'absolute', left: -90, top: -40 }} />
                 <Shape name="cookie9Sided" size={150} color={tone.onContainer} style={{ position: 'absolute', right: -20, bottom: -30 }} />
-                <Text variant="displayLarge" color={tone.onContainer} numberOfLines={2} style={styles.siteMark}>
+                <Text variant="editorialLarge" color={tone.onContainer} numberOfLines={2} style={styles.siteMark}>
                   {site.split(/\s+/).slice(0, 2).join('\n')}
                 </Text>
               </>
@@ -104,7 +91,6 @@ function ItemBody() {
           </Animated.View>
           <View style={[styles.heroBar, { paddingTop: insets.top + 12 }]}>
             <BackPill label="Back" onPress={close} onHero={art ? colors.onSurface : tone.onContainer} />
-            <HeroIconButton icon="moreVert" label="More" onPress={() => setMenu(true)} onHero={art ? colors.onSurface : tone.onContainer} />
           </View>
         </View>
 
@@ -120,12 +106,12 @@ function ItemBody() {
           {linkLabel && (
             <View style={[styles.kindChip, { backgroundColor: colors.secondaryContainer }]}>
               {linkIcon && <Ico name={linkIcon} size={16} color={colors.onSecondaryContainer} />}
-              <Text variant="labelMedium" color="onSecondaryContainer" numberOfLines={1}>
+              <Text variant="labelLarge" color="onSecondaryContainer" numberOfLines={1}>
                 {linkLabel}
               </Text>
             </View>
           )}
-          <Text variant="headlineMedium" style={{ marginTop: 12 }} accessibilityRole="header">
+          <Text variant="headlineMediumEmphasized" style={{ marginTop: 12 }} accessibilityRole="header">
             {b.title || 'Untitled'}
           </Text>
           {b.description ? (
@@ -135,27 +121,6 @@ function ItemBody() {
           ) : null}
         </View>
 
-        <View style={styles.actions}>
-          <Button label={readLabel} icon={linkIcon ?? 'menuBook'} height={56} corners={[28, 12, 12, 28]} grow onPress={() => void openItem(b)} />
-          <IconButton
-            icon="star"
-            selectedIcon="starFill"
-            accessibilityLabel="Favorite"
-            variant="tonal"
-            size={56}
-            selected={b.isFavorite}
-            onPress={() => void updateBookmark(b.id, { isFavorite: !b.isFavorite })}
-          />
-          <IconButton
-            icon="share"
-            accessibilityLabel="Share"
-            variant="tonal"
-            size={56}
-            corners={[12, 28, 28, 12]}
-            onPress={() => void Share.share({ message: b.url ? `${b.title}\n${b.url}` : b.title, title: b.title })}
-          />
-        </View>
-
         {hasFilePreview(kind, b) && <FilePreview b={b} kind={kind} onOpen={() => void openItem(b)} />}
 
         <OrganizeCard b={b} />
@@ -163,16 +128,26 @@ function ItemBody() {
         {hls.length > 0 && (
           <>
             <View style={styles.section}>
-              <Text variant="titleLarge" accessibilityRole="header">
+              <Text variant="titleLargeEmphasized" accessibilityRole="header">
                 Highlights
               </Text>
-              <Text variant="labelMedium" color="onSurfaceVariant">
+              <Text variant="labelLarge" color="onSurfaceVariant" style={{ flex: 1 }}>
                 {String(hls.length)}
               </Text>
+              <IconButton icon="share" accessibilityLabel="Export highlights as Markdown" variant="tonal" size={40} onPress={() => void exportHighlights(b, hls)} />
             </View>
             <View style={{ gap: 8, paddingHorizontal: 16 }}>
               {hls.map((h) => (
-                <HighlightCard key={h.id} h={h} />
+                <HighlightCard
+                  key={h.id}
+                  h={h}
+                  unit={kind === 'pdf' ? 'Page' : 'Paragraph'}
+                  onPress={
+                    kind === 'pdf' && h.page && b.filePath
+                      ? () => router.push({ pathname: '/pdf/[id]', params: { id: b.id, page: String(h.page) } })
+                      : undefined
+                  }
+                />
               ))}
             </View>
           </>
@@ -180,6 +155,22 @@ function ItemBody() {
 
         <NoteField id={b.id} initial={b.note ?? ''} />
       </Animated.ScrollView>
+
+      <FloatingToolbar fab={{ label: action.label, icon: action.icon, onPress: () => void openItem(b) }}>
+        <IconButton
+          icon="star"
+          selectedIcon="starFill"
+          accessibilityLabel="Favorite"
+          selected={b.isFavorite}
+          onPress={() => void updateBookmark(b.id, { isFavorite: !b.isFavorite })}
+        />
+        <IconButton
+          icon="share"
+          accessibilityLabel="Share"
+          onPress={() => void Share.share({ message: b.url ? `${b.title}\n${b.url}` : b.title, title: b.title })}
+        />
+        <IconButton icon="moreVert" accessibilityLabel="More" onPress={() => setMenu(true)} />
+      </FloatingToolbar>
 
       {menu && (
         <ActionSheet
@@ -217,6 +208,11 @@ function ItemBody() {
   );
 }
 
+/** Shares the item's highlights as Markdown (to notes apps, mail, Obsidian…). */
+async function exportHighlights(b: BookmarkWithTags, hls: HighlightWithTags[]) {
+  await Share.share({ message: highlightsMarkdown(b, hls), title: `Highlights: ${b.title}` });
+}
+
 async function copy(text: string) {
   const Clipboard = await import('expo-clipboard');
   await Clipboard.setStringAsync(text);
@@ -231,7 +227,7 @@ function NoteField({ id, initial }: { id: string; initial: string }) {
   useEffect(() => () => clearTimeout(timer.current), []);
   return (
     <View style={[styles.note, { backgroundColor: colors.surfaceContainer }]}>
-      <Text variant="overline" color="primary">
+      <Text variant="titleSmallEmphasized" color="primary">
         Your note
       </Text>
       <TextInput
@@ -257,7 +253,6 @@ const styles = StyleSheet.create({
   siteMark: { position: 'absolute', left: 24, bottom: 28, fontSize: 56, lineHeight: 56, letterSpacing: -2 },
   kindChip: { flexDirection: 'row', alignSelf: 'flex-start', alignItems: 'center', gap: 6, marginTop: 12, paddingHorizontal: 12, height: 32, borderRadius: 16 },
   favicon: { width: 20, height: 20, borderRadius: 6, overflow: 'hidden' },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 24, paddingTop: 20 },
-  section: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 28, paddingBottom: 12 },
+  section: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 24, paddingTop: 28, paddingBottom: 12 },
   note: { marginHorizontal: 16, marginTop: 16, borderRadius: 24, paddingVertical: 14, paddingHorizontal: 18 },
 });

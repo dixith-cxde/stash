@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CollectionCard, SmartViewTile } from '@/features/collections/CollectionCards';
@@ -15,8 +15,9 @@ import { Layout } from '@/theme/tokens';
 import { EmptyState } from '@/ui/EmptyState';
 import { Ico } from '@/ui/Ico';
 import { IconButton } from '@/ui/IconButton';
+import { LIST_GAP } from '@/ui/List';
 import { PressableSurface } from '@/ui/PressableSurface';
-import { Overline, ScreenHeader, SectionHeader } from '@/ui/ScreenHeader';
+import { CollapsedAppBar, Overline, ScreenHeader, SectionHeader } from '@/ui/ScreenHeader';
 import { Text } from '@/ui/Text';
 
 type Sort = 'recent' | 'name' | 'size';
@@ -29,7 +30,8 @@ const SORTS: Record<Sort, { label: string; next: Sort; by: (a: Collection, b: Co
 export default function Library() {
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
-  const onScroll = useChromeScroll();
+  const scrollY = useSharedValue(0);
+  const onScroll = useChromeScroll(scrollY);
   const { data: totals } = useTotals();
   const { data: collections, loading } = useCollections();
   const [sort, setSort] = useState<Sort>('recent');
@@ -43,28 +45,21 @@ export default function Library() {
         <Animated.ScrollView
           onScroll={onScroll}
           scrollEventThrottle={16}
-          contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: Layout.navBarClearance + insets.bottom }}
+          contentContainerStyle={{ paddingTop: insets.top, paddingBottom: Layout.navBarClearance + insets.bottom }}
         >
           <ScreenHeader
             title="Library"
             subtitle={`${collections.length} collections · ${totals.all} items`}
-            trailing={
-              <IconButton
-                icon="add"
-                accessibilityLabel="New collection"
-                variant="tonal"
-                corners={[16, 16, 16, 16]}
-                onPress={() => router.push('/collection/new')}
-              />
-            }
+            trailing={<NewCollectionButton />}
           />
 
           <Overline>Smart views</Overline>
-          <View style={{ paddingHorizontal: Layout.gutter, gap: Layout.gridGap }}>
-            <View style={{ flexDirection: 'row', gap: Layout.gridGap }}>
+          <View style={{ paddingHorizontal: Layout.gutter, gap: LIST_GAP }}>
+            <View style={{ flexDirection: 'row', gap: LIST_GAP }}>
               <SmartViewTile
                 href="/collection/all"
                 label="All items"
+                corners={[24, 4, 4, 4]}
                 detail={String(totals.all)}
                 icon="gridView"
                 tile={{ bg: colors.surfaceContainerHighest, fg: colors.onSecondaryContainer }}
@@ -72,15 +67,17 @@ export default function Library() {
               <SmartViewTile
                 href="/collection/pdfs"
                 label="PDFs"
+                corners={[4, 24, 4, 4]}
                 detail={totals.pdfsInProgress ? `${totals.pdfs} · ${totals.pdfsInProgress} in progress` : String(totals.pdfs)}
                 glyph="PDF"
                 tile={{ bg: colors.tertiaryContainer, fg: colors.onTertiaryContainer }}
               />
             </View>
-            <View style={{ flexDirection: 'row', gap: Layout.gridGap }}>
+            <View style={{ flexDirection: 'row', gap: LIST_GAP }}>
               <SmartViewTile
                 href="/collection/notes"
                 label="Notes"
+                corners={[4, 4, 4, 24]}
                 detail={String(totals.notes)}
                 icon="markdown"
                 tile={{ bg: colors.secondaryContainer, fg: colors.onSecondaryContainer }}
@@ -88,6 +85,7 @@ export default function Library() {
               <SmartViewTile
                 href="/collection/highlights"
                 label="Highlights"
+                corners={[4, 4, 24, 4]}
                 detail={String(totals.highlights)}
                 icon="inkHighlighter"
                 tile={{ bg: colors.primaryContainer, fg: colors.onPrimaryContainer }}
@@ -111,6 +109,7 @@ export default function Library() {
             </View>
           )}
         </Animated.ScrollView>
+        <CollapsedAppBar title="Library" scrollY={scrollY} trailing={<NewCollectionButton />} />
       </>
     </View>
   );
@@ -132,9 +131,14 @@ function SortButton({ sort, onPress }: { sort: Sort; onPress: () => void }) {
       <Animated.View style={icon}>
         <Ico name="swapVert" size={18} color={colors.onSurfaceVariant} />
       </Animated.View>
-      <Text variant="labelMedium" color="onSurfaceVariant">
+      <Text variant="labelLarge" color="onSurfaceVariant">
         {SORTS[sort].label}
       </Text>
     </PressableSurface>
   );
+}
+
+/** The app bar's one emphasized action: a tonal wide icon button. */
+function NewCollectionButton() {
+  return <IconButton icon="add" accessibilityLabel="New collection" variant="tonal" width={56} onPress={() => router.push('/collection/new')} />;
 }

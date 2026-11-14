@@ -41,6 +41,46 @@ export function kindLabel(b: KindFields): string | null {
   return null;
 }
 
+/**
+ * The main action on the item page, by what the item is. Saved links are resources (apps,
+ * videos, repos, tools, pages), not all articles, so a link only says "Read" when we know it
+ * is an article (saved from Feeds, or it has a word count); otherwise it says "Open".
+ */
+export function openAction(b: KindFields & Partial<Pick<BookmarkWithTags, 'wordCount' | 'sourceApp'>>): { label: string; icon: IconName } {
+  // Saved from Feeds: an article, opened in the in-app reader.
+  if (b.sourceApp === 'Feeds' && cardKind(b) === 'link') return { label: 'Read', icon: 'menuBook' };
+  switch (cardKind(b)) {
+    case 'video':
+      return { label: 'Watch', icon: 'playArrowFill' };
+    case 'pdf':
+      return { label: 'Open PDF', icon: 'pictureAsPdf' };
+    case 'image':
+      return { label: 'View image', icon: 'image' };
+    case 'note':
+      return { label: 'Open note', icon: 'stickyNote2' };
+    case 'markdown':
+      return { label: 'Read', icon: 'menuBook' };
+    case 'textfile':
+    case 'file':
+      return { label: 'Open file', icon: 'description' };
+    case 'link':
+      switch (linkKind(b.url).kind) {
+        case 'app':
+          return { label: 'Get app', icon: 'apps' };
+        case 'repo':
+          return { label: 'Open repo', icon: 'code' };
+        case 'package':
+          return { label: 'Open package', icon: 'category' };
+        case 'docs':
+          return { label: 'Open docs', icon: 'menuBook' };
+        case 'video':
+          return { label: 'Watch', icon: 'playArrowFill' };
+        default:
+          return b.wordCount ? { label: 'Read', icon: 'menuBook' } : { label: 'Open', icon: 'openInNew' };
+      }
+  }
+}
+
 /** Icon matching `kindLabel` (null: none, the card has its own artwork). */
 export function kindIcon(b: KindFields): IconName | null {
   const k = cardKind(b);
@@ -261,3 +301,54 @@ export const TYPE_COUNT_LABEL: Record<BookmarkType, [string, string]> = {
   image: ['image', 'images'],
   file: ['file', 'files'],
 };
+
+// --- Reading queue ---------------------------------------------------------------------------
+
+export type QueueEntry = { item: BookmarkWithTags; progress: number | null };
+
+/**
+ * Home's "Continue reading" row: PDFs you are part-way through (most recently read first),
+ * then unread things meant for reading (PDFs, articles saved from Feeds, Markdown, long
+ * links), newest first. Apps, repos, videos and notes are not reading, so they stay out.
+ */
+export function readingQueue(items: BookmarkWithTags[], max = 8): QueueEntry[] {
+  const live = items.filter((b) => !b.isArchived);
+  const started = live
+    .filter((b) => b.type === 'pdf' && b.pageCount && b.lastPage && b.lastPage > 1 && b.lastPage < b.pageCount)
+    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+    .map((b) => ({ item: b, progress: b.lastPage! / b.pageCount! }));
+  const seen = new Set(started.map((e) => e.item.id));
+  const unread = live
+    .filter((b) => !seen.has(b.id) && !b.readAt)
+    .filter((b) => {
+      const k = cardKind(b);
+      if (k === 'pdf' || k === 'markdown') return true;
+      if (k !== 'link') return false;
+      return b.sourceApp === 'Feeds' || !!b.wordCount || linkKind(b.url).kind === 'docs';
+    })
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .map((b) => ({ item: b, progress: null }));
+  return [...started, ...unread].slice(0, max);
+}
+
+// --- Highlights export -----------------------------------------------------------------------
+
+/** An item's highlights as Markdown: title, link, then each quote with its page. */
+export function highlightsMarkdown(
+  b: Pick<BookmarkWithTags, 'title' | 'url' | 'type'>,
+  hls: Pick<HighlightWithTags, 'text' | 'page' | 'note'>[],
+): string {
+  const unit = b.type === 'pdf' ? 'p.' : '¶';
+  const out = [`# ${b.title || 'Highlights'}`];
+  if (b.url) out.push(b.url);
+  for (const h of hls) {
+    const quote = h.text
+      .trim()
+      .split('\n')
+      .map((l) => `> ${l}`)
+      .join('\n');
+    out.push(h.page ? `${quote}\n>\n> — ${unit} ${h.page}` : quote);
+    if (h.note) out.push(`Note: ${h.note}`);
+  }
+  return `${out.join('\n\n')}\n`;
+}

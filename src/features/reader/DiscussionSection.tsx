@@ -48,12 +48,12 @@ export const DiscussionSection = memo(function DiscussionSection({ discussion, a
         <View style={[styles.headerIcon, { backgroundColor: colors.secondaryContainer }]}>
           <Ico name="forum" size={22} color={colors.onSecondaryContainer} />
         </View>
-        <Text variant="titleMediumEmphasized" style={{ flex: 1 }}>
+        <Text variant="titleLargeEmphasized" style={{ flex: 1 }}>
           Discussion
         </Text>
         {total > 0 && (
           <View style={[styles.count, { backgroundColor: colors.secondaryContainer }]}>
-            <Text variant="labelLarge" color="onSecondaryContainer">
+            <Text variant="labelLargeEmphasized" color="onSecondaryContainer">
               {total.toLocaleString()}
             </Text>
           </View>
@@ -69,7 +69,7 @@ export const DiscussionSection = memo(function DiscussionSection({ discussion, a
           style={[styles.aggregator, { backgroundColor: colors.secondaryContainer }]}
         >
           <View style={{ flex: 1 }}>
-            <Text variant="titleSmall" color="onSecondaryContainer">
+            <Text variant="titleMediumEmphasized" color="onSecondaryContainer">
               {`Discuss on ${aggregator.site}`}
             </Text>
             <View style={styles.stats}>
@@ -86,10 +86,10 @@ export const DiscussionSection = memo(function DiscussionSection({ discussion, a
       {comments.length > 0 && (
         <>
           <View style={styles.sub}>
-            <Text variant="labelLarge" color="onSurfaceVariant" style={{ flex: 1 }} numberOfLines={1}>
+            <Text variant="labelLargeEmphasized" color="onSurfaceVariant" style={{ flex: 1 }} numberOfLines={1}>
               {host ? `Comments on ${host}` : (discussion?.title ?? 'Comments')}
             </Text>
-            <Text variant="labelMedium" color="onSurfaceVariant">
+            <Text variant="labelLarge" color="onSurfaceVariant">
               {pageCount > comments.length ? `${comments.length} of ${pageCount}` : plural(comments.length, 'comment')}
             </Text>
           </View>
@@ -123,7 +123,7 @@ function Stat({ icon, label }: { icon: 'forum' | 'arrowUpward'; label: string })
   return (
     <View style={styles.stat}>
       <Ico name={icon} size={16} color={colors.onSecondaryContainer} />
-      <Text variant="labelMedium" color="onSecondaryContainer">
+      <Text variant="labelLarge" color="onSecondaryContainer">
         {label}
       </Text>
     </View>
@@ -158,7 +158,7 @@ const CommentCard = memo(function CommentCard({
         <View style={styles.commentHead}>
           <View style={[styles.commentAvatar, { backgroundColor: tone?.container ?? colors.surfaceContainerHighest }]}>
             {c.author ? (
-              <Text variant="labelLarge" color={tone!.onContainer}>
+              <Text variant="labelLargeEmphasized" color={tone!.onContainer}>
                 {c.author.trim()[0]?.toUpperCase() ?? '?'}
               </Text>
             ) : (
@@ -166,15 +166,15 @@ const CommentCard = memo(function CommentCard({
             )}
           </View>
           <View style={{ flex: 1 }}>
-            <Text variant="labelLarge" numberOfLines={1}>
+            <Text variant="labelLargeEmphasized" numberOfLines={1}>
               {c.author ?? `Comment ${index + 1}`}
             </Text>
             {time ? (
-              <Text variant="labelSmall" color="onSurfaceVariant" numberOfLines={1}>
+              <Text variant="labelMedium" color="onSurfaceVariant" numberOfLines={1}>
                 {c.depth > 0 ? `Reply · ${time}` : time}
               </Text>
             ) : c.depth > 0 ? (
-              <Text variant="labelSmall" color="onSurfaceVariant">
+              <Text variant="labelMedium" color="onSurfaceVariant">
                 Reply
               </Text>
             ) : null}
@@ -183,7 +183,7 @@ const CommentCard = memo(function CommentCard({
         <MarkdownView markdown={c.markdown} compact baseUrl={baseUrl} onOpenLink={onOpen} />
         {c.permalink && (
           <Text
-            variant="labelMedium"
+            variant="labelLarge"
             color="primary"
             onPress={() => onOpen(c.permalink!)}
             accessibilityRole="link"

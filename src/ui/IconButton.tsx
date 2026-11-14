@@ -28,8 +28,10 @@ type Props = {
   accessibilityLabel: string;
   onPress?: () => void;
   variant?: Variant;
-  /** Square size in dp (design: 40, 48, 56, 64). */
+  /** Height in dp (design: 40, 48, 56, 64). */
   size?: number;
+  /** Width in dp; defaults to `size`. Wider than tall = M3 "wide" icon button for emphasis. */
+  width?: number;
   /** Toggle state. When defined, the button morphs square → round as it turns on. */
   selected?: boolean;
   /** Colors when selected (defaults to tertiary, like the design's favorite). */
@@ -53,6 +55,7 @@ export function IconButton({
   onPress,
   variant = 'standard',
   size = 48,
+  width,
   selected,
   selectedColors = { bg: 'tertiary', fg: 'onTertiary' },
   corners,
@@ -100,7 +103,7 @@ export function IconButton({
         onAccessibilityAction={(e) => e.nativeEvent.actionName === 'activate' && onPress?.()}
         style={[
           {
-            width: size,
+            width: width ?? size,
             height: size,
             borderWidth: variant === 'outlined' ? 1 : 0,
             borderColor: colors.outlineVariant,

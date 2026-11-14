@@ -1,5 +1,5 @@
 import * as DocumentPicker from "expo-document-picker";
-import { router, useLocalSearchParams } from "expo-router";
+import { type Href, router, useLocalSearchParams } from "expo-router";
 import { type ComponentRef, useEffect, useMemo, useRef, useState } from "react";
 import { TextInput, View } from "react-native";
 import Animated from "react-native-reanimated";
@@ -9,6 +9,7 @@ import {
   createBookmark,
   deleteBookmarks,
   deleteHighlight,
+  findDuplicate,
   listTags,
 } from "@/db/repo";
 import {
@@ -22,6 +23,7 @@ import { CollectionPicker, TagPicker } from "@/features/detail/Pickers";
 import { folderSeed, glyphFor, hostSeed } from "@/features/stash/model";
 import { useCollections } from "@/features/stash/queries";
 import { useSuggestions } from "@/features/suggest/useSuggestions";
+import { savedOn } from "@/lib/format";
 import { haptic } from "@/motion/haptics";
 import { enterFade, enterRise, exitFade, reflow } from "@/motion/layout";
 import { MorphingShape } from "@/shapes/MorphingShape";
@@ -60,9 +62,12 @@ const SAVED_HINT: Record<Mode, string> = {
 type Saved = {
   mode: Mode;
   folderId: string | null;
+  /** Items this save created (Undo deletes them). A link saved before is not among them. */
   bookmarkIds: string[];
   highlightIds: string[];
   viewId?: string;
+  /** The link was already in the stash, saved at this time. */
+  alreadySavedAt?: Date;
 };
 
 /**
@@ -71,14 +76,16 @@ type Saved = {
  * picker and a split Save button; then a success state with Undo.
  */
 export default function CaptureScreen() {
-  const params = useLocalSearchParams<{ folderId?: string }>();
+  const params = useLocalSearchParams<{ folderId?: string; mode?: Mode }>();
   const drafts = useCapture((s) => s.drafts);
   const clearDrafts = useCapture((s) => s.clear);
   const incoming = drafts[0];
   const highlightDraft = incoming?.kind === "highlight" ? incoming : null;
 
   const [mode, setMode] = useState<Mode>(() =>
-    !incoming || incoming.kind === "highlight"
+    !incoming && (params.mode === "note" || params.mode === "file")
+      ? params.mode
+      : !incoming || incoming.kind === "highlight"
       ? "link"
       : incoming.type === "link"
         ? "link"
@@ -115,9 +122,14 @@ export default function CaptureScreen() {
   const [saved, setSaved] = useState<Saved | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // "View item": the sheet closes first, then this screen is replaced by the item (pushing
+  // before the sheet's own back() would let that back() pop the item again).
+  const viewAfterClose = useRef<string | null>(null);
   const dismiss = () => {
     clearDrafts();
-    router.back();
+    const next = viewAfterClose.current;
+    if (next) router.replace(next as Href);
+    else router.back();
   };
 
   return (
@@ -134,17 +146,12 @@ export default function CaptureScreen() {
                 setSaved(null);
               }}
               onView={() => {
-                close();
                 if (saved.viewId)
-                  setTimeout(
-                    () =>
-                      router.push(
-                        saved.mode === "note"
-                          ? `/note/${saved.viewId}`
-                          : `/item/${saved.viewId}`,
-                      ),
-                    220,
-                  );
+                  viewAfterClose.current =
+                    saved.mode === "note"
+                      ? `/note/${saved.viewId}`
+                      : `/item/${saved.viewId}`;
+                close();
               }}
             />
           ) : (
@@ -255,7 +262,9 @@ async function save(i: SaveInput): Promise<Saved> {
       },
       opts,
     );
-    out.bookmarkIds.push(r.id);
+    // A link saved before is reused, not created: Undo must never delete it.
+    if (r.duplicate) out.alreadySavedAt = r.savedAt;
+    else out.bookmarkIds.push(r.id);
     out.viewId = r.id;
   } else if (i.mode === "note") {
     const id = await createBookmark({
@@ -316,7 +325,7 @@ function CaptureForm(p: FormProps) {
           paddingHorizontal: 8,
         }}
       >
-        <Text variant="headlineSmall" accessibilityRole="header">
+        <Text variant="headlineSmallEmphasized" accessibilityRole="header">
           {p.highlightDraft ? "Save highlight" : "Save to Stash"}
         </Text>
         <Button
@@ -405,9 +414,27 @@ function inputStyle(color: string) {
   return { color, fontFamily: FONT_FAMILY, padding: 0 } as const;
 }
 
+/** The item this link was already saved as (looked up as you type, debounced). */
+function useAlreadySaved(link: string) {
+  const [dup, setDup] = useState<{ id: string; createdAt: Date } | null>(null);
+  useEffect(() => {
+    let live = true;
+    const t = setTimeout(() => {
+      if (!/^https?:\/\/\S+\.\S+/i.test(link)) return void (live && setDup(null));
+      void findDuplicate(link).then((d) => live && setDup(d ? { id: d.id, createdAt: d.createdAt } : null));
+    }, 300);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  }, [link]);
+  return dup;
+}
+
 function LinkFields(p: FormProps) {
   const { colors, dark } = useAppTheme();
   const link = extractUrl(p.url) ?? p.url.trim();
+  const dup = useAlreadySaved(link);
   const host = link ? hostOf(link) : "";
   const tone = collectionTones(hostSeed(link || "link"), dark);
   return (
@@ -432,7 +459,7 @@ function LinkFields(p: FormProps) {
             backgroundColor: tone.container,
           }}
         >
-          <Text variant="headlineSmall" color={tone.onContainer}>
+          <Text variant="headlineSmallEmphasized" color={tone.onContainer}>
             {host
               ? glyphFor({
                   url: link,
@@ -453,7 +480,7 @@ function LinkFields(p: FormProps) {
             autoCorrect={false}
             keyboardType="url"
             accessibilityLabel="Link"
-            style={[inputStyle(colors.onSurfaceVariant), Type.labelSmall]}
+            style={[inputStyle(colors.onSurfaceVariant), Type.labelMedium]}
           />
           <TextInput
             value={p.title}
@@ -463,12 +490,38 @@ function LinkFields(p: FormProps) {
             accessibilityLabel="Title"
             style={[
               inputStyle(colors.onSurface),
-              Type.labelLarge,
+              Type.labelLargeEmphasized,
               { marginTop: 2 },
             ]}
           />
         </View>
       </View>
+      {dup && (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+            paddingLeft: 16,
+            paddingRight: 6,
+            paddingVertical: 6,
+            borderRadius: 20,
+            backgroundColor: colors.tertiaryContainer,
+          }}
+          accessibilityLiveRegion="polite"
+        >
+          <Ico name="info" size={20} color={colors.onTertiaryContainer} />
+          <Text variant="bodyMedium" color={colors.onTertiaryContainer} style={{ flex: 1 }}>
+            {`You saved this ${savedOn(dup.createdAt)}.`}
+          </Text>
+          <Button
+            label="Open"
+            variant="text"
+            size="s"
+            onPress={() => router.replace(`/item/${dup.id}`)}
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -516,7 +569,7 @@ function NoteFields(p: FormProps) {
           accessibilityLabel="Note title"
           style={[
             inputStyle(colors.onSurface),
-            Type.titleMedium,
+            Type.titleMediumEmphasized,
             {
               fontWeight: "800",
               fontSize: 18,
@@ -577,7 +630,7 @@ function NoteFields(p: FormProps) {
                 <Ico name={t.icon} size={20} color={colors.onSurface} />
               ) : (
                 <Text
-                  variant="labelLarge"
+                  variant="labelLargeEmphasized"
                   style={{
                     fontSize: 16,
                     fontWeight: "800",
@@ -601,7 +654,7 @@ function NoteFields(p: FormProps) {
         }}
       >
         <Ico name="markdown" size={16} color={colors.onSurfaceVariant} />
-        <Text variant="labelSmall" color="onSurfaceVariant">
+        <Text variant="labelMedium" color="onSurfaceVariant">
           Markdown supported
         </Text>
       </View>
@@ -666,8 +719,8 @@ function FileFields(p: FormProps) {
             color={colors.onSecondaryContainer}
           />
         </View>
-        <Text variant="labelLarge">Choose a PDF or file</Text>
-        <Text variant="labelSmall" color="onSurfaceVariant">
+        <Text variant="labelLargeEmphasized">Choose a PDF or file</Text>
+        <Text variant="labelMedium" color="onSurfaceVariant">
           PDF, images, text, any file
         </Text>
       </PressableSurface>
@@ -697,14 +750,14 @@ function FileFields(p: FormProps) {
               }}
             >
               <Text
-                variant="labelSmall"
+                variant="labelMedium"
                 color="onTertiaryContainer"
                 style={{ fontWeight: "800", fontSize: 11 }}
               >
                 {f.type === "pdf" ? "PDF" : f.type === "image" ? "IMG" : "FILE"}
               </Text>
             </View>
-            <Text variant="labelLarge" numberOfLines={1} style={{ flex: 1 }}>
+            <Text variant="labelLargeEmphasized" numberOfLines={1} style={{ flex: 1 }}>
               {f.title}
             </Text>
             <IconButton
@@ -760,7 +813,7 @@ function TagRow(p: FormProps) {
         }}
       >
         <Ico name="autoAwesome" size={16} color={colors.primary} />
-        <Text variant="overline" color="primary">
+        <Text variant="titleSmallEmphasized" color="primary">
           {shown.length ? "Suggested tags" : "Tags"}
         </Text>
       </View>
@@ -825,7 +878,7 @@ function CollectionRow({
           marginBottom: 8,
         }}
       >
-        <Text variant="overline" color="primary">
+        <Text variant="titleSmallEmphasized" color="primary">
           Collection
         </Text>
         {collections.length > 2 && (
@@ -893,33 +946,37 @@ function SavedView({
         </View>
       </View>
       <Text
-        variant="headlineSmall"
+        variant="headlineSmallEmphasized"
         style={{ marginTop: 10, textAlign: "center" }}
       >
-        {`Saved to ${where}`}
+        {saved.alreadySavedAt ? "Already in your stash" : `Saved to ${where}`}
       </Text>
       <Text
         variant="bodyMedium"
         color="onSurfaceVariant"
         style={{ textAlign: "center" }}
       >
-        {SAVED_HINT[saved.mode]}
+        {saved.alreadySavedAt
+          ? `You saved this link ${savedOn(saved.alreadySavedAt)}.`
+          : SAVED_HINT[saved.mode]}
       </Text>
-      <View style={{ flexDirection: "row", gap: 8, marginTop: 14 }}>
-        <Button
-          label="Undo"
-          variant="outlined"
-          size="s"
-          height={48}
-          onPress={onUndo}
-        />
+      <View style={{ alignSelf: "stretch", gap: 4, marginTop: 18 }}>
         {saved.viewId && (
           <Button
             label="View item"
-            variant="tonal"
+            icon="arrowForward"
+            variant="filled"
+            height={56}
+            onPress={onView}
+          />
+        )}
+        {saved.bookmarkIds.length + saved.highlightIds.length > 0 && (
+          <Button
+            label="Undo save"
+            variant="text"
             size="s"
             height={48}
-            onPress={onView}
+            onPress={onUndo}
           />
         )}
       </View>

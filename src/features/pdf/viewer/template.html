@@ -1,0 +1,332 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=8, user-scalable=yes" />
+<!--
+  Stash PDF viewer. Built into assets/pdf/viewer.html by scripts/build-pdf-viewer.mjs, which
+  inlines pdf.js (legacy build) and its worker. Runs offline in a WebView; talks to the app
+  with ReactNativeWebView.postMessage and window.stash* functions.
+-->
+<style>
+  html, body { margin: 0; padding: 0; background: var(--bg, #000); -webkit-tap-highlight-color: transparent; }
+  #pages { padding: var(--top, 72px) 8px var(--bottom, 120px); display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .page { position: relative; background: #fff; border-radius: 4px; overflow: hidden; }
+  .page canvas { position: absolute; left: 0; top: 0; }
+  .page canvas.base { width: 100%; height: 100%; }
+  .page .num { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 500 16px sans-serif; color: #888; }
+  .textLayer { position: absolute; inset: 0; overflow: hidden; line-height: 1; text-align: initial; -webkit-text-size-adjust: none; text-size-adjust: none; transform-origin: 0 0; z-index: 3; }
+  .textLayer span, .textLayer br { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%; }
+  .textLayer span.markedContent { top: 0; height: 0; }
+  .textLayer ::selection { background: rgba(0, 110, 255, 0.32); }
+  .textLayer br::selection { background: transparent; }
+  .textLayer .endOfContent { display: block; position: absolute; inset: 100% 0 0; z-index: -1; cursor: default; user-select: none; }
+  .textLayer .endOfContent.active { top: 0; }
+  .page .hlbox { position: absolute; z-index: 2; background: rgba(255, 200, 0, 0.42); border-radius: 2px; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="pages"></div>
+<script>/*PDFJS*/</script>
+<script type="text/plain" id="pdf-worker">/*WORKER*/</script>
+<script>
+(function () {
+  'use strict';
+  var cfg = window.STASH || {};
+  var lib = window.pdfjsLib || window['pdfjs-dist/build/pdf'];
+  var post = function (m) { if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify(m)); };
+  var root = document.documentElement;
+  root.style.setProperty('--bg', cfg.bg || '#000');
+  root.style.setProperty('--top', (cfg.top || 72) + 'px');
+  root.style.setProperty('--bottom', (cfg.bottom || 120) + 'px');
+
+  var dpr = window.devicePixelRatio || 1;
+  var container = document.getElementById('pages');
+  var doc = null;
+  var pages = []; // { el, w, h, page, base, text, detail, rendering, scale }
+  var highlights = cfg.highlights || []; // [{ page (1-based), text }]
+  var current = -1;
+
+  lib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(
+    new Blob([document.getElementById('pdf-worker').textContent], { type: 'text/javascript' })
+  );
+
+  function load(src) {
+    return new Promise(function (resolve, reject) {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', src);
+      xhr.responseType = 'arraybuffer';
+      xhr.onload = function () { xhr.response ? resolve(new Uint8Array(xhr.response)) : reject(new Error('empty file')); };
+      xhr.onerror = function () { reject(new Error('cannot read file')); };
+      xhr.send();
+    });
+  }
+
+  function cssWidth() { return Math.min(window.innerWidth - 16, 1200); }
+
+  function layout(i, viewW, viewH) {
+    var p = pages[i];
+    p.w = cssWidth();
+    p.h = Math.round(p.w * viewH / viewW);
+    p.el.style.width = p.w + 'px';
+    p.el.style.height = p.h + 'px';
+  }
+
+  function open() {
+    load(cfg.src)
+      .then(function (data) { return lib.getDocument({ data: data, isEvalSupported: false }).promise; })
+      .then(function (d) {
+        doc = d;
+        return d.getPage(1);
+      })
+      .then(function (first) {
+        var v = first.getViewport({ scale: 1 });
+        for (var i = 0; i < doc.numPages; i++) {
+          var el = document.createElement('div');
+          el.className = 'page';
+          el.dataset.page = String(i);
+          el.innerHTML = '<div class="num">' + (i + 1) + '</div>';
+          container.appendChild(el);
+          pages.push({ el: el, w: 0, h: 0, page: null, base: null, text: null, detail: null, rendering: false, sized: false });
+          layout(i, v.width, v.height);
+        }
+        pages[0].page = first;
+        post({ type: 'open', pageCount: doc.numPages });
+        var start = Math.max(0, Math.min((cfg.page || 1) - 1, doc.numPages - 1));
+        if (start > 0) goTo(start);
+        update();
+      })
+      .catch(function (e) { post({ type: 'error', message: String(e && e.message || e) }); });
+  }
+
+  /** Base render: the whole page at screen resolution, plus the selectable text layer. */
+  function renderPage(i) {
+    var p = pages[i];
+    if (p.base || p.rendering) return;
+    p.rendering = true;
+    (p.page ? Promise.resolve(p.page) : doc.getPage(i + 1)).then(function (page) {
+      p.page = page;
+      var v1 = page.getViewport({ scale: 1 });
+      if (!p.sized) { layout(i, v1.width, v1.height); p.sized = true; }
+      var cssScale = p.w / v1.width;
+      var k = Math.min(dpr * 1.5, 4);
+      var vp = page.getViewport({ scale: cssScale * k });
+      var canvas = document.createElement('canvas');
+      canvas.className = 'base';
+      canvas.width = Math.floor(vp.width);
+      canvas.height = Math.floor(vp.height);
+      return page.render({ canvasContext: canvas.getContext('2d', { alpha: false }), viewport: vp }).promise.then(function () {
+        p.el.innerHTML = '';
+        p.el.appendChild(canvas);
+        p.base = canvas;
+        var text = document.createElement('div');
+        text.className = 'textLayer';
+        text.style.setProperty('--scale-factor', String(cssScale));
+        p.el.appendChild(text);
+        p.text = text;
+        var tvp = page.getViewport({ scale: cssScale });
+        var divs = [];
+        return lib.renderTextLayer({ textContentSource: page.streamTextContent(), container: text, viewport: tvp, textDivs: divs }).promise.then(function () {
+          var end = document.createElement('div');
+          end.className = 'endOfContent';
+          text.appendChild(end);
+          markHighlights(i);
+        });
+      });
+    }).catch(function (e) { console.warn('page', i, e); }).then(function () { p.rendering = false; });
+  }
+
+  function release(i) {
+    var p = pages[i];
+    if (!p.base || p.rendering) return;
+    if (p.base) { p.base.width = 0; p.base.height = 0; }
+    p.el.innerHTML = '<div class="num">' + (i + 1) + '</div>';
+    p.base = null; p.text = null; p.detail = null;
+    if (p.page) { p.page.cleanup(); }
+  }
+
+  /** Zoomed in: renders the visible part of each page at full zoomed resolution on top. */
+  var detailTimer = 0;
+  function scheduleDetail() { clearTimeout(detailTimer); detailTimer = setTimeout(renderDetail, 180); }
+  function renderDetail() {
+    var vv = window.visualViewport;
+    var zoom = vv ? vv.scale : 1;
+    pages.forEach(function (p) {
+      if (p.detail && (zoom < 1.15 || !p.base)) { p.detail.remove(); p.detail = null; }
+    });
+    if (zoom < 1.15) return;
+    var vx = vv.offsetLeft, vy = vv.offsetTop, vw = vv.width, vh = vv.height;
+    pages.forEach(function (p, i) {
+      if (!p.base || !p.page) return;
+      var r = p.el.getBoundingClientRect();
+      var x0 = Math.max(r.left, vx), y0 = Math.max(r.top, vy);
+      var x1 = Math.min(r.right, vx + vw), y1 = Math.min(r.bottom, vy + vh);
+      if (x1 <= x0 || y1 <= y0) { if (p.detail) { p.detail.remove(); p.detail = null; } return; }
+      var k = dpr * zoom;
+      var v1 = p.page.getViewport({ scale: 1 });
+      var cssScale = p.w / v1.width;
+      var vp = p.page.getViewport({ scale: cssScale * k });
+      var lx = x0 - r.left, ly = y0 - r.top, lw = x1 - x0, lh = y1 - y0;
+      var canvas = document.createElement('canvas');
+      canvas.width = Math.ceil(lw * k);
+      canvas.height = Math.ceil(lh * k);
+      canvas.style.left = lx + 'px';
+      canvas.style.top = ly + 'px';
+      canvas.style.width = lw + 'px';
+      canvas.style.height = lh + 'px';
+      canvas.style.zIndex = '1';
+      p.page.render({
+        canvasContext: canvas.getContext('2d', { alpha: false }),
+        viewport: vp,
+        transform: [1, 0, 0, 1, -lx * k, -ly * k],
+      }).promise.then(function () {
+        if (!p.base) return;
+        if (p.detail) p.detail.remove();
+        p.el.insertBefore(canvas, p.text);
+        p.detail = canvas;
+      }).catch(function () {});
+    });
+  }
+
+  /** Renders pages near the screen, frees far ones, reports the current page. */
+  var lastY = window.scrollY, travel = 0;
+  function update() {
+    if (!pages.length) return;
+    var vv = window.visualViewport;
+    var top = vv ? vv.offsetTop : 0, h = vv ? vv.height : window.innerHeight;
+    var mid = top + h / 2;
+    var cur = 0;
+    for (var i = 0; i < pages.length; i++) {
+      var r = pages[i].el.getBoundingClientRect();
+      if (r.top <= mid) cur = i; else break;
+    }
+    for (var j = 0; j < pages.length; j++) {
+      var d = j - cur;
+      if (d >= -1 && d <= 2) renderPage(j);
+      else if (d < -3 || d > 4) release(j);
+    }
+    if (cur !== current) { current = cur; post({ type: 'page', page: cur }); }
+  }
+
+  var ticking = false;
+  function onScroll() {
+    var y = window.scrollY + (window.visualViewport ? window.visualViewport.offsetTop : 0);
+    var dy = y - lastY; lastY = y;
+    if (travel < -1e8) { travel = 0; return void requestAnimationFrame(update); }
+    travel = (dy > 0) === (travel > 0) ? travel + dy : dy;
+    if (travel > 24) { post({ type: 'scrollDown' }); travel = 0; }
+    if (!ticking) { ticking = true; requestAnimationFrame(function () { ticking = false; update(); }); }
+    scheduleDetail();
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('scroll', onScroll, { passive: true });
+    window.visualViewport.addEventListener('resize', function () { scheduleDetail(); update(); });
+  }
+
+  function goTo(i) {
+    var p = pages[i];
+    if (!p) return;
+    window.scrollTo(0, p.el.offsetTop - (cfg.top || 72) + 8);
+    // A jump is not the reader scrolling: don't hide the chrome for it.
+    lastY = window.scrollY + (window.visualViewport ? window.visualViewport.offsetTop : 0);
+    travel = -1e9;
+    update();
+  }
+
+  // --- Selection and highlights ---------------------------------------------------------
+  var lastSel = null;
+  document.addEventListener('selectionchange', function () {
+    var s = window.getSelection();
+    var text = s ? s.toString() : '';
+    if (!text.trim() || !s.rangeCount) return;
+    var range = s.getRangeAt(0);
+    var node = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement;
+    var pageEl = node && node.closest ? node.closest('.page') : null;
+    if (!pageEl) return;
+    lastSel = { page: Number(pageEl.dataset.page), text: text, range: range.cloneRange() };
+  });
+
+  var squash = function (t) { return t.replace(/\s+/g, ''); };
+
+  function markHighlights(i) {
+    var p = pages[i];
+    if (!p.text) return;
+    var mine = highlights.filter(function (h) { return h.page === i + 1; });
+    if (!mine.length) return;
+    // Every non-space character on the page, with the text node and offset it came from.
+    var hay = '', owner = [];
+    p.text.querySelectorAll('span:not(.markedContent)').forEach(function (sp) {
+      var node = sp.firstChild;
+      if (!node || node.nodeType !== 3) return;
+      var t = node.textContent;
+      for (var c = 0; c < t.length; c++) {
+        if (/\s/.test(t[c])) continue;
+        owner.push({ node: node, off: c });
+        hay += t[c];
+      }
+    });
+    mine.forEach(function (h) {
+      var needle = squash(h.text);
+      if (!needle) return;
+      var at = hay.indexOf(needle);
+      if (at < 0) return;
+      var a = owner[at], b = owner[at + needle.length - 1];
+      var range = document.createRange();
+      range.setStart(a.node, a.off);
+      range.setEnd(b.node, b.off + 1);
+      paint(p.el, range);
+    });
+  }
+
+  /** Yellow boxes over exactly the characters in `range`, placed in the page's own coordinates. */
+  function paint(pageEl, range) {
+    var box = pageEl.getBoundingClientRect();
+    var rects = range.getClientRects();
+    for (var r = 0; r < rects.length; r++) {
+      var q = rects[r];
+      if (q.width < 1 || q.height < 1) continue;
+      var d = document.createElement('div');
+      d.className = 'hlbox';
+      d.style.left = (q.left - box.left) + 'px';
+      d.style.top = (q.top - box.top) + 'px';
+      d.style.width = q.width + 'px';
+      d.style.height = q.height + 'px';
+      pageEl.appendChild(d);
+    }
+  }
+
+  window.stashHighlight = function () {
+    var sel = lastSel;
+    if (!sel || !sel.text.trim()) return;
+    var pageEl = pages[sel.page] && pages[sel.page].el;
+    if (pageEl && sel.range) paint(pageEl, sel.range);
+    highlights.push({ page: sel.page + 1, text: sel.text });
+    post({ type: 'highlight', page: sel.page + 1, text: sel.text.trim() });
+    var s = window.getSelection(); if (s) s.removeAllRanges();
+    lastSel = null;
+  };
+
+  window.stashGoTo = function (i) { goTo(i); };
+
+  // A tap (not a selection) toggles the app's chrome.
+  document.addEventListener('click', function () {
+    var s = window.getSelection();
+    if (s && s.toString()) return;
+    post({ type: 'tap' });
+  });
+
+  window.addEventListener('resize', function () {
+    // Width changed (rotation): re-lay out every page.
+    pages.forEach(function (p, i) {
+      if (p.page) { var v = p.page.getViewport({ scale: 1 }); layout(i, v.width, v.height); }
+      release(i);
+    });
+    update();
+  });
+
+  open();
+})();
+</script>
+</body>
+</html>

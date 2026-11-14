@@ -22,7 +22,7 @@ export function ScreenPlaceholder({ title }: { title: string }) {
           contentContainerStyle={{ paddingTop: insets.top + 20, paddingBottom: Layout.navBarClearance }}
         >
           <View style={{ paddingLeft: Layout.textInset, paddingRight: 20 }}>
-            <Text variant="displayLarge">{title}</Text>
+            <Text variant="editorialLarge">{title}</Text>
           </View>
         </Animated.ScrollView>
       </>

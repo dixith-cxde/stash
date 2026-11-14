@@ -4,7 +4,9 @@ import { View } from 'react-native';
 import Animated, { useAnimatedRef } from 'react-native-reanimated';
 
 import { useContainerSource } from '@/motion/transition/useContainerSource';
+import type { Corners4 } from '@/motion/useSelection';
 
+import { cornersStyle } from './List';
 import { PressableSurface } from './PressableSurface';
 
 type Props = {
@@ -12,6 +14,8 @@ type Props = {
   href: Href;
   color: string;
   corner?: number;
+  /** Per-corner radii (TL, TR, BR, BL) for a card inside a segmented group; the frame clips to them. */
+  corners?: Corners4;
   children: React.ReactNode;
   /** Outer box (size, flex). */
   style?: StyleProp<ViewStyle>;
@@ -27,7 +31,8 @@ type Props = {
  * shrinks back into it. The card is measured on the UI thread inside the tap gesture, so
  * navigation starts in the same JS hop as the tap.
  */
-export function TransformCard({ href, color, corner = 28, children, style, contentStyle, accessibilityLabel, onLongPress }: Props) {
+export function TransformCard({ href, color, corner: cornerProp = 28, corners, children, style, contentStyle, accessibilityLabel, onLongPress }: Props) {
+  const corner = corners ? Math.max(...corners) : cornerProp;
   const frameRef = useAnimatedRef<Animated.View>();
   const { openAt, hidden } = useContainerSource({
     corner,
@@ -35,7 +40,7 @@ export function TransformCard({ href, color, corner = 28, children, style, conte
     ghost: <View style={[{ flex: 1, backgroundColor: color }, contentStyle]}>{children}</View>,
   });
   return (
-    <Animated.View ref={frameRef} style={[style, { opacity: hidden ? 0 : 1 }]} collapsable={false}>
+    <Animated.View ref={frameRef} style={[style, corners && { ...cornersStyle(corners), overflow: 'hidden' }, { opacity: hidden ? 0 : 1 }]} collapsable={false}>
       <PressableSurface
         corner={corner}
         measureRef={frameRef}

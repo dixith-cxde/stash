@@ -35,7 +35,7 @@ export function BackPill({ label, onPress, onHero }: Props) {
       }}
     >
       <Ico name="arrowBack" size={24} color={fg} />
-      <Text variant="labelLarge" color={fg}>
+      <Text variant="labelLargeEmphasized" color={fg}>
         {label}
       </Text>
     </PressableSurface>

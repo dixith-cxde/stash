@@ -46,7 +46,7 @@ export function AddFeedSheet({ onDismiss, onAdded }: { onDismiss: () => void; on
     <Sheet accessibilityLabel="Add feed" onDismiss={onDismiss}>
       {(close) => (
         <View style={{ gap: 16, flexShrink: 1 }}>
-          <Text variant="headlineSmall" style={{ paddingHorizontal: 8 }}>
+          <Text variant="headlineSmallEmphasized" style={{ paddingHorizontal: 8 }}>
             Add a feed
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, height: 56, borderRadius: 28, paddingHorizontal: 20, backgroundColor: colors.surfaceContainerHighest }}>
@@ -75,7 +75,7 @@ export function AddFeedSheet({ onDismiss, onAdded }: { onDismiss: () => void; on
               {error}
             </Text>
           ) : null}
-          <Text variant="overline" color="primary" style={{ paddingHorizontal: 8 }}>
+          <Text variant="titleSmallEmphasized" color="primary" style={{ paddingHorizontal: 8 }}>
             Popular to start
           </Text>
           <SheetScrollView contentContainerStyle={{ gap: 4 }} keyboardShouldPersistTaps="handled">

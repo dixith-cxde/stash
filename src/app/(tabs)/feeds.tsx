@@ -2,7 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
 import { useCallback, useDeferredValue, useMemo, useRef, useState } from 'react';
 import { RefreshControl, StyleSheet, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDbQuery } from '@/db/hooks';
@@ -21,7 +21,8 @@ import { ActionSheet } from '@/ui/ActionSheet';
 import { ButtonGroup } from '@/ui/ButtonGroup';
 import { EmptyState } from '@/ui/EmptyState';
 import { IconButton } from '@/ui/IconButton';
-import { ScreenHeader } from '@/ui/ScreenHeader';
+import { LIST_GAP, type ListPosition, listPosition } from '@/ui/List';
+import { CollapsedAppBar, ScreenHeader } from '@/ui/ScreenHeader';
 import { showSnackbar } from '@/ui/Snackbar';
 import { Text } from '@/ui/Text';
 
@@ -38,7 +39,7 @@ const rowSignature = (a: FeedItemWithFeed) =>
 type Row =
   | { k: 'lead'; key: string; a: FeedItemWithFeed }
   | { k: 'day'; key: string; title: string; count: number }
-  | { k: 'item'; key: string; a: FeedItemWithFeed };
+  | { k: 'item'; key: string; a: FeedItemWithFeed; pos: ListPosition };
 
 /** Groups articles by day, the newest unread one lifted out as the top story. */
 function toRows(items: FeedItemWithFeed[], withLead: boolean): Row[] {
@@ -55,7 +56,7 @@ function toRows(items: FeedItemWithFeed[], withLead: boolean): Row[] {
   }
   for (const [title, list] of groups) {
     rows.push({ k: 'day', key: `day-${title}`, title, count: list.length });
-    for (const a of list) rows.push({ k: 'item', key: a.id, a });
+    list.forEach((a, i) => rows.push({ k: 'item', key: a.id, a, pos: listPosition(i, list.length) }));
   }
   return rows;
 }
@@ -64,7 +65,8 @@ function toRows(items: FeedItemWithFeed[], withLead: boolean): Row[] {
 export default function FeedsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const onScroll = useChromeScroll();
+  const scrollY = useSharedValue(0);
+  const onScroll = useChromeScroll(scrollY);
   const [feedId, setFeedId] = useState<string | null>(null);
   const [show, setShow] = useState<Show>('new');
   const [adding, setAdding] = useState(false);
@@ -131,11 +133,17 @@ export default function FeedsScreen() {
     { key: 'saved', label: 'Saved' },
   ];
 
+  const barActions = (
+    <>
+      <IconButton icon="moreVert" accessibilityLabel="Feed options" onPress={() => setMenu(true)} />
+      <IconButton icon="add" accessibilityLabel="Follow a site" variant="tonal" width={56} onPress={() => setAdding(true)} />
+    </>
+  );
+
   const header = (
     <>
       <ScreenHeader
         title="Feeds"
-        size="displayLarge"
         subtitle={
           showFirstRun
             ? 'Follow the sites you read'
@@ -143,10 +151,7 @@ export default function FeedsScreen() {
         }
         trailing={
           showFirstRun ? undefined : (
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <IconButton icon="moreVert" accessibilityLabel="Feed options" variant="tonal" corners={[16, 16, 16, 16]} onPress={() => setMenu(true)} />
-              <IconButton icon="add" accessibilityLabel="Follow a site" variant="tonal" corners={[16, 16, 16, 16]} onPress={() => setAdding(true)} />
-            </View>
+            barActions
           )
         }
       />
@@ -167,27 +172,29 @@ export default function FeedsScreen() {
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <AnimatedFlashList
         data={showFirstRun ? [] : rows}
-        keyExtractor={(r) => r.key}
-        getItemType={(r) => r.k}
+        // FlashList 2 can ask about an index that just left the data (fast filter / source
+        // taps shrink the list mid-layout): guard instead of crashing on undefined.
+        keyExtractor={(r, i) => r?.key ?? `gone-${i}`}
+        getItemType={(r) => r?.k ?? 'gone'}
         maintainVisibleContentPosition={{ disabled: true }}
         drawDistance={400}
         renderItem={({ item: r }) =>
-          r.k === 'lead' ? (
+          !r ? null : r.k === 'lead' ? (
             <View style={styles.lead}>
               <LeadCard a={r.a} />
             </View>
           ) : r.k === 'day' ? (
             <View style={styles.day}>
-              <Text variant="titleLarge" style={{ fontWeight: '700' }}>
+              <Text variant="titleLargeEmphasized" style={{ fontWeight: '700' }}>
                 {r.title}
               </Text>
-              <Text variant="titleSmall" color="onSurfaceVariant">
+              <Text variant="titleMediumEmphasized" color="onSurfaceVariant">
                 {String(r.count)}
               </Text>
             </View>
           ) : (
             <View style={styles.item}>
-              <ArticleRow a={r.a} />
+              <ArticleRow a={r.a} position={r.pos} />
             </View>
           )
         }
@@ -221,9 +228,10 @@ export default function FeedsScreen() {
             />
           )
         }
-        contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: Layout.navBarClearance + insets.bottom }}
+        contentContainerStyle={{ paddingTop: insets.top, paddingBottom: Layout.navBarClearance + insets.bottom }}
       />
 
+      <CollapsedAppBar title="Feeds" scrollY={scrollY} trailing={showFirstRun ? undefined : barActions} />
       {adding && <AddFeedSheet onDismiss={() => setAdding(false)} onAdded={(id) => setFeedId(id)} />}
       {menu && (
         <ActionSheet
@@ -261,5 +269,5 @@ export default function FeedsScreen() {
 const styles = StyleSheet.create({
   lead: { paddingHorizontal: Layout.gutter, paddingTop: 12 },
   day: { flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingHorizontal: Layout.gutter + 8, paddingTop: 24, paddingBottom: 10 },
-  item: { paddingHorizontal: Layout.gutter, paddingBottom: 4 },
+  item: { paddingHorizontal: Layout.gutter, paddingBottom: LIST_GAP },
 });

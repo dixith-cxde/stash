@@ -63,14 +63,14 @@ function HighlightBody() {
             <Text variant="quote" color="onTertiaryContainer" selectable style={{ marginTop: 8, fontSize: 24, lineHeight: 32 }}>
               {h.text}
             </Text>
-            <Text variant="labelMedium" color="onTertiaryContainer" style={{ marginTop: 16, opacity: 0.8 }}>
+            <Text variant="labelLarge" color="onTertiaryContainer" style={{ marginTop: 16, opacity: 0.8 }}>
               {[source, h.page ? `p. ${h.page}` : null, `Saved ${relativeTime(h.createdAt)}`].filter(Boolean).join(' · ')}
             </Text>
           </View>
 
           {h.note ? (
             <>
-              <Text variant="overline" color="primary" style={styles.section}>
+              <Text variant="titleSmallEmphasized" color="primary" style={styles.section}>
                 Your note
               </Text>
               <Text variant="bodyLarge" selectable>
@@ -81,7 +81,7 @@ function HighlightBody() {
 
           {h.tags.length > 0 && (
             <>
-              <Text variant="overline" color="primary" style={styles.section}>
+              <Text variant="titleSmallEmphasized" color="primary" style={styles.section}>
                 Tags
               </Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>

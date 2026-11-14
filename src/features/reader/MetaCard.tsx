@@ -38,18 +38,18 @@ export const MetaCard = memo(function MetaCard({ feedTitle, host, tone, author, 
     <View style={[styles.card, { backgroundColor: colors.surfaceContainerLow }]}>
       <View style={styles.source}>
         <View style={[styles.avatar, { backgroundColor: tone.container }]}>
-          <Text variant="titleMedium" color={tone.onContainer} style={{ fontWeight: '800' }}>
+          <Text variant="titleMediumEmphasized" color={tone.onContainer} style={{ fontWeight: '700' }}>
             {initial(feedTitle)}
           </Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text variant="titleSmall" numberOfLines={1}>
+          <Text variant="titleMediumEmphasized" numberOfLines={1}>
             {feedTitle}
           </Text>
           {host ? (
             <View style={styles.host}>
               <Ico name="public" size={14} color={colors.onSurfaceVariant} />
-              <Text variant="labelMedium" color="onSurfaceVariant" numberOfLines={1} style={{ flexShrink: 1 }}>
+              <Text variant="labelLarge" color="onSurfaceVariant" numberOfLines={1} style={{ flexShrink: 1 }}>
                 {host}
               </Text>
             </View>
@@ -65,7 +65,7 @@ export const MetaCard = memo(function MetaCard({ feedTitle, host, tone, author, 
             <Ico name={r.icon} size={18} color={colors.onSurfaceVariant} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text variant="labelSmall" color="onSurfaceVariant">
+            <Text variant="labelMedium" color="onSurfaceVariant">
               {r.label}
             </Text>
             <Text variant="bodyMedium" numberOfLines={2}>

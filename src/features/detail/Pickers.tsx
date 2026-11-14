@@ -31,7 +31,7 @@ export function CollectionPicker({
     <Sheet accessibilityLabel="Move to collection" onDismiss={onDismiss}>
       {(close) => (
         <View style={{ gap: 4, flexShrink: 1 }}>
-          <Text variant="headlineSmall" style={{ paddingHorizontal: 8, paddingBottom: 12 }}>
+          <Text variant="headlineSmallEmphasized" style={{ paddingHorizontal: 8, paddingBottom: 12 }}>
             Move to
           </Text>
           <SheetScrollView contentContainerStyle={{ gap: 4 }}>
@@ -73,7 +73,7 @@ export function CollectionPicker({
                       color={tone?.onContainer ?? colors.onSurfaceVariant}
                     />
                   </View>
-                  <Text variant="labelLarge" style={{ flex: 1 }} numberOfLines={1}>
+                  <Text variant="labelLargeEmphasized" style={{ flex: 1 }} numberOfLines={1}>
                     {c.name}
                   </Text>
                   {selected && <Ico name="check" size={22} color={colors.primary} />}
@@ -112,7 +112,7 @@ export function TagPicker({
     <Sheet accessibilityLabel="Tags" onDismiss={onDismiss}>
       {(close) => (
         <View style={{ gap: 16, flexShrink: 1 }}>
-          <Text variant="headlineSmall" style={{ paddingHorizontal: 8 }}>
+          <Text variant="headlineSmallEmphasized" style={{ paddingHorizontal: 8 }}>
             Tags
           </Text>
           <View

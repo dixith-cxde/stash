@@ -70,7 +70,7 @@ function NoteBody() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <View style={[styles.badge, { backgroundColor: colors.secondaryContainer }]}>
               <Ico name="notes" size={16} color={colors.onSecondaryContainer} />
-              <Text variant="labelSmall" color="onSecondaryContainer" style={{ fontWeight: '700' }}>
+              <Text variant="labelMedium" color="onSecondaryContainer" style={{ fontWeight: '700' }}>
                 Note
               </Text>
             </View>
@@ -78,7 +78,7 @@ function NoteBody() {
               {`Edited ${relativeTime(b.updatedAt)} · ${wordCount(md)} words`}
             </Text>
           </View>
-          <Text variant="headlineLarge" style={{ marginTop: 12 }} accessibilityRole="header">
+          <Text variant="headlineLargeEmphasized" style={{ marginTop: 12 }} accessibilityRole="header">
             {b.title || 'Untitled note'}
           </Text>
           <View style={{ marginTop: 12 }}>
@@ -98,20 +98,20 @@ function NoteBody() {
 
           {first && firstTone && (
             <>
-              <Text variant="overline" color="primary" style={{ marginTop: 24, marginBottom: 8 }}>
+              <Text variant="titleSmallEmphasized" color="primary" style={{ marginTop: 24, marginBottom: 8 }}>
                 Linked item
               </Text>
               <TransformCard href={`/item/${first.id}`} color={colors.surfaceContainer} corner={24} contentStyle={styles.linked} accessibilityLabel={first.title}>
                 <View style={[styles.linkTile, { backgroundColor: firstTone.container }]}>
-                  <Text variant="headlineSmall" color={firstTone.onContainer}>
+                  <Text variant="headlineSmallEmphasized" color={firstTone.onContainer}>
                     {(first.siteName || sourceLabel(first)).replace(/^the\s+/i, '').charAt(0).toUpperCase()}
                   </Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text variant="labelSmall" color="onSurfaceVariant">
+                  <Text variant="labelMedium" color="onSurfaceVariant">
                     {sourceLabel(first)}
                   </Text>
-                  <Text variant="labelLarge" numberOfLines={2} style={{ marginTop: 2 }}>
+                  <Text variant="labelLargeEmphasized" numberOfLines={2} style={{ marginTop: 2 }}>
                     {first.title}
                   </Text>
                 </View>

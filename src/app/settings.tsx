@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
@@ -119,7 +120,7 @@ function Settings() {
       <View style={styles.bar}>
         <BackPill label="Back" onPress={close} />
       </View>
-      <Text variant="displaySmall" accessibilityRole="header" style={styles.title}>
+      <Text variant="displaySmallEmphasized" accessibilityRole="header" style={styles.title}>
         Settings
       </Text>
 
@@ -158,7 +159,7 @@ function Settings() {
           title="Export backup"
           supporting="Everything as a Stash JSON file"
           index={0}
-          count={4}
+          count={5}
           onPress={() => run(exportJson, 'Backup exported', "Couldn't export the backup")}
           trailing={<Ico name="chevronRight" color={colors.onSurfaceVariant} />}
         />
@@ -167,7 +168,7 @@ function Settings() {
           title="Export bookmarks"
           supporting="Links as browser bookmarks HTML"
           index={1}
-          count={4}
+          count={5}
           onPress={() => run(exportHtml, 'Bookmarks exported', "Couldn't export bookmarks")}
           trailing={<Ico name="chevronRight" color={colors.onSurfaceVariant} />}
         />
@@ -176,16 +177,25 @@ function Settings() {
           title="Import backup"
           supporting="Stash JSON or browser bookmarks HTML"
           index={2}
-          count={4}
+          count={5}
           onPress={onImport}
+          trailing={<Ico name="chevronRight" color={colors.onSurfaceVariant} />}
+        />
+        <Row
+          icon="link"
+          title="Check saved links"
+          supporting="Find links that no longer load"
+          index={3}
+          count={5}
+          onPress={() => router.push('/links-check')}
           trailing={<Ico name="chevronRight" color={colors.onSurfaceVariant} />}
         />
         <Row
           icon="database"
           title="Storage"
           supporting={`${plural(totals.all, 'item')} · ${plural(totals.highlights, 'highlight')} · ${plural(feedCount, 'feed')}`}
-          index={3}
-          count={4}
+          index={4}
+          count={5}
         />
       </Section>
 
@@ -200,7 +210,7 @@ function Settings() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <View style={styles.section}>
-      <Text variant="overline" color="primary" accessibilityRole="header" style={styles.overline}>
+      <Text variant="titleSmallEmphasized" color="primary" accessibilityRole="header" style={styles.overline}>
         {title}
       </Text>
       <View style={styles.group}>{children}</View>
@@ -233,7 +243,7 @@ function Row({ icon, title, supporting, index, count, trailing, children, onPres
           <Ico name={icon} size={22} color={colors.onSecondaryContainer} />
         </View>
         <View style={styles.rowText}>
-          <Text variant="titleMedium">{title}</Text>
+          <Text variant="titleMediumEmphasized">{title}</Text>
           {!!supporting && (
             <Text variant="bodyMedium" color="onSurfaceVariant">
               {supporting}

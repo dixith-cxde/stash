@@ -15,6 +15,12 @@ type Settings = {
   homeLayout: HomeLayout;
   /** Open feed articles and saved links in Stash's reader view instead of the web page. */
   readerMode: boolean;
+  /** The welcome pages were seen (first launch). */
+  onboarded: boolean;
+  /** The Home tour was finished or skipped. */
+  tourDone: boolean;
+  setOnboarded: (on: boolean) => void;
+  setTourDone: (on: boolean) => void;
   setColorSource: (c: ColorSource) => void;
   setSeedColor: (c: string | null) => void;
   setThemeMode: (m: ThemeMode) => void;
@@ -31,6 +37,10 @@ export const useSettings = create<Settings>()(
       themeMode: 'system',
       homeLayout: 'cards',
       readerMode: true,
+      onboarded: false,
+      tourDone: false,
+      setOnboarded: (onboarded) => set({ onboarded }),
+      setTourDone: (tourDone) => set({ tourDone }),
       setSeedColor: (seedColor) => set({ seedColor }),
       setThemeMode: (themeMode) => set({ themeMode }),
       setHomeLayout: (homeLayout) => set({ homeLayout }),

@@ -11,6 +11,7 @@ import { Ico } from '@/ui/Ico';
 import { Portal } from '@/ui/Portal';
 import { PressableSurface } from '@/ui/PressableSurface';
 import { Text } from '@/ui/Text';
+import { ZoomableImage } from '@/ui/ZoomableImage';
 
 import { displayRatio, isTinyImage } from './images';
 
@@ -81,7 +82,7 @@ export const ReaderImage = memo(function ReaderImage({ uri, alt, caption, width,
   );
 });
 
-/** Full-screen view of one image on a scrim. Tap anywhere or press back to close. */
+/** Full-screen view of one image on a scrim: pinch or double tap to zoom; tap or press back to close. */
 function ImageViewer({ uri, alt, ratio, onClose }: { uri: string; alt?: string; ratio: number; onClose: () => void }) {
   const { colors, dark } = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -95,22 +96,14 @@ function ImageViewer({ uri, alt, ratio, onClose }: { uri: string; alt?: string; 
   return (
     <Portal>
       <Animated.View entering={enterFade} exiting={exitFade} style={[StyleSheet.absoluteFill, { backgroundColor: colors.scrim }]}>
-        <PressableSurface
-          kind="card"
-          corner={0}
-          pressedCorner={0}
-          pressedScale={1}
-          onPress={onClose}
-          accessibilityLabel="Close image"
-          style={[StyleSheet.absoluteFill, styles.viewer, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}
-        >
-          <Image source={uri} recyclingKey={uri} style={{ width: '100%', aspectRatio: ratio, maxHeight: '100%' }} contentFit="contain" />
+        <View style={[StyleSheet.absoluteFill, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
+          <ZoomableImage uri={uri} ratio={ratio} onTap={onClose} accessibilityLabel={alt ? `${alt}. Tap to close` : 'Image. Tap to close'} />
           {alt ? (
             <Text variant="bodyMedium" color={dark ? colors.onSurface : colors.inverseOnSurface} style={styles.viewerCaption} numberOfLines={4}>
               {alt}
             </Text>
           ) : null}
-        </PressableSurface>
+        </View>
       </Animated.View>
     </Portal>
   );
@@ -119,6 +112,5 @@ function ImageViewer({ uri, alt, ratio, onClose }: { uri: string; alt?: string; 
 const styles = StyleSheet.create({
   placeholder: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', opacity: 0.6 },
   caption: { marginTop: 8, paddingHorizontal: 4, fontStyle: 'italic' },
-  viewer: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 0 },
   viewerCaption: { marginTop: 16, paddingHorizontal: 24, textAlign: 'center' },
 });

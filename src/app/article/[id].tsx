@@ -15,6 +15,7 @@ import { MarkdownView } from '@/features/notes/MarkdownView';
 import { aggregatorInfo, parseReaderMarkdown, READER_FORMAT } from '@/features/reader/discussion';
 import { DiscussionSection } from '@/features/reader/DiscussionSection';
 import { EndMatter } from '@/features/reader/EndMatter';
+import { asMarkdown, cleanArticleWithByline } from '@/features/reader/cleanup';
 import { splitEndMatter } from '@/features/reader/endmatter';
 import { readerImageUrl, sameImage } from '@/features/reader/images';
 import { MetaCard } from '@/features/reader/MetaCard';
@@ -79,7 +80,7 @@ function ArticleBody() {
   // Reader mode: fetch the full article the first time it is opened (once, then cached).
   const readerMode = useSettings((s) => s.readerMode);
   const [tried, setTried] = useState(false);
-  const needsFetch = readerMode && !!a && a.article === null;
+  const needsFetch = readerMode && !!a && a.article == null;
   const itemId = a?.id;
   useEffect(() => {
     if (!needsFetch || !a) return;
@@ -99,8 +100,15 @@ function ArticleBody() {
   // Parsed once per article: the body without its comment thread, the page byline, the thread.
   const full = readerMode && a?.article ? a.article : null;
   const parsed = useMemo(() => (full ? parseReaderMarkdown(full) : null), [full]);
-  // Related links, author and tags at the end become cards and chips instead of loose text.
-  const end = useMemo(() => (parsed ? splitEndMatter(parsed.body) : null), [parsed]);
+  // HTML becomes Markdown; byline/date scraps the meta card shows, share bars and empty
+  // headings go; related links, author and tags at the end become cards and chips.
+  const pageUrl = a?.url ?? null;
+  const feedAuthor = a?.author ?? null;
+  const end = useMemo(() => {
+    if (!parsed) return null;
+    const clean = cleanArticleWithByline(asMarkdown(parsed.body, pageUrl), [parsed.meta?.byline, feedAuthor]);
+    return { ...splitEndMatter(clean.body), byline: clean.byline };
+  }, [parsed, pageUrl, feedAuthor]);
 
   // An article cached in an older reader format (before tables) is extracted again, once; the
   // old copy stays on screen until the new one is saved.
@@ -124,8 +132,10 @@ function ArticleBody() {
   const quote = HIGHLIGHT_TONES.yellow[dark ? 'dark' : 'light'];
   const teaser = cleanTeaser(a.content) ?? cleanTeaser(a.summary) ?? '';
   // A full-text feed item cached before formatting was kept shows its text while the page loads.
-  const fetching = needsFetch && !tried && isWeb(a.url) && teaser.length < FULL_TEXT_CHARS;
-  const paragraphs = teaser
+  // Link aggregators (Hacker News) only carry "Article URL / Comments URL" lines: never show
+  // those as the article, only the loader and then the fetched page.
+  const fetching = needsFetch && !tried && isWeb(a.url) && (!!aggregator || teaser.length < FULL_TEXT_CHARS);
+  const paragraphs = (aggregator ? '' : teaser)
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter(Boolean);
@@ -133,7 +143,7 @@ function ArticleBody() {
   const host = hostOf(web);
   const minutes = readMinutes(parsed ? Math.min(a.chars, markdownTextLength(parsed.body)) : a.chars);
   // On link aggregators the feed's author is whoever posted the link; the page byline is the writer.
-  const byline = parsed?.meta?.byline ?? null;
+  const byline = parsed?.meta?.byline ?? end?.byline ?? null;
   const writer =
     end?.author ?? (byline ? { name: byline, url: null, bio: null } : a.author && !aggregator ? { name: a.author, url: null, bio: null } : null);
   const author = byline ? `By ${byline}` : a.author ? (aggregator ? `Posted by ${a.author}` : `By ${a.author}`) : null;
@@ -158,11 +168,11 @@ function ArticleBody() {
           </View>
           <View style={styles.heroText}>
             <Text
-              variant="headlineLarge"
+              variant="headlineLargeEmphasized"
               color={tone.onContainer}
               accessibilityRole="header"
               selectable
-              style={{ fontSize: 30, lineHeight: 36, fontWeight: '800', letterSpacing: -0.6 }}
+              style={{ fontSize: 30, lineHeight: 36, fontWeight: '700', letterSpacing: -0.6 }}
             >
               {a.title}
             </Text>
@@ -225,7 +235,7 @@ function ArticleBody() {
         {web && (
           <View style={styles.footer}>
             <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />
-            <Text variant="labelLarge" color="onSurfaceVariant">
+            <Text variant="labelLargeEmphasized" color="onSurfaceVariant">
               Original article
             </Text>
             <Button label={`Read on ${host ?? 'the site'}`} icon="openInNew" variant="tonal" height={48} onPress={openWeb} style={{ maxWidth: '100%' }} />
