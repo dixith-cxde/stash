@@ -1,18 +1,23 @@
 import { Image } from 'expo-image';
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
+import Animated, { interpolateColor, useAnimatedStyle } from 'react-native-reanimated';
 
 import type { FeedItemWithFeed } from '@/db/repo';
 import { hostSeed } from '@/features/stash/model';
 import { relativeTime } from '@/lib/format';
 import { haptic } from '@/motion/haptics';
+import { useSelection } from '@/motion/useSelection';
+import { Shape } from '@/shapes/Shape';
 import { useAppTheme } from '@/theme/AppTheme';
 import { collectionTones } from '@/theme/palette';
-import { IconButton } from '@/ui/IconButton';
+import { Ico } from '@/ui/Ico';
+import { PressableSurface } from '@/ui/PressableSurface';
 import { showSnackbar } from '@/ui/Snackbar';
 import { Text } from '@/ui/Text';
 import { TransformCard } from '@/ui/TransformCard';
 
+import { readMinutes } from './format';
 import { saveFeedItem } from './sync';
 
 export async function saveArticle(id: string) {
@@ -25,72 +30,145 @@ export async function saveArticle(id: string) {
   }
 }
 
-/** First letter of a feed's name on its tone, the feed's avatar when it has no icon. */
-export function FeedGlyph({ title, seed, size }: { title: string; seed: string; size: number }) {
+/** The tone a source is drawn in, stable per site. */
+export function useSourceTone(a: { feedSiteUrl: string | null; url?: string | null; feedTitle: string }) {
   const { dark } = useAppTheme();
-  const tone = collectionTones(hostSeed(seed), dark);
+  return collectionTones(hostSeed(a.feedSiteUrl ?? a.url ?? a.feedTitle), dark);
+}
+
+/** First letter of a site's name, without a leading "The". */
+export const sourceGlyph = (title: string) => (title.replace(/^the\s+/i, '').trim().charAt(0) || '•').toUpperCase();
+
+function meta(a: FeedItemWithFeed, withSource = true) {
+  const mins = readMinutes(a.chars);
+  return [withSource ? a.feedTitle : null, relativeTime(a.publishedAt ?? a.createdAt).replace(' ago', ''), mins ? `${mins} min` : null]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/**
+ * Save toggle (design: Feeds): a round tonal button that becomes a filled square once saved.
+ * Saving is one-way here; the saved state links to the stash item.
+ */
+function SaveButton({ a }: { a: FeedItemWithFeed }) {
+  const { colors } = useAppTheme();
+  const saved = !!a.bookmarkId;
+  const sel = useSelection(saved);
+  const style = useAnimatedStyle(() => ({
+    borderRadius: 22 - 8 * sel.shape.get(),
+    backgroundColor: interpolateColor(sel.color.get(), [0, 1], [colors.surfaceContainerHighest, colors.primary]),
+  }));
   return (
-    <View style={[styles.glyph, { width: size, height: size, borderRadius: size * 0.3, backgroundColor: tone.container }]}>
-      <Text variant="labelLarge" color={tone.onContainer} style={{ fontWeight: '800', fontSize: size * 0.45 }}>
-        {(title.replace(/^the\s+/i, '').trim().charAt(0) || '•').toUpperCase()}
-      </Text>
-    </View>
+    <PressableSurface
+      kind="button"
+      corner={22}
+      onPress={saved ? undefined : () => void saveArticle(a.id)}
+      accessibilityLabel={saved ? 'Saved to your stash' : 'Save to your stash'}
+      accessibilityState={{ checked: saved }}
+      style={styles.saveHit}
+    >
+      <Animated.View style={[styles.save, style]}>
+        <Ico name={saved ? 'bookmarkFill' : 'bookmarkAdd'} size={20} color={saved ? colors.onPrimary : colors.onSurface} />
+      </Animated.View>
+    </PressableSurface>
   );
 }
 
-/** An article in the Feeds list: source and age, title, summary, thumbnail, one-tap save. */
-export const ArticleCard = memo(function ArticleCard({ a }: { a: FeedItemWithFeed }) {
+/** An article row: source tile or thumbnail, unread dot and meta, two-line title, save. */
+export const ArticleRow = memo(function ArticleRow({ a }: { a: FeedItemWithFeed }) {
   const { colors } = useAppTheme();
-  const read = !!a.readAt;
-  const saved = !!a.bookmarkId;
-  const when = a.publishedAt ?? a.createdAt;
+  const tone = useSourceTone(a);
+  const unread = !a.readAt;
   return (
-    <TransformCard
-      href={`/article/${a.id}`}
-      color={read ? colors.surfaceContainerLow : colors.surfaceContainer}
-      corner={24}
-      accessibilityLabel={a.title}
-      contentStyle={styles.card}
-    >
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <View style={styles.meta}>
-          {!read && <View style={[styles.dot, { backgroundColor: colors.primary }]} />}
-          <Text variant="labelSmall" color={read ? 'onSurfaceVariant' : 'primary'} numberOfLines={1} style={{ flexShrink: 1, fontWeight: '700' }}>
-            {a.feedTitle}
-          </Text>
-          <Text variant="labelSmall" color="onSurfaceVariant">
-            {`· ${relativeTime(when).replace(' ago', '')}`}
+    <View style={[styles.row, { backgroundColor: unread ? colors.surfaceContainer : colors.surfaceContainerLow }]}>
+      <TransformCard
+        href={`/article/${a.id}`}
+        color={unread ? colors.surfaceContainer : colors.surfaceContainerLow}
+        corner={16}
+        accessibilityLabel={a.title}
+        style={{ flex: 1 }}
+        contentStyle={styles.rowBody}
+      >
+        <View style={[styles.tile, { backgroundColor: tone.container, opacity: unread ? 1 : 0.7 }]}>
+          {a.imageUrl ? (
+            <Image source={a.imageUrl} style={StyleSheet.absoluteFill} contentFit="cover" recyclingKey={a.id} transition={120} />
+          ) : (
+            <Text variant="titleLarge" color={tone.onContainer} style={{ fontWeight: '800' }}>
+              {sourceGlyph(a.feedTitle)}
+            </Text>
+          )}
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <View style={styles.meta}>
+            {unread && <View style={[styles.dot, { backgroundColor: colors.primary }]} />}
+            <Text variant="labelSmall" color={unread ? 'primary' : 'onSurfaceVariant'} numberOfLines={1} style={{ fontWeight: '700', flexShrink: 1 }}>
+              {meta(a)}
+            </Text>
+          </View>
+          <Text
+            variant="titleSmall"
+            color={unread ? 'onSurface' : 'onSurfaceVariant'}
+            numberOfLines={2}
+            style={{ marginTop: 3, fontSize: 15, lineHeight: 20, fontWeight: unread ? '700' : '500' }}
+          >
+            {a.title}
           </Text>
         </View>
-        <Text variant="titleMedium" numberOfLines={3} style={{ marginTop: 6, opacity: read ? 0.72 : 1 }}>
+      </TransformCard>
+      <SaveButton a={a} />
+    </View>
+  );
+});
+
+/** The newest unread article as a large tonal card in its source's color (design: Top story). */
+export function LeadCard({ a }: { a: FeedItemWithFeed }) {
+  const tone = useSourceTone(a);
+  return (
+    <TransformCard href={`/article/${a.id}`} color={tone.container} corner={28} accessibilityLabel={`Top story: ${a.title}`}>
+      <View style={[styles.leadArt, { backgroundColor: tone.accent }]}>
+        {a.imageUrl ? (
+          <Image source={a.imageUrl} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
+        ) : (
+          <View style={styles.leadDecor} pointerEvents="none">
+            <Shape name="cookie12Sided" size={220} color={tone.container} />
+          </View>
+        )}
+        <View style={[styles.chip, { backgroundColor: tone.container }]}>
+          <Ico name="rssFeed" size={16} color={tone.onContainer} />
+          <Text variant="labelSmall" color={tone.onContainer} style={{ fontWeight: '700' }}>
+            Top story
+          </Text>
+        </View>
+      </View>
+      <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 18 }}>
+        <View style={styles.meta}>
+          <View style={[styles.dot, { backgroundColor: tone.onContainer }]} />
+          <Text variant="labelSmall" color={tone.onContainer} numberOfLines={1} style={{ fontWeight: '700', opacity: 0.85 }}>
+            {meta(a)}
+          </Text>
+        </View>
+        <Text variant="headlineSmall" color={tone.onContainer} numberOfLines={3} style={{ marginTop: 8, fontWeight: '800' }}>
           {a.title}
         </Text>
         {a.summary ? (
-          <Text variant="bodyMedium" color="onSurfaceVariant" numberOfLines={2} style={{ marginTop: 4 }}>
+          <Text variant="bodyMedium" color={tone.onContainer} numberOfLines={2} style={{ marginTop: 6, opacity: 0.8 }}>
             {a.summary}
           </Text>
         ) : null}
       </View>
-      <View style={{ alignItems: 'center', gap: 8 }}>
-        {a.imageUrl ? (
-          <Image source={a.imageUrl} style={[styles.thumb, { backgroundColor: colors.surfaceContainerHighest }]} contentFit="cover" transition={150} recyclingKey={a.id} />
-        ) : null}
-        <IconButton
-          icon={saved ? 'bookmarkFill' : 'bookmarkAdd'}
-          accessibilityLabel={saved ? 'Saved to your stash' : 'Save to your stash'}
-          variant={saved ? 'filled' : 'tonal'}
-          size={40}
-          onPress={saved ? undefined : () => void saveArticle(a.id)}
-        />
-      </View>
     </TransformCard>
   );
-});
+}
 
 const styles = StyleSheet.create({
-  card: { flexDirection: 'row', gap: 12, padding: 16 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingRight: 10, borderRadius: 24, overflow: 'hidden' },
+  rowBody: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10 },
+  tile: { width: 56, height: 56, borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  thumb: { width: 72, height: 72, borderRadius: 16 },
-  glyph: { alignItems: 'center', justifyContent: 'center' },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+  saveHit: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
+  save: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  leadArt: { height: 148, overflow: 'hidden', justifyContent: 'flex-end' },
+  leadDecor: { position: 'absolute', right: -50, top: -60 },
+  chip: { position: 'absolute', left: 20, bottom: 16, height: 28, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 8, paddingRight: 12 },
 });

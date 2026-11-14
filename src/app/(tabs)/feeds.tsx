@@ -1,52 +1,82 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { RefreshControl, ScrollView, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { RefreshControl, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDbQuery } from '@/db/hooks';
 import { type FeedItemWithFeed, listFeedItems, listFeeds, markAllFeedItemsRead } from '@/db/repo';
-import { AddFeedSheet, STARTER_FEEDS } from '@/features/feeds/AddFeedSheet';
-import { ArticleCard } from '@/features/feeds/ArticleCard';
-import { addFeed, deleteFeed, refreshFeeds } from '@/features/feeds/sync';
+import { AddFeedSheet } from '@/features/feeds/AddFeedSheet';
+import { ArticleRow, LeadCard } from '@/features/feeds/ArticleCard';
+import { FirstRun } from '@/features/feeds/FirstRun';
+import { dayLabel } from '@/features/feeds/format';
+import { SourceRail } from '@/features/feeds/SourceRail';
+import { deleteFeed, refreshFeeds } from '@/features/feeds/sync';
 import { haptic } from '@/motion/haptics';
 import { useChromeScroll } from '@/motion/ScrollChrome';
 import { useColors } from '@/theme/AppTheme';
 import { Layout } from '@/theme/tokens';
 import { ActionSheet } from '@/ui/ActionSheet';
-import { Button } from '@/ui/Button';
 import { ButtonGroup } from '@/ui/ButtonGroup';
-import { Chip } from '@/ui/Chip';
 import { EmptyState } from '@/ui/EmptyState';
 import { IconButton } from '@/ui/IconButton';
 import { ScreenHeader } from '@/ui/ScreenHeader';
 import { showSnackbar } from '@/ui/Snackbar';
+import { Text } from '@/ui/Text';
 
-type Show = 'unread' | 'all';
-const SHOW: { key: Show; label: string }[] = [
-  { key: 'unread', label: 'New' },
-  { key: 'all', label: 'All' },
-];
+type Show = 'new' | 'all' | 'saved';
+type Row =
+  | { k: 'lead'; key: string; a: FeedItemWithFeed }
+  | { k: 'day'; key: string; title: string; count: number }
+  | { k: 'item'; key: string; a: FeedItemWithFeed };
 
-/** RSS / Atom intake (rebuild plan §0): the latest from followed sites, one tap to keep. */
+/** Groups articles by day, the newest unread one lifted out as the top story. */
+function toRows(items: FeedItemWithFeed[], withLead: boolean): Row[] {
+  const rows: Row[] = [];
+  let rest = items;
+  if (withLead && items[0] && !items[0].readAt) {
+    rows.push({ k: 'lead', key: `lead-${items[0].id}`, a: items[0] });
+    rest = items.slice(1);
+  }
+  const groups = new Map<string, FeedItemWithFeed[]>();
+  for (const a of rest) {
+    const label = dayLabel(a.publishedAt ?? a.createdAt);
+    groups.set(label, [...(groups.get(label) ?? []), a]);
+  }
+  for (const [title, list] of groups) {
+    rows.push({ k: 'day', key: `day-${title}`, title, count: list.length });
+    for (const a of list) rows.push({ k: 'item', key: a.id, a });
+  }
+  return rows;
+}
+
+/** RSS / Atom intake (design: Feeds): the latest from followed sites, one tap to keep. */
 export default function FeedsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const onScroll = useChromeScroll();
   const [feedId, setFeedId] = useState<string | null>(null);
-  const [show, setShow] = useState<Show>('unread');
+  const [show, setShow] = useState<Show>('new');
   const [adding, setAdding] = useState(false);
   const [menu, setMenu] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  /** First run stays up while following starters, until "Show my feed". */
+  const [firstRun, setFirstRun] = useState<boolean | null>(null);
 
   const { data: feeds, loading: feedsLoading } = useDbQuery(listFeeds, [], []);
   const { data: items, loading } = useDbQuery(
-    () => listFeedItems({ feedId: feedId ?? undefined, unreadOnly: show === 'unread' }),
+    () => listFeedItems({ feedId: feedId ?? undefined, unreadOnly: show === 'new', savedOnly: show === 'saved' }),
     [feedId, show],
     [] as FeedItemWithFeed[],
   );
+
+  // Decided once, when feeds first load (state adjusted during render, React's pattern).
+  if (!feedsLoading && firstRun === null) setFirstRun(feeds.length === 0);
+
   const selected = feeds.find((f) => f.id === feedId) ?? null;
-  const unread = feeds.reduce((n, f) => n + f.unread, 0);
+  const unread = selected ? selected.unread : feeds.reduce((n, f) => n + f.unread, 0);
+  const rows = useMemo(() => toRows(items, feedId === null && show !== 'saved'), [items, feedId, show]);
+  const showFirstRun = !feedsLoading && (feeds.length === 0 || firstRun === true);
 
   // Battery: only feeds older than the refresh interval are fetched, and only while here.
   useFocusEffect(
@@ -62,41 +92,38 @@ export default function FeedsScreen() {
     showSnackbar(added ? `${added} new article${added === 1 ? '' : 's'}` : 'You’re up to date');
   };
 
+  const tabs: { key: Show; label: string }[] = [
+    { key: 'new', label: unread ? `New · ${unread}` : 'New' },
+    { key: 'all', label: 'All' },
+    { key: 'saved', label: 'Saved' },
+  ];
+
   const header = (
     <>
       <ScreenHeader
         title="Feeds"
         size="displayLarge"
-        subtitle={feeds.length ? `${unread} new · ${feeds.length} source${feeds.length === 1 ? '' : 's'}` : 'Follow the sites you read'}
+        subtitle={
+          showFirstRun
+            ? 'Follow the sites you read'
+            : `${unread} new · ${feeds.length} source${feeds.length === 1 ? '' : 's'}`
+        }
         trailing={
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {feeds.length > 0 && (
-              <IconButton icon="moreVert" accessibilityLabel="More" variant="tonal" corners={[16, 16, 16, 16]} onPress={() => setMenu(true)} />
-            )}
-            <IconButton icon="add" accessibilityLabel="Add a feed" variant="tonal" corners={[16, 16, 16, 16]} onPress={() => setAdding(true)} />
-          </View>
+          showFirstRun ? undefined : (
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <IconButton icon="moreVert" accessibilityLabel="Feed options" variant="tonal" corners={[16, 16, 16, 16]} onPress={() => setMenu(true)} />
+              <IconButton icon="add" accessibilityLabel="Follow a site" variant="tonal" corners={[16, 16, 16, 16]} onPress={() => setAdding(true)} />
+            </View>
+          )
         }
       />
-      {feeds.length > 0 && (
+      {showFirstRun ? (
+        <FirstRun onDone={() => setFirstRun(false)} />
+      ) : (
         <>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: Layout.gutter, gap: 8, paddingTop: 16 }}
-            accessibilityLabel="Sources"
-          >
-            <Chip label="All sources" selected={feedId === null} onPress={() => setFeedId(null)} />
-            {feeds.map((f) => (
-              <Chip
-                key={f.id}
-                label={f.unread ? `${f.title} · ${f.unread}` : f.title}
-                selected={f.id === feedId}
-                onPress={() => setFeedId(f.id === feedId ? null : f.id)}
-              />
-            ))}
-          </ScrollView>
-          <View style={{ paddingHorizontal: Layout.gutter, paddingTop: 16, paddingBottom: 12 }}>
-            <ButtonGroup items={SHOW} value={show} onChange={setShow} accessibilityLabel="Show" />
+          <SourceRail feeds={feeds} value={feedId} onChange={setFeedId} />
+          <View style={{ paddingHorizontal: Layout.gutter, paddingTop: 16, paddingBottom: 4 }}>
+            <ButtonGroup items={tabs} value={show} onChange={setShow} accessibilityLabel="Show" />
           </View>
         </>
       )}
@@ -106,57 +133,61 @@ export default function FeedsScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <Animated.FlatList
-        data={items}
-        keyExtractor={(a) => a.id}
-        renderItem={({ item }) => (
-          <View style={{ paddingHorizontal: Layout.gutter }}>
-            <ArticleCard a={item} />
-          </View>
-        )}
-        ItemSeparatorComponent={Separator}
-        ListHeaderComponent={header}
-        ListEmptyComponent={
-          feedsLoading || loading ? undefined : feeds.length === 0 ? (
-            <View style={{ paddingHorizontal: Layout.gutter }}>
-              <EmptyState shape="cookie9Sided" title="No feeds yet" body="Follow a site and its new articles land here. Save the ones worth keeping." />
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
-                {STARTER_FEEDS.map((f) => (
-                  <Chip
-                    key={f.url}
-                    label={f.label}
-                    icon="add"
-                    onPress={() =>
-                      void addFeed(f.url)
-                        .then(() => {
-                          haptic.save();
-                          showSnackbar(`Following ${f.label}`);
-                        })
-                        .catch(() => showSnackbar(`Couldn't reach ${f.label}`))
-                    }
-                  />
-                ))}
-              </View>
-              <View style={{ alignItems: 'center', marginTop: 20 }}>
-                <Button label="Add a feed" icon="rssFeed" onPress={() => setAdding(true)} />
-              </View>
+        data={showFirstRun ? [] : rows}
+        keyExtractor={(r) => r.key}
+        renderItem={({ item: r }) =>
+          r.k === 'lead' ? (
+            <View style={styles.lead}>
+              <LeadCard a={r.a} />
+            </View>
+          ) : r.k === 'day' ? (
+            <View style={styles.day}>
+              <Text variant="titleLarge" style={{ fontWeight: '700' }}>
+                {r.title}
+              </Text>
+              <Text variant="titleSmall" color="onSurfaceVariant">
+                {String(r.count)}
+              </Text>
             </View>
           ) : (
+            <View style={styles.item}>
+              <ArticleRow a={r.a} />
+            </View>
+          )
+        }
+        ListHeaderComponent={header}
+        ListEmptyComponent={
+          showFirstRun || loading ? undefined : (
             <EmptyState
-              shape="clover4Leaf"
-              title={show === 'unread' ? 'All caught up' : 'No articles yet'}
-              body={show === 'unread' ? 'Nothing new right now. Pull down to check again.' : 'Pull down to fetch the latest articles.'}
+              shape={show === 'saved' ? 'clover4Leaf' : 'cookie12Sided'}
+              title={show === 'saved' ? 'Nothing saved here' : show === 'new' ? 'All caught up' : 'No articles yet'}
+              body={
+                show === 'saved'
+                  ? 'Tap the bookmark on any article to keep it in your stash.'
+                  : show === 'new'
+                    ? 'New articles will land here. Pull down to check now.'
+                    : 'Pull down to fetch the latest articles.'
+              }
             />
           )
         }
         onScroll={onScroll}
         scrollEventThrottle={16}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => void pull()} progressViewOffset={insets.top} colors={[colors.primary]} progressBackgroundColor={colors.surfaceContainerHigh} />
+          showFirstRun ? undefined : (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => void pull()}
+              progressViewOffset={insets.top}
+              colors={[colors.primary]}
+              progressBackgroundColor={colors.surfaceContainerHigh}
+            />
+          )
         }
         contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: Layout.navBarClearance + insets.bottom }}
-        initialNumToRender={6}
+        initialNumToRender={8}
         windowSize={7}
-        removeClippedSubviews
       />
 
       {adding && <AddFeedSheet onDismiss={() => setAdding(false)} onAdded={(id) => setFeedId(id)} />}
@@ -193,6 +224,8 @@ export default function FeedsScreen() {
   );
 }
 
-function Separator() {
-  return <View style={{ height: 8 }} />;
-}
+const styles = StyleSheet.create({
+  lead: { paddingHorizontal: Layout.gutter, paddingTop: 12 },
+  day: { flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingHorizontal: Layout.gutter + 8, paddingTop: 24, paddingBottom: 10 },
+  item: { paddingHorizontal: Layout.gutter, paddingBottom: 4 },
+});

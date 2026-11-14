@@ -1,4 +1,5 @@
-import { createContext, use } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { createContext, use, useCallback } from 'react';
 import { type SharedValue, useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 
 import { springTo, useSprings } from './springs';
@@ -23,13 +24,23 @@ const TOP_ZONE = 24;
 /**
  * Scroll handler for tab screens: hides the floating nav bar while scrolling down and brings
  * it back on any upward scroll or near the top (androidx FloatingToolbar exitAlways
- * behaviour; snaps on defaultEffects so it never bounces off-screen).
+ * behaviour; snaps on defaultEffects so it never bounces off-screen). Focusing the screen
+ * shows it again.
  */
 export function useChromeScroll() {
   const hidden = use(ChromeContext);
   const springs = useSprings();
   const last = useSharedValue(0);
   const travel = useSharedValue(0);
+
+  // The chrome is shared by every tab: a tab (or a page closing over it) always comes back
+  // with the nav bar shown, whatever the previous screen's scroll left it at.
+  useFocusEffect(
+    useCallback(() => {
+      travel.set(0);
+      if (hidden && hidden.get() !== 0) hidden.set(springTo(0, springs.defaultEffects));
+    }, [hidden, springs, travel]),
+  );
 
   return useAnimatedScrollHandler({
     onScroll: (e) => {

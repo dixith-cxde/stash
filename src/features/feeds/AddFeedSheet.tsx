@@ -1,27 +1,20 @@
 import { useState } from 'react';
 import { TextInput, View } from 'react-native';
 
+import { useDbQuery } from '@/db/hooks';
+import { listFeeds } from '@/db/repo';
 import { haptic } from '@/motion/haptics';
 import { useColors } from '@/theme/AppTheme';
 import { FONT_FAMILY, Type } from '@/theme/type';
 import { Button } from '@/ui/Button';
-import { Chip } from '@/ui/Chip';
 import { Ico } from '@/ui/Ico';
 import { LoadingIndicator } from '@/shapes/LoadingIndicator';
-import { Sheet } from '@/ui/Sheet';
+import { Sheet, SheetScrollView } from '@/ui/Sheet';
 import { showSnackbar } from '@/ui/Snackbar';
 import { Text } from '@/ui/Text';
 
+import { PopularRow, STARTER_FEEDS, useFollow } from './FirstRun';
 import { addFeed, FeedError } from './sync';
-
-/** A few well-known feeds to start from, one tap each. */
-export const STARTER_FEEDS = [
-  { label: 'The Verge', url: 'https://www.theverge.com/rss/index.xml' },
-  { label: 'Ars Technica', url: 'https://feeds.arstechnica.com/arstechnica/index' },
-  { label: 'Android Developers', url: 'https://android-developers.googleblog.com/atom.xml' },
-  { label: 'Smashing Magazine', url: 'https://www.smashingmagazine.com/feed/' },
-  { label: 'Hacker News', url: 'https://hnrss.org/frontpage' },
-];
 
 /** Subscribe by site or feed address (the feed is discovered from a site's page). */
 export function AddFeedSheet({ onDismiss, onAdded }: { onDismiss: () => void; onAdded?: (id: string) => void }) {
@@ -29,6 +22,8 @@ export function AddFeedSheet({ onDismiss, onAdded }: { onDismiss: () => void; on
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { data: feeds } = useDbQuery(listFeeds, [], []);
+  const follow = useFollow(feeds.map((f) => f.url));
 
   const add = async (address: string, close: () => void) => {
     if (busy) return;
@@ -50,7 +45,7 @@ export function AddFeedSheet({ onDismiss, onAdded }: { onDismiss: () => void; on
   return (
     <Sheet accessibilityLabel="Add feed" onDismiss={onDismiss}>
       {(close) => (
-        <View style={{ gap: 16 }}>
+        <View style={{ gap: 16, flexShrink: 1 }}>
           <Text variant="headlineSmall" style={{ paddingHorizontal: 8 }}>
             Add a feed
           </Text>
@@ -81,13 +76,13 @@ export function AddFeedSheet({ onDismiss, onAdded }: { onDismiss: () => void; on
             </Text>
           ) : null}
           <Text variant="overline" color="primary" style={{ paddingHorizontal: 8 }}>
-            Popular
+            Popular to start
           </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          <SheetScrollView contentContainerStyle={{ gap: 4 }} keyboardShouldPersistTaps="handled">
             {STARTER_FEEDS.map((f) => (
-              <Chip key={f.url} label={f.label} icon="add" onPress={() => void add(f.url, close)} />
+              <PopularRow key={f.url} f={f} state={follow.stateOf(f.url)} onToggle={() => void follow.toggle(f.url, f.name)} />
             ))}
-          </View>
+          </SheetScrollView>
           <Button label={busy ? 'Looking for the feed…' : 'Add feed'} disabled={busy || !url.trim()} onPress={() => void add(url, close)} />
         </View>
       )}

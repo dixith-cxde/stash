@@ -556,7 +556,13 @@ export async function search(query: string, filter: SmartFilter = {}): Promise<S
 /* ---------------------------------- Feeds --------------------------------- */
 
 export type FeedWithCounts = Feed & { unread: number; total: number; latestAt: Date | null };
-export type FeedItemWithFeed = FeedItem & { feedTitle: string; feedIconUrl: string | null; feedSiteUrl: string | null };
+export type FeedItemWithFeed = FeedItem & {
+  feedTitle: string;
+  feedIconUrl: string | null;
+  feedSiteUrl: string | null;
+  /** Length of the article text (content, else summary), for the read-time estimate. */
+  chars: number;
+};
 
 /** Articles kept per feed (saved ones are always kept). */
 const FEED_ITEM_CAP = 200;
@@ -594,21 +600,30 @@ const itemWithFeed = {
   feedTitle: feeds.title,
   feedIconUrl: feeds.iconUrl,
   feedSiteUrl: feeds.siteUrl,
+  chars: sql<number>`length(coalesce(${feedItems.content}, ${feedItems.summary}, ''))`,
 };
-const flatten = (r: { item: FeedItem; feedTitle: string; feedIconUrl: string | null; feedSiteUrl: string | null }) => ({
+const flatten = (r: {
+  item: FeedItem;
+  feedTitle: string;
+  feedIconUrl: string | null;
+  feedSiteUrl: string | null;
+  chars: number;
+}): FeedItemWithFeed => ({
   ...r.item,
   feedTitle: r.feedTitle,
   feedIconUrl: r.feedIconUrl,
   feedSiteUrl: r.feedSiteUrl,
+  chars: Number(r.chars) || 0,
 });
 
-/** Newest first; `unreadOnly` hides read articles. Light columns only: no `content`. */
+/** Newest first; `unreadOnly` hides read articles, `savedOnly` keeps saved ones. No `content`. */
 export async function listFeedItems(
-  opts: { feedId?: string; unreadOnly?: boolean; limit?: number } = {},
+  opts: { feedId?: string; unreadOnly?: boolean; savedOnly?: boolean; limit?: number } = {},
 ): Promise<FeedItemWithFeed[]> {
   const conditions = [];
   if (opts.feedId) conditions.push(eq(feedItems.feedId, opts.feedId));
   if (opts.unreadOnly) conditions.push(isNull(feedItems.readAt));
+  if (opts.savedOnly) conditions.push(isNotNull(feedItems.bookmarkId));
   const rows = await db
     .select(itemWithFeed)
     .from(feedItems)
