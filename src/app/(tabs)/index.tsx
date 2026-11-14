@@ -52,21 +52,6 @@ export default function Home() {
     return () => clearTimeout(t);
   }, [onboarded]);
 
-  const actions = (
-    <>
-      <IconToggleGroup
-        items={[
-          { key: 'cards', icon: 'gridView', label: 'Cards' },
-          { key: 'shapes', icon: 'category', label: 'Playful' },
-        ]}
-        value={layout === 'shapes' ? 'shapes' : 'cards'}
-        onChange={setLayout}
-        accessibilityLabel="Home layout"
-      />
-      <SettingsButton />
-    </>
-  );
-
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <>
@@ -79,7 +64,7 @@ export default function Home() {
             title="Stash"
             size="editorial"
             subtitle={`${totals.all} saved · ${totals.unread} to read`}
-            trailing={actions}
+            trailing={<SettingsButton />}
           />
           <SearchPill href="/find" />
 
@@ -87,6 +72,18 @@ export default function Home() {
 
           <View style={{ paddingHorizontal: Layout.gutter, paddingTop: 20, paddingBottom: 12 }}>
             <ButtonGroup items={FILTERS} value={filter} onChange={setFilter} accessibilityLabel="Filter by type" />
+            <View style={{ alignSelf: 'flex-end', marginTop: 8 }}>
+              <IconToggleGroup
+                items={[
+                  { key: 'cards', icon: 'gridView', label: 'Cards' },
+                  { key: 'shapes', icon: 'category', label: 'Playful' },
+                ]}
+                value={layout === 'shapes' ? 'shapes' : 'cards'}
+                onChange={setLayout}
+                accessibilityLabel="Home layout"
+                subtle
+              />
+            </View>
           </View>
 
           {visible.length > 0 ? (
@@ -110,7 +107,7 @@ export default function Home() {
             />
           )}
         </Animated.ScrollView>
-        <CollapsedAppBar title="Stash" scrollY={scrollY} trailing={actions} />
+        <CollapsedAppBar title="Stash" scrollY={scrollY} trailing={<SettingsButton />} />
       </>
       {onboarded && !tourDone && <HomeTour onDone={() => setTourDone(true)} />}
     </View>

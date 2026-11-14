@@ -22,7 +22,7 @@
   .textLayer br::selection { background: transparent; }
   .textLayer .endOfContent { display: block; position: absolute; inset: 100% 0 0; z-index: -1; cursor: default; user-select: none; }
   .textLayer .endOfContent.active { top: 0; }
-  .page .hlbox { position: absolute; z-index: 2; background: rgba(255, 200, 0, 0.42); border-radius: 2px; pointer-events: none; }
+  .page .hlbox { position: absolute; z-index: 2; background: rgba(255, 200, 0, 0.42); border-radius: 2px; }
 </style>
 </head>
 <body>
@@ -157,7 +157,7 @@
       canvas.className = 'base';
       canvas.width = Math.floor(vp.width);
       canvas.height = Math.floor(vp.height);
-      return page.render({ canvasContext: canvas.getContext('2d', { alpha: false }), viewport: vp }).promise.then(function () {
+      return page.render({ canvasContext: canvas.getContext('2d', { alpha: false }), viewport: vp, annotationMode: 0 }).promise.then(function () {
         p.el.innerHTML = '';
         p.el.appendChild(canvas);
         p.base = canvas;
@@ -220,6 +220,7 @@
       p.page.render({
         canvasContext: canvas.getContext('2d', { alpha: false }),
         viewport: vp,
+        annotationMode: 0,
         transform: [1, 0, 0, 1, -lx * k, -ly * k],
       }).promise.then(function () {
         if (!p.base) return;
@@ -317,12 +318,14 @@
       var range = document.createRange();
       range.setStart(a.node, a.off);
       range.setEnd(b.node, b.off + 1);
-      paint(p.el, range);
+      paint(p.el, range, i + 1, h.text);
     });
   }
 
   /** Yellow boxes over exactly the characters in `range`, placed in the page's own coordinates. */
-  function paint(pageEl, range) {
+  function hlKey(page, text) { return page + '|' + squash(text); }
+
+  function paint(pageEl, range, page, text) {
     var box = pageEl.getBoundingClientRect();
     var rects = range.getClientRects();
     for (var r = 0; r < rects.length; r++) {
@@ -330,6 +333,9 @@
       if (q.width < 1 || q.height < 1) continue;
       var d = document.createElement('div');
       d.className = 'hlbox';
+      d.dataset.page = String(page);
+      d.dataset.text = text;
+      d.dataset.key = hlKey(page, text);
       d.style.left = (q.left - box.left) + 'px';
       d.style.top = (q.top - box.top) + 'px';
       d.style.width = q.width + 'px';
@@ -342,17 +348,29 @@
     var sel = lastSel;
     if (!sel || !sel.text.trim()) return;
     var pageEl = pages[sel.page] && pages[sel.page].el;
-    if (pageEl && sel.range) paint(pageEl, sel.range);
-    highlights.push({ page: sel.page + 1, text: sel.text });
+    if (pageEl && sel.range) paint(pageEl, sel.range, sel.page + 1, sel.text.trim());
+    highlights.push({ page: sel.page + 1, text: sel.text.trim() });
     post({ type: 'highlight', page: sel.page + 1, text: sel.text.trim() });
     var s = window.getSelection(); if (s) s.removeAllRanges();
     lastSel = null;
   };
 
+  /** Removes a highlight's boxes (the app deleted it). */
+  window.stashUnhighlight = function (page, text) {
+    var key = hlKey(page, text);
+    document.querySelectorAll('.hlbox').forEach(function (d) { if (d.dataset.key === key) d.remove(); });
+    highlights = highlights.filter(function (h) { return hlKey(h.page, h.text) !== key; });
+  };
+
   window.stashGoTo = function (i) { goTo(i); };
 
   // A tap (not a selection) toggles the app's chrome.
-  document.addEventListener('click', function () {
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (t && t.classList && t.classList.contains('hlbox')) {
+      post({ type: 'hltap', page: Number(t.dataset.page), text: t.dataset.text || '' });
+      return;
+    }
     var s = window.getSelection();
     if (s && s.toString()) return;
     post({ type: 'tap' });

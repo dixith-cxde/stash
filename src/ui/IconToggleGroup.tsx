@@ -7,8 +7,6 @@ import { IconButton } from './IconButton';
 
 type Item<K extends string> = { key: K; icon: IconName; label: string };
 
-const SIZE = 40;
-const WIDTH = 52;
 /** Connected button group: 2dp gaps, 8dp inner corners, full outer corners (androidx tokens). */
 const GAP = 2;
 const INNER = 8;
@@ -22,12 +20,17 @@ export function IconToggleGroup<K extends string>({
   value,
   onChange,
   accessibilityLabel,
+  subtle,
 }: {
   items: Item<K>[];
   value: K;
   onChange: (key: K) => void;
   accessibilityLabel: string;
+  /** Extra-small (32dp), no container until selected: for a secondary switch that should stay quiet. */
+  subtle?: boolean;
 }) {
+  const SIZE = subtle ? 32 : 40;
+  const WIDTH = subtle ? 40 : 52;
   return (
     <View accessibilityRole="radiogroup" accessibilityLabel={accessibilityLabel} style={{ flexDirection: 'row', gap: GAP }}>
       {items.map((it, i) => (
@@ -35,11 +38,11 @@ export function IconToggleGroup<K extends string>({
           key={it.key}
           icon={it.icon}
           accessibilityLabel={it.label}
-          variant="tonal"
+          variant={subtle ? 'standard' : 'tonal'}
           size={SIZE}
           width={WIDTH}
           selected={it.key === value}
-          selectedColors={{ bg: 'primary', fg: 'onPrimary' }}
+          selectedColors={subtle ? { bg: 'secondaryContainer', fg: 'onSecondaryContainer' } : { bg: 'primary', fg: 'onPrimary' }}
           corners={connectedCorners(i, items.length, SIZE / 2, INNER)}
           onPress={() => onChange(it.key)}
         />

@@ -5,6 +5,8 @@ import Animated, { type SharedValue, useAnimatedScrollHandler, useAnimatedStyle,
 import { folderIcon, folderSeed } from '@/features/stash/model';
 import type { Collection } from '@/features/stash/queries';
 import { plural } from '@/lib/format';
+import { Shape } from '@/shapes/Shape';
+import type { MaterialShapeName } from '@/shapes/names';
 import { useAppTheme } from '@/theme/AppTheme';
 import type { IconName } from '@/theme/icons';
 import { collectionTones } from '@/theme/palette';
@@ -18,9 +20,11 @@ import { TransformCard } from '@/ui/TransformCard';
 const SMALL = 56;
 const GAP = 8;
 const CORNER = 28;
-const HEIGHT = 168;
+const HEIGHT = 112;
+/** Decoration bleeding off each card's corner, like the collection page header. */
+const DECOR: MaterialShapeName[] = ['ghostish', 'cookie9Sided', 'clover4Leaf', 'cookie4Sided', 'arch', 'cookie7Sided'];
 
-type Entry = { key: string; href: `/collection/${string}`; label: string; detail: string; icon: IconName; bg: string; fg: string };
+type Entry = { key: string; href: `/collection/${string}`; label: string; detail: string; icon: IconName; bg: string; fg: string; accent: string };
 
 /**
  * Hero carousel of collections: one large item and a small one peeking at the end. As you
@@ -40,9 +44,9 @@ export function CollectionCarousel({ collections }: { collections: Collection[] 
   const entries: Entry[] = [
     ...collections.map((c): Entry => {
       const tone = collectionTones(folderSeed(c), dark);
-      return { key: c.id, href: `/collection/${c.id}`, label: c.name, detail: plural(c.itemCount, 'item'), icon: folderIcon(c), bg: tone.container, fg: tone.onContainer };
+      return { key: c.id, href: `/collection/${c.id}`, label: c.name, detail: plural(c.itemCount, 'item'), icon: folderIcon(c), bg: tone.container, fg: tone.onContainer, accent: tone.accent };
     }),
-    { key: 'new', href: '/collection/new', label: 'New collection', detail: 'Group what you save', icon: 'add', bg: colors.primaryContainer, fg: colors.onPrimaryContainer },
+    { key: 'new', href: '/collection/new', label: 'New collection', detail: 'Group what you save', icon: 'add', bg: colors.primaryContainer, fg: colors.onPrimaryContainer, accent: colors.primary },
   ];
 
   return (
@@ -101,14 +105,21 @@ function Item({ e, index, x, step, large }: { e: Entry; index: number; x: Shared
   return (
     <Animated.View style={[styles.frame, frame]}>
       <TransformCard href={e.href} color={e.bg} corner={CORNER} accessibilityLabel={`${e.label}, ${e.detail}`} style={{ flex: 1 }} contentStyle={styles.card}>
+        <Shape
+          name={DECOR[index % DECOR.length]}
+          size={104}
+          color={e.accent}
+          rotation={index % 2 ? 18 : -12}
+          style={styles.decor}
+        />
         <View style={styles.icon}>
           <Ico name={e.icon} size={24} color={e.fg} />
         </View>
         <Animated.View style={[styles.text, text]}>
-          <Text variant="titleLargeEmphasized" color={e.fg} numberOfLines={1}>
+          <Text variant="titleMediumEmphasized" color={e.fg} numberOfLines={1}>
             {e.label}
           </Text>
-          <Text variant="labelLarge" color={e.fg} numberOfLines={1} style={{ opacity: 0.75 }}>
+          <Text variant="labelMedium" color={e.fg} numberOfLines={1} style={{ opacity: 0.75 }}>
             {e.detail}
           </Text>
         </Animated.View>
@@ -119,6 +130,7 @@ function Item({ e, index, x, step, large }: { e: Entry; index: number; x: Shared
 
 const styles = StyleSheet.create({
   frame: { position: 'absolute', left: 0, top: 0, bottom: 0 },
+  decor: { position: 'absolute', right: -30, top: -28 },
   card: { flex: 1, padding: 16, justifyContent: 'space-between', overflow: 'hidden' },
   icon: { width: 24, height: 24 },
   text: { width: 240, gap: 2 },
