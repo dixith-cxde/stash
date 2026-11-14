@@ -7,6 +7,7 @@ import Animated from "react-native-reanimated";
 import { useDbQuery } from "@/db/hooks";
 import {
   createBookmark,
+  createFolder,
   deleteBookmarks,
   deleteHighlight,
   findDuplicate,
@@ -134,7 +135,7 @@ export default function CaptureScreen() {
 
   return (
     <>
-      <Sheet accessibilityLabel="Save to Stash" onDismiss={dismiss}>
+      <Sheet accessibilityLabel="Save to Stash" onDismiss={dismiss} persistent>
         {(close) =>
           saved ? (
             <SavedView
@@ -866,6 +867,18 @@ function CollectionRow({
     { key: "inbox", label: "Inbox" },
     ...top.map((c) => ({ key: c.id, label: c.name })),
   ];
+  const { colors } = useAppTheme();
+  // Naming a new collection right here, without leaving the sheet.
+  const [naming, setNaming] = useState(false);
+  const [name, setName] = useState("");
+  const create = async () => {
+    const n = name.trim();
+    if (!n) return;
+    const id = await createFolder({ name: n });
+    setFolderId(id);
+    setName("");
+    setNaming(false);
+  };
   return (
     <View>
       <View
@@ -881,10 +894,55 @@ function CollectionRow({
         <Text variant="titleSmallEmphasized" color="primary">
           Collection
         </Text>
-        {collections.length > 2 && (
-          <Button label="More" variant="text" size="xs" onPress={onMore} />
-        )}
+        <View style={{ flexDirection: "row" }}>
+          <Button
+            label={naming ? "Cancel" : "New"}
+            variant="text"
+            size="xs"
+            onPress={() => setNaming((v) => !v)}
+          />
+          {collections.length > 2 && !naming && (
+            <Button label="More" variant="text" size="xs" onPress={onMore} />
+          )}
+        </View>
       </View>
+      {naming && (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 8,
+          }}
+        >
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            autoFocus
+            placeholder="Collection name"
+            placeholderTextColor={colors.onSurfaceVariant}
+            returnKeyType="done"
+            onSubmitEditing={() => void create()}
+            accessibilityLabel="New collection name"
+            style={[
+              inputStyle(colors.onSurface),
+              Type.bodyLarge,
+              {
+                flex: 1,
+                height: 48,
+                borderRadius: 24,
+                paddingHorizontal: 20,
+                backgroundColor: colors.surfaceContainerHigh,
+              },
+            ]}
+          />
+          <Button
+            label="Create"
+            size="s"
+            onPress={() => void create()}
+          />
+        </View>
+      )}
       <ButtonGroup
         items={items}
         value={folderId ?? "inbox"}
