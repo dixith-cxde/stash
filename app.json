@@ -2,7 +2,7 @@
   "expo": {
     "name": "Stash",
     "slug": "stash",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "stash",
@@ -20,7 +20,7 @@
       },
       "predictiveBackGestureEnabled": true,
       "package": "app.stash.bookmarks",
-      "versionCode": 5
+      "versionCode": 6
     },
     "web": {
       "output": "single",
