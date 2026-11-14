@@ -73,6 +73,44 @@ Settings → Backup exports a full JSON backup or a Netscape bookmarks HTML file
 either format, so bookmarks exported from Chrome, Firefox, Pocket, Raindrop or Omnivore come in
 with their folders and tags.
 
+## Built with Claude
+
+Stash was built by pairing with **Claude** (Anthropic's AI model) through **Claude Code**, mostly
+in the Claude desktop app. The app itself has no AI in it; Claude was the coding partner. The
+author set the direction, design taste and priorities, tested every build on a real phone, and
+decided what shipped. Claude read the docs, wrote and changed the code, and ran the checks.
+
+### How the work was run
+
+1. **Project rules first.** [`AGENTS.md`](AGENTS.md) (loaded through `CLAUDE.md`) tells Claude
+   the stack and the house rules: plain React Native views (no Compose), Reanimated springs from
+   `src/motion/tokens.ts` only, `PressableSurface` for anything tappable, colors from
+   `useColors()`, icons through `Ico`, data through `src/db/repo.ts`, and "read the versioned
+   Expo docs, don't trust memory".
+2. **Reference docs in the repo.** Claude worked from written specs instead of guesses:
+   - [`docs/m3-expressive.md`](docs/m3-expressive.md): Material 3 Expressive rules with the
+     AndroidX token values (corners, connected groups, carousel, toggles) and an audit of the app.
+   - [`docs/animation.md`](docs/animation.md): which spring goes with which motion.
+   - [`docs/rebuild-plan.md`](docs/rebuild-plan.md): the plan and history of the rebuild.
+   - [`PROGRESS.md`](PROGRESS.md) and [`docs/next-session.md`](docs/next-session.md): where things
+     stand, what is next, and the release steps, so each new session picks up where the last ended.
+3. **Small, concrete requests.** Each round was a short request, often with screenshots of the
+   app or of a reference design. Claude made the change, ran `tsc` and `expo lint`, and committed.
+4. **Testing on a device.** The author ran the debug build on a USB-connected Android phone
+   (no emulator: the laptop is low-spec) and sent back what looked or felt wrong.
+5. **Feedback became rules.** Corrections that should stick (haptics only on save, cancel and
+   delete; calm tonal colors instead of a vivid palette; no attribution lines in commits) were
+   saved to Claude's memory or the project rules, so later sessions follow them.
+6. **Releases.** Claude bumped the version in `app.json`, ran `expo prebuild` and the Gradle
+   release build, checked the APK signature and scanned it for secrets, then tagged the version
+   and published the APK as a GitHub release.
+
+### If you want to work on it the same way
+
+Open the repo in Claude Code, let it read `AGENTS.md`, `PROGRESS.md` and the docs above, and ask
+for one change at a time. Keep `PROGRESS.md` current so the next session has the context, and
+run `npm run typecheck` and `npm run lint` before you commit.
+
 ## License
 
 Stash is licensed under [CC BY-NC-SA 4.0](LICENSE) (Creative Commons
