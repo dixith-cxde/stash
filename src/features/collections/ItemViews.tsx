@@ -134,7 +134,7 @@ export function HighlightCard({
     .join(' · ');
   const body = (
     <>
-      <Text variant="bodyLarge" color={tone.fg} style={{ fontWeight: '600', lineHeight: 23 }}>
+      <Text variant="bodyLarge" color={tone.fg} style={{ fontWeight: '600', lineHeight: 23}}>
         {`“${h.text}”`}
       </Text>
       {where ? (

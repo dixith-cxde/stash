@@ -10,7 +10,7 @@ import { WebView, type WebViewMessageEvent, type WebViewProps } from 'react-nati
 
 import viewerHtml from '@/assets/pdf/viewer.html';
 import { useDbQuery } from '@/db/hooks';
-import { type BookmarkWithTags, createHighlight, getBookmark, queryHighlights, updateBookmark } from '@/db/repo';
+import { type BookmarkWithTags, createHighlight, deleteHighlight, getBookmark, queryHighlights, updateBookmark } from '@/db/repo';
 import { haptic } from '@/motion/haptics';
 import { springTo, useSprings } from '@/motion/springs';
 import { TransitionScreen, useTransitionClose } from '@/motion/transition/TransitionScreen';
@@ -59,6 +59,8 @@ type ViewerMessage =
   | { type: 'tap' }
   | { type: 'scrollDown' }
   | { type: 'highlight'; page: number; text: string }
+  | { type: 'hltap'; page: number; text: string }
+  | { type: 'hldup' }
   | { type: 'error'; message: string };
 
 /** The bundled viewer page as a local file:// URI (copied out of the app bundle once). */
@@ -101,6 +103,8 @@ function Reader({ b, source, startPage }: { b: BookmarkWithTags; source: string;
   const [current, setCurrent] = useState(Math.max((startPage ?? b.lastPage ?? 1) - 1, 0));
   const [menu, setMenu] = useState(false);
   const [goTo, setGoTo] = useState(false);
+  /** A tapped highlight, waiting for Remove. */
+  const [tapped, setTapped] = useState<{ page: number; text: string } | null>(null);
 
   // Start state, read once: the row changes as we save the page and highlights.
   const initial = useRef({ lastPage: startPage ?? b.lastPage, pageCount: b.pageCount, readAt: b.readAt });
@@ -167,10 +171,25 @@ function Reader({ b, source, startPage }: { b: BookmarkWithTags; source: string;
           setHidden(true);
           break;
         case 'highlight':
-          haptic.save();
-          void createHighlight({ bookmarkId: b.id, text: m.text, page: m.page, sourceTitle: b.title, sourceApp: 'Stash' }).then(() =>
-            showSnackbar('Highlight saved'),
-          );
+          void (async () => {
+            // Second safety check against the database (the page may hold stale state).
+            const squash = (x: string) => x.replace(/\s+/g, '');
+            const want = squash(m.text);
+            const existing = await queryHighlights({ bookmarkId: b.id });
+            if (existing.some((h) => h.page === m.page && (squash(h.text).includes(want) || want.includes(squash(h.text))))) {
+              showSnackbar('Already highlighted');
+              return;
+            }
+            await createHighlight({ bookmarkId: b.id, text: m.text, page: m.page, sourceTitle: b.title, sourceApp: 'Stash' });
+            haptic.save();
+            showSnackbar('Highlight saved');
+          })();
+          break;
+        case 'hldup':
+          showSnackbar('Already highlighted');
+          break;
+        case 'hltap':
+          setTapped({ page: m.page, text: m.text });
           break;
         case 'error':
           console.warn('[pdf viewer]', m.message);
@@ -197,6 +216,15 @@ function Reader({ b, source, startPage }: { b: BookmarkWithTags; source: string;
     setCurrent(index);
   };
 
+  const removeHighlight = async (t: { page: number; text: string }) => {
+    const squash = (x: string) => x.replace(/\s+/g, '');
+    const all = await queryHighlights({ bookmarkId: b.id });
+    const match = all.filter((h) => h.page === t.page && squash(h.text) === squash(t.text));
+    await Promise.all(match.map((h) => deleteHighlight(h.id)));
+    web.current?.injectJavaScript(`window.stashUnhighlight && window.stashUnhighlight(${t.page}, ${JSON.stringify(t.text)}); true;`);
+    haptic.remove();
+    showSnackbar('Highlight removed');
+  };
   const openElsewhere = () => void Sharing.shareAsync(source, { mimeType: b.mimeType ?? 'application/pdf', dialogTitle: b.title });
   const source_ = useMemo(() => (viewerUri ? { uri: viewerUri } : null), [viewerUri]);
 
@@ -272,6 +300,14 @@ function Reader({ b, source, startPage }: { b: BookmarkWithTags; source: string;
             ...(pageCount && current > 0 ? [{ label: 'Back to the first page', icon: 'arrowBackIosNew' as const, onPress: () => jump(0) }] : []),
             { label: 'Open in another app', icon: 'openInNew', onPress: openElsewhere },
           ]}
+        />
+      )}
+
+      {tapped && (
+        <ActionSheet
+          title={`Highlight on page ${tapped.page}`}
+          onDismiss={() => setTapped(null)}
+          actions={[{ label: 'Remove highlight', icon: 'delete', destructive: true, onPress: () => void removeHighlight(tapped) }]}
         />
       )}
 

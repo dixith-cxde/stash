@@ -36,7 +36,7 @@ type Props = {
   selected?: boolean;
   /** Colors when selected (defaults to tertiary, like the design's favorite). */
   selectedColors?: { bg: ColorRole; fg: ColorRole };
-  /** Rest corners when not a toggle (defaults to fully round). */
+  /** Rest corners (defaults to fully round). On a toggle: the off-state corners, e.g. in a connected group. */
   corners?: Corners4;
   /** Square-variant corner used by toggles when off. */
   squareCorner?: number;
@@ -81,8 +81,14 @@ export function IconButton({
   const pressedCap = size >= 56 ? 12 : 8;
 
   const container = useAnimatedStyle(() => {
-    const r = toggle ? squareCorner + (round - squareCorner) * sel.shape.get() : 0;
-    const rest: Corners4 = toggle ? [r, r, r, r] : (corners ?? [round, round, round, round]);
+    const t = sel.shape.get();
+    const r = toggle ? squareCorner + (round - squareCorner) * t : 0;
+    // A toggle inside a connected group rests on its group corners and turns fully round when on.
+    const rest: Corners4 = toggle
+      ? corners
+        ? [corners[0] + (round - corners[0]) * t, corners[1] + (round - corners[1]) * t, corners[2] + (round - corners[2]) * t, corners[3] + (round - corners[3]) * t]
+        : [r, r, r, r]
+      : (corners ?? [round, round, round, round]);
     return {
       ...cornerStyle(rest, pressedCap, progress.get()),
       transform: [{ scale: 1 + (MotionSpec.buttonPressScale - 1) * progress.get() }],

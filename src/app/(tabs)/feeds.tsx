@@ -10,6 +10,9 @@ import { type FeedItemWithFeed, listFeedItems, listFeeds, markAllFeedItemsRead }
 import { AddFeedSheet } from '@/features/feeds/AddFeedSheet';
 import { ArticleRow, LeadCard } from '@/features/feeds/ArticleCard';
 import { FirstRun } from '@/features/feeds/FirstRun';
+import { ReadingQueue } from '@/features/feed/ReadingQueue';
+import { readingQueue } from '@/features/stash/model';
+import { useFeed } from '@/features/stash/queries';
 import { dayLabel } from '@/features/feeds/format';
 import { SourceRail } from '@/features/feeds/SourceRail';
 import { deleteFeed, refreshFeeds } from '@/features/feeds/sync';
@@ -78,6 +81,12 @@ export default function FeedsScreen() {
   const { data: feeds, loading: feedsLoading } = useDbQuery(listFeeds, [], []);
   // The segment switches at once; the list follows in a transition that never blocks taps.
   const listShow = useDeferredValue(show);
+  // Continue reading: saved feed articles you have not finished.
+  const { data: saved } = useFeed({});
+  const queue = useMemo(
+    () => readingQueue(saved.flatMap((f) => (f.kind === 'bookmark' && f.item.sourceApp === 'Feeds' ? [f.item] : []))),
+    [saved],
+  );
   // One query feeds all three tabs; switching filters in memory instead of re-querying.
   const stable = useRef(new Map<string, { sig: string; a: FeedItemWithFeed }>());
   const { data: all, loading } = useDbQuery(
@@ -160,6 +169,7 @@ export default function FeedsScreen() {
       ) : (
         <>
           <SourceRail feeds={feeds} value={feedId} onChange={setFeedId} />
+          {feedId === null && <ReadingQueue entries={queue} />}
           <View style={{ paddingHorizontal: Layout.gutter, paddingTop: 16, paddingBottom: 4 }}>
             <ButtonGroup items={tabs} value={show} onChange={setShow} accessibilityLabel="Show" />
           </View>

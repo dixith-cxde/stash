@@ -6,7 +6,7 @@ import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDbQuery } from '@/db/hooks';
-import { type BookmarkWithTags, deleteBookmarks, getBookmark, type HighlightWithTags, queryHighlights, setArchived, updateBookmark } from '@/db/repo';
+import { type BookmarkWithTags, deleteBookmarks, deleteHighlight, getBookmark, type HighlightWithTags, queryHighlights, setArchived, updateBookmark } from '@/db/repo';
 import { HighlightCard } from '@/features/collections/ItemViews';
 import { OrganizeCard } from '@/features/detail/OrganizeCard';
 import { FilePreview, hasFilePreview } from '@/features/files/FilePreview';
@@ -14,6 +14,7 @@ import { formatBytes } from '@/features/files/kinds';
 import { cardKind, highlightsMarkdown, hostSeed, kindIcon, kindLabel, openAction, readingMinutes, sourceLabel } from '@/features/stash/model';
 import { relativeTime } from '@/lib/format';
 import { openItem } from '@/lib/nav';
+import { SwipeRow } from '@/features/feeds/SwipeRow';
 import { haptic } from '@/motion/haptics';
 import { TransitionScreen, useTransitionClose } from '@/motion/transition/TransitionScreen';
 import { Shape } from '@/shapes/Shape';
@@ -138,16 +139,33 @@ function ItemBody() {
             </View>
             <View style={{ gap: 8, paddingHorizontal: 16 }}>
               {hls.map((h) => (
-                <HighlightCard
+                <SwipeRow
                   key={h.id}
-                  h={h}
-                  unit={kind === 'pdf' ? 'Page' : 'Paragraph'}
-                  onPress={
-                    kind === 'pdf' && h.page && b.filePath
-                      ? () => router.push({ pathname: '/pdf/[id]', params: { id: b.id, page: String(h.page) } })
-                      : undefined
-                  }
-                />
+                  radius={24}
+                  resetKey={h.id}
+                  end={{
+                    icon: 'delete',
+                    label: 'Delete',
+                    bg: colors.errorContainer,
+                    fg: colors.onErrorContainer,
+                    removes: true,
+                    onCommit: () =>
+                      void deleteHighlight(h.id).then(() => {
+                        haptic.remove();
+                        showSnackbar('Highlight deleted');
+                      }),
+                  }}
+                >
+                  <HighlightCard
+                    h={h}
+                    unit={kind === 'pdf' ? 'Page' : 'Paragraph'}
+                    onPress={
+                      kind === 'pdf' && h.page && b.filePath
+                        ? () => router.push({ pathname: '/pdf/[id]', params: { id: b.id, page: String(h.page) } })
+                        : undefined
+                    }
+                  />
+                </SwipeRow>
               ))}
             </View>
           </>

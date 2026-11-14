@@ -54,7 +54,7 @@ function FindBody() {
           value={text}
           onChangeText={setText}
           autoFocus
-          placeholder="Search your stash"
+          placeholder="Search names or #tags"
           placeholderTextColor={colors.onSurfaceVariant}
           returnKeyType="search"
           autoCorrect={false}

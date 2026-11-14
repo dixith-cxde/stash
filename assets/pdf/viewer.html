@@ -317,12 +317,14 @@
       var range = document.createRange();
       range.setStart(a.node, a.off);
       range.setEnd(b.node, b.off + 1);
-      paint(p.el, range);
+      paint(p.el, range, i + 1, h.text);
     });
   }
 
   /** Yellow boxes over exactly the characters in `range`, placed in the page's own coordinates. */
-  function paint(pageEl, range) {
+  function hlKey(page, text) { return page + '|' + squash(text); }
+
+  function paint(pageEl, range, page, text) {
     var box = pageEl.getBoundingClientRect();
     var rects = range.getClientRects();
     for (var r = 0; r < rects.length; r++) {
@@ -330,6 +332,9 @@
       if (q.width < 1 || q.height < 1) continue;
       var d = document.createElement('div');
       d.className = 'hlbox';
+      d.dataset.page = String(page);
+      d.dataset.text = text;
+      d.dataset.key = hlKey(page, text);
       d.style.left = (q.left - box.left) + 'px';
       d.style.top = (q.top - box.top) + 'px';
       d.style.width = q.width + 'px';
@@ -342,18 +347,45 @@
     var sel = lastSel;
     if (!sel || !sel.text.trim()) return;
     var pageEl = pages[sel.page] && pages[sel.page].el;
-    if (pageEl && sel.range) paint(pageEl, sel.range);
-    highlights.push({ page: sel.page + 1, text: sel.text });
+    // Safety check: the same words (or words inside an existing highlight) are not saved twice.
+    var needle = squash(sel.text);
+    var dup = highlights.some(function (h) {
+      if (h.page !== sel.page + 1) return false;
+      var have = squash(h.text);
+      return have.indexOf(needle) >= 0 || needle.indexOf(have) >= 0;
+    });
+    var clear = window.getSelection(); if (clear) clear.removeAllRanges();
+    if (dup) { lastSel = null; post({ type: 'hldup' }); return; }
+    if (pageEl && sel.range) paint(pageEl, sel.range, sel.page + 1, sel.text.trim());
+    highlights.push({ page: sel.page + 1, text: sel.text.trim() });
     post({ type: 'highlight', page: sel.page + 1, text: sel.text.trim() });
     var s = window.getSelection(); if (s) s.removeAllRanges();
     lastSel = null;
   };
 
+  /** Removes a highlight's boxes (the app deleted it). */
+  window.stashUnhighlight = function (page, text) {
+    var key = hlKey(page, text);
+    document.querySelectorAll('.hlbox').forEach(function (d) { if (d.dataset.key === key) d.remove(); });
+    highlights = highlights.filter(function (h) { return hlKey(h.page, h.text) !== key; });
+  };
+
   window.stashGoTo = function (i) { goTo(i); };
 
   // A tap (not a selection) toggles the app's chrome.
-  document.addEventListener('click', function () {
+  document.addEventListener('click', function (e) {
     var s = window.getSelection();
+    if (!(s && s.toString())) {
+      // The text layer sits above the boxes, so find a highlight under the tap by position.
+      var boxes = document.querySelectorAll('.hlbox');
+      for (var b = 0; b < boxes.length; b++) {
+        var r = boxes[b].getBoundingClientRect();
+        if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) {
+          post({ type: 'hltap', page: Number(boxes[b].dataset.page), text: boxes[b].dataset.text || '' });
+          return;
+        }
+      }
+    }
     if (s && s.toString()) return;
     post({ type: 'tap' });
   });

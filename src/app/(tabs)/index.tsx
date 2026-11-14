@@ -1,14 +1,15 @@
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View } from 'react-native';
 import Animated, { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CollectionPill } from '@/features/collections/CollectionCards';
+import { CollectionCarousel } from '@/features/collections/CollectionCarousel';
 import { Masonry } from '@/features/feed/Masonry';
-import { ReadingQueue } from '@/features/feed/ReadingQueue';
+import { GroupCards } from '@/features/feed/GroupCards';
+import { ShapeWall } from '@/features/feed/ShapeWall';
 import { HomeTour } from '@/features/onboarding/HomeTour';
-import { type FeedFilter, matchesFilter, readingQueue } from '@/features/stash/model';
+import { type FeedFilter, matchesFilter } from '@/features/stash/model';
 import { useCollections, useFeed, useTotals } from '@/features/stash/queries';
 import { useChromeScroll } from '@/motion/ScrollChrome';
 import { useSettings } from '@/state/settings';
@@ -17,6 +18,7 @@ import { Layout } from '@/theme/tokens';
 import { ButtonGroup } from '@/ui/ButtonGroup';
 import { EmptyState } from '@/ui/EmptyState';
 import { IconButton } from '@/ui/IconButton';
+import { IconToggleGroup } from '@/ui/IconToggleGroup';
 import { CollapsedAppBar, ScreenHeader } from '@/ui/ScreenHeader';
 import { SearchPill } from '@/ui/SearchPill';
 
@@ -38,8 +40,8 @@ export default function Home() {
   const { data: feed, loading } = useFeed({});
   const [filter, setFilter] = useState<FeedFilter>('all');
   const visible = feed.filter((f) => matchesFilter(f, filter));
-  const queue = useMemo(() => readingQueue(feed.flatMap((f) => (f.kind === 'bookmark' ? [f.item] : []))), [feed]);
-
+  const layout = useSettings((s) => s.homeLayout);
+  const setLayout = useSettings((s) => s.setHomeLayout);
   // First launch: the welcome pages, then a short tour of Home.
   const onboarded = useSettings((s) => s.onboarded);
   const tourDone = useSettings((s) => s.tourDone);
@@ -66,29 +68,33 @@ export default function Home() {
           />
           <SearchPill href="/find" />
 
-          {collections.length > 0 && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: Layout.gutter, paddingTop: 16, gap: 8, alignItems: 'center' }}
-              accessibilityRole="list"
-              accessibilityLabel="Collections"
-            >
-              {collections.map((c) => (
-                <CollectionPill key={c.id} c={c} />
-              ))}
-              <IconButton icon="add" accessibilityLabel="New collection" variant="tonal" size={48} onPress={() => router.push('/collection/new')} />
-            </ScrollView>
-          )}
-
-          <ReadingQueue entries={queue} />
+          <CollectionCarousel collections={collections} />
 
           <View style={{ paddingHorizontal: Layout.gutter, paddingTop: 20, paddingBottom: 12 }}>
             <ButtonGroup items={FILTERS} value={filter} onChange={setFilter} accessibilityLabel="Filter by type" />
+            <View style={{ alignSelf: 'flex-end', marginTop: 8 }}>
+              <IconToggleGroup
+                items={[
+                  { key: 'cards', icon: 'gridView', label: 'Cards' },
+                  { key: 'shapes', icon: 'category', label: 'Playful' },
+                ]}
+                value={layout === 'shapes' ? 'shapes' : 'cards'}
+                onChange={setLayout}
+                accessibilityLabel="Home layout"
+                subtle
+              />
+            </View>
           </View>
 
           {visible.length > 0 ? (
-            <Masonry items={visible} />
+            layout === 'shapes' ? (
+              <>
+                <ShapeWall items={visible} />
+                <GroupCards items={visible} />
+              </>
+            ) : (
+              <Masonry items={visible} />
+            )
           ) : loading ? null : (
             <EmptyState
               shape={filter === 'all' ? 'cookie9Sided' : 'clover4Leaf'}
