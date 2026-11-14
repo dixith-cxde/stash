@@ -88,6 +88,8 @@ export const MotionSpec = {
   /** Predictive back: minimum scale and edge margin (dp). */
   backMinScale: 0.9,
   backMargin: 8,
+  /** Predictive back: corner radius at full progress (dp). (unverified, docs §6) */
+  backCorner: 28,
   /** Loading indicator. */
   loaderMorphIntervalMs: 650,
   loaderRotationMs: 4666,

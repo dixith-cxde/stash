@@ -1,3 +1,4 @@
+import { useLayoutEffect } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 import Animated, { interpolate, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
@@ -33,8 +34,11 @@ export function SwipeRow({
   start,
   end,
   radius,
+  resetKey,
   children,
 }: {
+  /** Recycled list cells: a new key puts the row back in place (a hidden row slid away). */
+  resetKey?: string;
   /** Revealed when swiping right. */
   start?: SwipeAction;
   /** Revealed when swiping left. */
@@ -45,6 +49,9 @@ export function SwipeRow({
   const springs = useSprings();
   const { width: W } = useWindowDimensions();
   const x = useSharedValue(0);
+  useLayoutEffect(() => {
+    x.set(0);
+  }, [resetKey, x]);
 
   const pan = usePanGesture({
     activeOffsetX: [-14, 14],

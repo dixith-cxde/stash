@@ -1,6 +1,8 @@
 import { Directory, File, Paths } from 'expo-file-system';
 
 import { ExpressiveModule } from '../../../modules/expressive';
+import { extForMime } from './kinds';
+import { EXCERPT_MAX_BYTES, readTextHead } from './read';
 
 const filesDir = () => {
   const dir = new Directory(Paths.document, 'files');
@@ -17,9 +19,7 @@ const thumbsDir = () => {
 function extensionFor(name: string | null | undefined, mime: string | null | undefined) {
   const fromName = name?.match(/\.([a-z0-9]{1,8})$/i)?.[1];
   if (fromName) return fromName.toLowerCase();
-  if (mime === 'application/pdf') return 'pdf';
-  if (mime?.startsWith('image/')) return mime.slice(6).replace('jpeg', 'jpg');
-  return 'bin';
+  return extForMime(mime) ?? 'bin';
 }
 
 /**
@@ -41,6 +41,20 @@ export async function makePdfThumbnail(fileUri: string, id: string) {
     return await ExpressiveModule.renderPdfPage(fileUri, out.uri, 480, 0);
   } catch (e) {
     console.warn('[pdf thumb]', e);
+    return null;
+  }
+}
+
+/**
+ * The start of a saved text file (16 KB, decoded off the hot path) for the bookmark's
+ * `content`: cards, the item page preview and search use it. Null for binary or unreadable files.
+ */
+export async function readTextExcerpt(fileUri: string): Promise<string | null> {
+  try {
+    const head = await readTextHead(fileUri, EXCERPT_MAX_BYTES);
+    return head.binary ? null : head.text;
+  } catch (e) {
+    console.warn('[files] excerpt failed', e);
     return null;
   }
 }

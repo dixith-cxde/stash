@@ -1,10 +1,11 @@
 import { router } from "expo-router";
 import { type BottomTabBarProps, Tabs } from "expo-router/tabs";
 import { useEffect } from "react";
+import { useReducedMotion } from "react-native-reanimated";
 
 import { openQuickAdd } from "@/features/capture/quickAdd";
 import { ChromeProvider } from "@/motion/ScrollChrome";
-import { TAB_TRANSITION } from "@/motion/tabTransition";
+import { TAB_TRANSITION, TAB_TRANSITION_REDUCED } from "@/motion/tabTransition";
 import { FloatingNavBar, type NavItem } from "@/ui/FloatingNavBar";
 
 const TABS: Record<string, Omit<NavItem, "key">> = {
@@ -38,6 +39,7 @@ const PRELOAD = ["/library", "/feeds", "/search"] as const;
 const PRELOAD_DELAY = 1500;
 
 export default function TabsLayout() {
+  const reduced = useReducedMotion();
   useEffect(() => {
     const t = setTimeout(() => PRELOAD.forEach((href) => router.prefetch(href)), PRELOAD_DELAY);
     return () => clearTimeout(t);
@@ -46,7 +48,7 @@ export default function TabsLayout() {
     <ChromeProvider>
       <Tabs
         tabBar={(props) => <TabBar {...props} />}
-        screenOptions={{ headerShown: false, freezeOnBlur: true, ...TAB_TRANSITION }}
+        screenOptions={{ headerShown: false, freezeOnBlur: true, ...(reduced ? TAB_TRANSITION_REDUCED : TAB_TRANSITION) }}
       >
         <Tabs.Screen name="index" />
         <Tabs.Screen name="library" />

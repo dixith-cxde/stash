@@ -3,18 +3,25 @@ This is **Stash**, an Expo SDK 58 / React Native 0.88 bookmark app (Android-firs
 
 ## Project rules
 
-- v3 is being rebuilt in **plain React Native views** + Reanimated 4 + Gesture Handler 3 (+ Skia for
-  shape morphs). Do not add `@expo/ui` / Jetpack Compose UI. Plan: `docs/rebuild-plan.md`.
-  Target design: the "Stash — M3 Expressive redesign" canvas linked there.
+- The UI is **plain React Native views** + Reanimated 4 + Gesture Handler 3 (+ Skia for shape
+  morphs). Do not add `@expo/ui` / Jetpack Compose UI. Plan and history: `docs/rebuild-plan.md`.
+  Target design: the "Stash — M3 Expressive redesign" canvas linked there. Current state and
+  next steps: `PROGRESS.md`.
 - Motion follows `docs/animation.md`. Use the spring tokens in `src/motion/tokens.ts` (never raw
   numbers): spatial springs for position/size/shape, effects springs for color/opacity. Reanimated
   springs need `{ mass: 1, stiffness, damping }`, never `dampingRatio` with `stiffness`.
+  Get tokens through `useSprings()` (reduced motion swaps in the no-bounce scheme) and animate
+  with `springTo()`.
 - Build pressables on `PressableSurface` / `usePressMorph` (UI-thread press shape morph).
+- Pushed pages wrap their content in `TransitionScreen` (container / axisY / axisX) and are
+  registered in `src/app/_layout.tsx` with `TRANSITION_SCREEN`.
+- Haptics only on save, cancel and delete. Never use the `puffy` or `heart` shapes.
 - Read colors with `useColors()`; never hardcode hex colors in screens. Collection colors come from
   `collectionTones()`. Text goes through `<Text variant>` (`src/theme/type.ts`).
 - Icons go through `Ico` (`src/ui/Ico.tsx`): add with
   `npx @expo/material-symbols --style rounded -o assets/icons <name>`, then `npm run icons`.
 - `modules/expressive` holds only native helpers (PDF page render, PROCESS_TEXT, dynamic color).
+  The PDF reader (`src/app/pdf/[id].tsx`) renders pages through `src/features/pdf/render.ts`.
 - Data access goes through `src/db/repo.ts`; screens read with `useDbQuery`. Smart-list logic lives in `src/db/filters.ts`.
 - Node ≥ 22.13 is required (`.node-version` = 26).
 

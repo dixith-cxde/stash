@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { StyleSheet, View } from 'react-native';
 
 import type { BookmarkWithTags, HighlightWithTags } from '@/db/repo';
-import { cardKind, formatDuration, glyphFor, hostSeed, sourceLabel } from '@/features/stash/model';
+import { cardKind, formatDuration, glyphFor, hostSeed, kindIcon, kindLabel, sourceLabel } from '@/features/stash/model';
 import { relativeTime } from '@/lib/format';
 import { useAppTheme } from '@/theme/AppTheme';
 import { collectionTones, HIGHLIGHT_TONES } from '@/theme/palette';
@@ -12,8 +12,8 @@ import { Text } from '@/ui/Text';
 import { TransformCard } from '@/ui/TransformCard';
 
 /** Route for a bookmark: notes open the note reader, everything else the item page. */
-export const itemHref = (b: Pick<BookmarkWithTags, 'id' | 'type'>) =>
-  (b.type === 'text' ? `/note/${b.id}` : `/item/${b.id}`) as `/item/${string}`;
+export const itemHref = (b: Pick<BookmarkWithTags, 'id' | 'type' | 'url'> & Partial<Pick<BookmarkWithTags, 'filePath' | 'mimeType' | 'title'>>) =>
+  (cardKind(b) === 'note' ? `/note/${b.id}` : `/item/${b.id}`) as `/item/${string}`;
 
 function meta(b: BookmarkWithTags): string {
   const k = cardKind(b);
@@ -23,7 +23,11 @@ function meta(b: BookmarkWithTags): string {
   }
   if (k === 'video') return `YouTube${b.durationSec ? ` · ${formatDuration(b.durationSec)}` : ''}`;
   if (k === 'note') return `Note · edited ${relativeTime(b.updatedAt)}`;
-  return `${sourceLabel(b)} · ${relativeTime(b.createdAt).replace(' ago', '')}`;
+  const when = relativeTime(b.createdAt).replace(' ago', '');
+  // Links that are apps / repos / docs say so; files say their type ("Markdown", ".csv").
+  const label = kindLabel(b);
+  if (label && k === 'link') return `${label} · ${when}`;
+  return `${sourceLabel(b)} · ${when}`;
 }
 
 function useTile(b: BookmarkWithTags) {
@@ -39,12 +43,17 @@ function Art({ b, size }: { b: BookmarkWithTags; size: number }) {
   const tile = useTile(b);
   const img = b.imageUrl ?? b.thumbPath;
   const glyph = glyphFor(b);
+  const k = cardKind(b);
+  // Generic files keep their extension glyph ("ZIP"); apps, repos, docs and text files get icons.
+  const icon = k === 'file' ? null : kindIcon(b);
   return (
     <View style={[StyleSheet.absoluteFill, styles.center, { backgroundColor: tile.bg }]}>
       {img ? (
         <Image source={img} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
-      ) : cardKind(b) === 'video' ? (
+      ) : k === 'video' ? (
         <Ico name="playArrowFill" size={size * 0.4} color={tile.fg} />
+      ) : icon ? (
+        <Ico name={icon} size={size * 0.42} color={tile.fg} />
       ) : (
         <Text variant="labelLarge" color={tile.fg} style={{ fontWeight: '800', fontSize: glyph.length > 1 ? size * 0.23 : size * 0.43 }}>
           {glyph}

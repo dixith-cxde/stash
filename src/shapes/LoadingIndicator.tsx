@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 import {
   cancelAnimation,
-  Easing,
+  ReduceMotion,
   useDerivedValue,
   useReducedMotion,
   useSharedValue,
@@ -12,7 +12,7 @@ import {
 } from 'react-native-reanimated';
 
 import { springTo } from '@/motion/springs';
-import { ComponentSpring, MotionSpec } from '@/motion/tokens';
+import { ComponentSpring, Ease, MotionSpec } from '@/motion/tokens';
 import { useColors } from '@/theme/AppTheme';
 
 import { maxRadius, type MorphPair, morphPath, shapeMorph } from './morph';
@@ -55,7 +55,17 @@ export function LoadingIndicator({ size = 48, contained = false, color, accessib
   const to = useSharedValue(STEPS[0].from);
 
   useEffect(() => {
-    spin.set(withRepeat(withTiming(360, { duration: MotionSpec.loaderRotationMs, easing: Easing.linear }), -1, false));
+    // The spin opts out of Reanimated's reduced-motion skip (which would stop a repeat after
+    // one instant pass): with reduced motion it is the indicator's only motion (docs §10.6).
+    spin.set(
+      withRepeat(
+        withTiming(360, { duration: MotionSpec.loaderRotationMs, easing: Ease.linear, reduceMotion: ReduceMotion.Never }),
+        -1,
+        false,
+        undefined,
+        ReduceMotion.Never,
+      ),
+    );
     if (reduced) return () => cancelAnimation(spin);
     let i = 0;
     const id = setInterval(() => {

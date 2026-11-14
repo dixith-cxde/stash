@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useSharedValue } from 'react-native-reanimated';
+import { type SharedValue, useAnimatedReaction, useSharedValue } from 'react-native-reanimated';
 
 import { springTo, useSprings } from './springs';
 import type { SpringName } from './tokens';
@@ -47,4 +47,31 @@ export function cornerStyle(rest: Corners4, pressedCap: number, pressed: number)
     borderBottomRightRadius: at(rest[2]),
     borderBottomLeftRadius: at(rest[3]),
   };
+}
+
+/**
+ * useSelection driven from the UI thread: `selected` is a shared value holding the chosen
+ * index. A tap can set it in its gesture worklet, so the selection starts moving in the same
+ * frame as the tap, without waiting for React to re-render (single-select groups).
+ */
+export function useSharedSelection(
+  selected: SharedValue<number>,
+  index: number,
+  { shape = 'fastSpatial', color = 'defaultEffects' }: { shape?: SpringName; color?: SpringName } = {},
+) {
+  const springs = useSprings();
+  const on = selected.get() === index ? 1 : 0;
+  const shapeP = useSharedValue(on);
+  const colorP = useSharedValue(on);
+  const shapeSpring = springs[shape];
+  const colorSpring = springs[color];
+  useAnimatedReaction(
+    () => (selected.get() === index ? 1 : 0),
+    (next, prev) => {
+      if (prev === null || next === prev) return;
+      shapeP.set(springTo(next, shapeSpring));
+      colorP.set(springTo(next, colorSpring));
+    },
+  );
+  return { shape: shapeP, color: colorP };
 }

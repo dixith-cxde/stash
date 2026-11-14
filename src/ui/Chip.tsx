@@ -1,7 +1,8 @@
 import { StyleSheet } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
-import Animated, { FadeIn, FadeOut, interpolateColor, LinearTransition, useAnimatedStyle } from 'react-native-reanimated';
+import Animated, { interpolateColor, LinearTransition, useAnimatedStyle } from 'react-native-reanimated';
 
+import { fadeIn, fadeOut } from '@/motion/layout';
 import { Spring } from '@/motion/tokens';
 import { usePressMorph } from '@/motion/usePressMorph';
 import { cornerStyle, useSelection } from '@/motion/useSelection';
@@ -13,12 +14,11 @@ import { Text } from './Text';
 
 const H = 36;
 const fs = Spring.fastSpatial;
-const se = Spring.slowEffects;
 /** Width changes: expand on fastSpatial (androidx Chip). */
 const resize = LinearTransition.springify().mass(fs.mass).stiffness(fs.stiffness).damping(fs.damping);
 /** Leading check: fades in on slowEffects, out on fastEffects (androidx Chip). */
-const checkIn = FadeIn.springify().mass(se.mass).stiffness(se.stiffness).damping(se.damping);
-const checkOut = FadeOut.duration(100);
+const checkIn = fadeIn(Spring.slowEffects);
+const checkOut = fadeOut(Spring.fastEffects);
 
 type Props = {
   label: string;

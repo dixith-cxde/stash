@@ -1,6 +1,7 @@
 import { and, asc, count, desc, eq, getTableColumns, inArray, isNotNull, isNull, like, max, ne, or, sql } from 'drizzle-orm';
 
 import { deleteLocalFiles } from '@/features/files/storage';
+import { clearPdfCache } from '@/features/pdf/render';
 import {
   applyCorrections,
   correctedQuery,
@@ -106,6 +107,7 @@ export async function deleteBookmarks(ids: string[]) {
     .where(inArray(bookmarks.id, ids));
   await db.delete(bookmarks).where(inArray(bookmarks.id, ids));
   deleteLocalFiles(...rows.flatMap((r) => [r.filePath, r.thumbPath]));
+  ids.forEach(clearPdfCache);
 }
 
 export async function moveBookmarks(ids: string[], folderId: string | null) {
@@ -629,24 +631,47 @@ const flatten = (r: {
   chars: Number(r.chars) || 0,
 });
 
-/** Newest first; `unreadOnly` hides read articles, `savedOnly` keeps saved ones. No `content`. */
-export async function listFeedItems(
-  opts: { feedId?: string; unreadOnly?: boolean; savedOnly?: boolean; limit?: number } = {},
-): Promise<FeedItemWithFeed[]> {
-  const conditions = [];
+/**
+ * List columns only: no article bodies (content / article can be tens of KB each) and the
+ * summary cut to a teaser. Reading them across the bridge for 150+ rows on every change was
+ * what made the Feeds list slow on older phones.
+ */
+const { content: _content, article: _article, summary: _summary, ...leanItemCols } = getTableColumns(feedItems);
+const leanItemWithFeed = {
+  item: { ...leanItemCols, summary: sql<string | null>`substr(${feedItems.summary}, 1, 600)` },
+  feedTitle: feeds.title,
+  feedIconUrl: feeds.iconUrl,
+  feedSiteUrl: feeds.siteUrl,
+  chars: itemWithFeed.chars,
+};
+
+/** How many of the newest articles the All tab shows. */
+const ALL_TAB_LIMIT = 150;
+
+/**
+ * Articles for the Feeds tab, one query for all three tabs (New / All / Saved filter in
+ * memory, so switching tabs never waits on the database): the newest 150, plus every unread
+ * and every saved one. Newest first.
+ */
+export async function listFeedItems(opts: { feedId?: string } = {}): Promise<FeedItemWithFeed[]> {
+  const scope = opts.feedId ? sql`and ${feedItems.feedId} = ${opts.feedId}` : sql``;
+  const conditions = [
+    isNull(feedItems.hiddenAt),
+    or(
+      isNull(feedItems.readAt),
+      isNotNull(feedItems.bookmarkId),
+      sql`${feedItems.id} in (select id from feed_items where hidden_at is null ${scope} order by coalesce(published_at, created_at) desc limit ${ALL_TAB_LIMIT})`,
+    ),
+  ];
   if (opts.feedId) conditions.push(eq(feedItems.feedId, opts.feedId));
-  if (opts.unreadOnly) conditions.push(isNull(feedItems.readAt));
-  if (opts.savedOnly) conditions.push(isNotNull(feedItems.bookmarkId));
-  conditions.push(isNull(feedItems.hiddenAt));
   const rows = await db
-    .select(itemWithFeed)
+    .select(leanItemWithFeed)
     .from(feedItems)
     .innerJoin(feeds, eq(feeds.id, feedItems.feedId))
     .where(and(...conditions))
     .orderBy(desc(sql`coalesce(${feedItems.publishedAt}, ${feedItems.createdAt})`))
-    .limit(opts.limit ?? 150);
-  // The list never needs article bodies; drop them so each re-run stays light.
-  return rows.map((r) => ({ ...flatten(r), content: null, article: null }));
+    .limit(600);
+  return rows.map((r) => ({ ...flatten({ ...r, item: { ...r.item, content: null, article: null } as FeedItem }) }));
 }
 
 export async function getFeedItem(id: string): Promise<FeedItemWithFeed | null> {

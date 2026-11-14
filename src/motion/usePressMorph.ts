@@ -29,6 +29,8 @@ type Options = {
   /** Scale while held. Defaults to 0.97 for cards, 0.94 for buttons. */
   pressedScale?: number;
   onPress?: () => void;
+  /** Worklet run on the UI thread the instant the tap is recognised, before `onPress`. */
+  onPressWorklet?: () => void;
   onPressIn?: () => void;
   /**
    * Instead of `onPress`: measures `measureRef` on the UI thread the instant the tap lands and
@@ -64,6 +66,7 @@ export function usePressMorph({
   pressedCorner = kind === 'card' ? MotionSpec.cardPressCorner : corner,
   pressedScale = kind === 'card' ? MotionSpec.cardPressScale : MotionSpec.buttonPressScale,
   onPress,
+  onPressWorklet,
   onPressIn,
   onPressMeasured,
   measureRef,
@@ -91,6 +94,7 @@ export function usePressMorph({
     onActivate: () => {
       'worklet';
       tapped.set(true);
+      if (onPressWorklet) onPressWorklet();
       if (onPressMeasured) scheduleOnRN(onPressMeasured, measureRef ? measure(measureRef) : null);
       else if (onPress) scheduleOnRN(onPress);
       progress.set(withSequence(withSpring(1, springs.fastEffects), withSpring(0, release)));

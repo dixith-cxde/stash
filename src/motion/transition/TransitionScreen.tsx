@@ -2,16 +2,24 @@ import { router } from 'expo-router';
 import { createContext, use, useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { BackHandler, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
-import Animated, { type SharedValue, useAnimatedReaction, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, {
+  type SharedValue,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { useAppTheme } from '@/theme/AppTheme';
 
-import { springTo, useSprings } from '../springs';
+import { fadeTo, springTo, useSprings } from '../springs';
 import { MotionSpec, type SpringToken } from '../tokens';
 import { type Origin, useTransitions } from './store';
 
 type Kind = 'container' | 'axisY' | 'axisX';
+/** `fade`: what every kind becomes with reduced motion on (docs/animation.md §10.6). */
+type Mode = Kind | 'fade';
 
 const CloseContext = createContext<() => void>(() => router.back());
 
@@ -84,10 +92,14 @@ function useEdgeBack(
  * Edge swipes preview the back like Android predictive back: the page scales to 90%,
  * shifts toward the swipe and rounds its corners; release past 30% (or a fling) commits.
  * Hardware back and useTransitionClose() run the same exit.
+ *
+ * With reduced motion on, every kind becomes a plain cross-fade on effects springs: no
+ * growth, slide or bounce (the spatial springs jump to their targets).
  */
 export function TransitionScreen({ kind, origin: originId, background, children }: Props) {
   const { colors } = useAppTheme();
   const springs = useSprings();
+  const reduced = useReducedMotion();
   const { width: W, height: H } = useWindowDimensions();
   const [origin] = useState<Origin | undefined>(() =>
     originId ? useTransitions.getState().origins[originId] : undefined,
@@ -95,7 +107,8 @@ export function TransitionScreen({ kind, origin: originId, background, children 
   useLayoutEffect(() => {
     if (originId) useTransitions.getState().claim(originId);
   }, [originId]);
-  const mode: Kind = kind === 'container' && !origin ? 'axisY' : kind;
+  const mode: Mode = reduced ? 'fade' : kind === 'container' && !origin ? 'axisY' : kind;
+  const fadeOnly = mode === 'fade';
   const bg = background ?? colors.surface;
 
   const p = useSharedValue(0);
@@ -109,10 +122,10 @@ export function TransitionScreen({ kind, origin: originId, background, children 
   const [ready, setReady] = useState(mode !== 'container');
   useEffect(() => {
     p.set(springTo(1, springs.defaultSpatial));
-    fade.set(springTo(1, springs.defaultEffects));
+    fade.set(fadeOnly ? fadeTo(1, springs.defaultEffects) : springTo(1, springs.defaultEffects));
     const raf = requestAnimationFrame(() => setReady(true));
     return () => cancelAnimationFrame(raf);
-  }, [p, fade, springs]);
+  }, [p, fade, springs, fadeOnly]);
 
   const finish = useCallback(() => {
     if (originId) useTransitions.getState().settle(originId);
@@ -124,17 +137,18 @@ export function TransitionScreen({ kind, origin: originId, background, children 
       'worklet';
       if (closing.get()) return;
       closing.set(true);
-      fade.set(springTo(0, springs.fastEffects));
+      fade.set(fadeOnly ? fadeTo(0, springs.fastEffects) : springTo(0, springs.fastEffects));
       p.set(springTo(0, springs.defaultSpatial, velocity));
     },
-    [closing, fade, p, springs],
+    [closing, fade, p, springs, fadeOnly],
   );
 
   // Hand back to the screen underneath as soon as the page is visually home, instead of
-  // waiting for the spring's long, invisible settling tail.
+  // waiting for the spring's long, invisible settling tail. A reduced-motion fade waits for
+  // the fade instead (p has already jumped home).
   const finished = useSharedValue(false);
   useAnimatedReaction(
-    () => closing.get() && p.get() < 0.03,
+    () => closing.get() && (fadeOnly ? fade.get() : p.get()) < 0.03,
     (done) => {
       if (done && !finished.get()) {
         finished.set(true);
@@ -163,7 +177,7 @@ export function TransitionScreen({ kind, origin: originId, background, children 
     return {
       scale: 1 - (1 - MotionSpec.backMinScale) * b,
       shift: (W / 20 - MotionSpec.backMargin) * b,
-      corner: 28 * b,
+      corner: MotionSpec.backCorner * b,
     };
   };
 
@@ -217,7 +231,7 @@ export function TransitionScreen({ kind, origin: originId, background, children 
 
   // Card snapshot: drawn at card size, scaled with the container, fading out over 0–25%.
   const ghost = useAnimatedStyle(() => {
-    if (!frame) return { opacity: 0 };
+    if (mode !== 'container' || !frame) return { opacity: 0 };
     const t = p.get();
     const w = frame.width + (W - frame.width) * t;
     return { opacity: 1 - band(t, 0, 0.15), transform: [{ scale: w / frame.width }] };

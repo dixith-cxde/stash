@@ -65,19 +65,6 @@ function Editor({ folder }: { folder: { id: string; name: string; color: string 
             {editing ? 'Edit collection' : 'New collection'}
           </Text>
 
-          <SheetScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 16 }}>
-          <View style={[styles.preview, { backgroundColor: tone.container }]}>
-            <View style={styles.previewDecor} pointerEvents="none">
-              <Shape name="cookie9Sided" size={180} color={tone.accent} />
-            </View>
-            <View style={[styles.previewIcon, { backgroundColor: tone.onContainer }]}>
-              <Ico name={icon} size={24} color={tone.container} />
-            </View>
-            <Text variant="headlineSmall" color={tone.onContainer} numberOfLines={1} style={{ fontWeight: '800', marginTop: 12 }}>
-              {name.trim() || 'Untitled'}
-            </Text>
-          </View>
-
           <View style={[styles.field, { backgroundColor: colors.surfaceContainerHighest }]}>
             <TextInput
               value={name}
@@ -91,6 +78,19 @@ function Editor({ folder }: { folder: { id: string; name: string; color: string 
               accessibilityLabel="Collection name"
               style={{ flex: 1, color: colors.onSurface, fontFamily: FONT_FAMILY, ...Type.bodyLarge, paddingVertical: 0 }}
             />
+          </View>
+
+          <SheetScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 16 }}>
+          <View style={[styles.preview, { backgroundColor: tone.container }]}>
+            <View style={styles.previewDecor} pointerEvents="none">
+              <Shape name="cookie9Sided" size={180} color={tone.accent} />
+            </View>
+            <View style={[styles.previewIcon, { backgroundColor: tone.onContainer }]}>
+              <Ico name={icon} size={24} color={tone.container} />
+            </View>
+            <Text variant="headlineSmall" color={tone.onContainer} numberOfLines={1} style={{ fontWeight: '800', marginTop: 12 }}>
+              {name.trim() || 'Untitled'}
+            </Text>
           </View>
 
           <Text variant="overline" color="primary" style={{ paddingHorizontal: 8 }}>

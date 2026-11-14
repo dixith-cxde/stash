@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { FadeOut, withSpring } from 'react-native-reanimated';
+import Animated, { withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { create } from 'zustand';
 
+import { exitFade } from '@/motion/layout';
 import { Spring } from '@/motion/tokens';
 import { useColors } from '@/theme/AppTheme';
 import { Layout } from '@/theme/tokens';
@@ -35,7 +36,7 @@ const DURATION_MS = 4000;
 const ACTION_DURATION_MS = 7000;
 const ds = Spring.defaultSpatial;
 
-/** Enters from below on defaultSpatial; leaves with a quick fade (fastEffects-like). */
+/** Enters from below on defaultSpatial; leaves with a quick fade (fastEffects). */
 const enter = () => {
   'worklet';
   return {
@@ -69,7 +70,7 @@ export function SnackbarHost() {
         <Animated.View
           key={current.id}
           entering={enter}
-          exiting={FadeOut.duration(150)}
+          exiting={exitFade}
           accessibilityLiveRegion="polite"
           style={[styles.snack, { backgroundColor: colors.inverseSurface }]}
         >

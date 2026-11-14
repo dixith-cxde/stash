@@ -2,7 +2,7 @@ import * as DocumentPicker from "expo-document-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import { type ComponentRef, useEffect, useMemo, useRef, useState } from "react";
 import { TextInput, View } from "react-native";
-import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import Animated from "react-native-reanimated";
 
 import { useDbQuery } from "@/db/hooks";
 import {
@@ -23,8 +23,7 @@ import { folderSeed, glyphFor, hostSeed } from "@/features/stash/model";
 import { useCollections } from "@/features/stash/queries";
 import { useSuggestions } from "@/features/suggest/useSuggestions";
 import { haptic } from "@/motion/haptics";
-import { enterRise, reflow } from "@/motion/layout";
-import { Spring } from "@/motion/tokens";
+import { enterFade, enterRise, exitFade, reflow } from "@/motion/layout";
 import { MorphingShape } from "@/shapes/MorphingShape";
 import { useCapture } from "@/state/capture";
 import { useAppTheme } from "@/theme/AppTheme";
@@ -365,11 +364,8 @@ function CaptureForm(p: FormProps) {
           </View>
           <Animated.View
             key={p.mode}
-            entering={FadeIn.springify()
-              .mass(1)
-              .stiffness(Spring.defaultEffects.stiffness)
-              .damping(Spring.defaultEffects.damping)}
-            exiting={FadeOut.duration(80)}
+            entering={enterFade}
+            exiting={exitFade}
             layout={reflow}
           >
             {p.mode === "link" && <LinkFields {...p} />}

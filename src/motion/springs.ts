@@ -17,3 +17,13 @@ export function springTo(toValue: number, token: SpringToken, velocity?: number,
   'worklet';
   return withSpring(toValue, { ...token, velocity, reduceMotion: ReduceMotion.System }, callback);
 }
+
+/**
+ * An effects spring that still runs when reduced motion is on. springTo (like every
+ * Reanimated animation by default) jumps straight to its target under reduced motion; use
+ * this only for the cross-fade that stands in for spatial motion (docs/animation.md §10.6).
+ */
+export function fadeTo(toValue: number, token: SpringToken, callback?: (finished?: boolean) => void) {
+  'worklet';
+  return withSpring(toValue, { ...token, reduceMotion: ReduceMotion.Never }, callback);
+}

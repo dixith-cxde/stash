@@ -1,7 +1,7 @@
 import { Canvas, Path } from '@shopify/react-native-skia';
 import { useEffect, useRef } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
-import { useDerivedValue, useSharedValue, withSpring } from 'react-native-reanimated';
+import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
 
 import { springTo, useSprings } from '@/motion/springs';
 import type { SpringToken } from '@/motion/tokens';
@@ -58,7 +58,7 @@ export function MorphingShape({ shape, size, color, rotation = 0, fit = 'rotatio
   }, [shape, token, fit, from, to, radius, progress]);
 
   useEffect(() => {
-    angle.set(withSpring(rotation, token));
+    angle.set(springTo(rotation, token));
   }, [rotation, token, angle]);
 
   const path = useDerivedValue(() =>

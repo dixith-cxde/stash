@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { memo, useState } from 'react';
+import { useRecyclingState } from '@shopify/flash-list';
+import { memo } from 'react';
 import { Share, StyleSheet, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle } from 'react-native-reanimated';
 
@@ -89,11 +90,13 @@ export const ArticleRow = memo(function ArticleRow({ a }: { a: FeedItemWithFeed 
   const tone = useSourceTone(a);
   const unread = !a.readAt;
   const saved = !!a.bookmarkId;
-  const [menu, setMenu] = useState(false);
+  // Recycled by the list: per-row state resets when the cell shows another article.
+  const [menu, setMenu] = useRecyclingState(false, [a.id]);
   return (
     <>
     <SwipeRow
       radius={24}
+      resetKey={a.id}
       start={
         saved
           ? undefined
@@ -171,7 +174,7 @@ export const ArticleRow = memo(function ArticleRow({ a }: { a: FeedItemWithFeed 
 });
 
 /** The newest unread article as a large tonal card in its source's color (design: Top story). */
-export function LeadCard({ a }: { a: FeedItemWithFeed }) {
+export const LeadCard = memo(function LeadCard({ a }: { a: FeedItemWithFeed }) {
   const tone = useSourceTone(a);
   return (
     <TransformCard href={`/article/${a.id}`} color={tone.container} corner={28} accessibilityLabel={`Top story: ${a.title}`}>
@@ -211,7 +214,7 @@ export function LeadCard({ a }: { a: FeedItemWithFeed }) {
       </View>
     </TransformCard>
   );
-}
+});
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingRight: 10, borderRadius: 24, overflow: 'hidden' },

@@ -1,5 +1,6 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { FlashList } from '@shopify/flash-list';
+import { useCallback, useDeferredValue, useMemo, useRef, useState } from 'react';
 import { RefreshControl, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,6 +26,15 @@ import { showSnackbar } from '@/ui/Snackbar';
 import { Text } from '@/ui/Text';
 
 type Show = 'new' | 'all' | 'saved';
+
+/** Wait (ms) after focusing the tab before checking feeds. */
+const REFRESH_DELAY = 1200;
+
+const AnimatedFlashList = Animated.createAnimatedComponent(FlashList<Row>);
+
+/** Same fields → same object, so memoized rows skip re-rendering when the list re-queries. */
+const rowSignature = (a: FeedItemWithFeed) =>
+  `${a.title}|${a.readAt?.getTime() ?? ''}|${a.bookmarkId ?? ''}|${a.imageUrl ?? ''}|${a.chars}|${a.feedTitle}|${a.feedSiteUrl ?? ''}|${a.summary?.length ?? 0}|${a.publishedAt?.getTime() ?? ''}`;
 type Row =
   | { k: 'lead'; key: string; a: FeedItemWithFeed }
   | { k: 'day'; key: string; title: string; count: number }
@@ -64,10 +74,30 @@ export default function FeedsScreen() {
   const [firstRun, setFirstRun] = useState<boolean | null>(null);
 
   const { data: feeds, loading: feedsLoading } = useDbQuery(listFeeds, [], []);
-  const { data: items, loading } = useDbQuery(
-    () => listFeedItems({ feedId: feedId ?? undefined, unreadOnly: show === 'new', savedOnly: show === 'saved' }),
-    [feedId, show],
+  // The segment switches at once; the list follows in a transition that never blocks taps.
+  const listShow = useDeferredValue(show);
+  // One query feeds all three tabs; switching filters in memory instead of re-querying.
+  const stable = useRef(new Map<string, { sig: string; a: FeedItemWithFeed }>());
+  const { data: all, loading } = useDbQuery(
+    async () => {
+      const fresh = await listFeedItems({ feedId: feedId ?? undefined });
+      const next = new Map<string, { sig: string; a: FeedItemWithFeed }>();
+      const out = fresh.map((a) => {
+        const sig = rowSignature(a);
+        const prev = stable.current.get(a.id);
+        const keep = prev && prev.sig === sig ? prev : { sig, a };
+        next.set(a.id, keep);
+        return keep.a;
+      });
+      stable.current = next;
+      return out;
+    },
+    [feedId],
     [] as FeedItemWithFeed[],
+  );
+  const items = useMemo(
+    () => (listShow === 'new' ? all.filter((a) => !a.readAt) : listShow === 'saved' ? all.filter((a) => a.bookmarkId) : all.slice(0, 150)),
+    [all, listShow],
   );
 
   // Decided once, when feeds first load (state adjusted during render, React's pattern).
@@ -75,13 +105,16 @@ export default function FeedsScreen() {
 
   const selected = feeds.find((f) => f.id === feedId) ?? null;
   const unread = selected ? selected.unread : feeds.reduce((n, f) => n + f.unread, 0);
-  const rows = useMemo(() => toRows(items, feedId === null && show !== 'saved'), [items, feedId, show]);
+  const rows = useMemo(() => toRows(items, feedId === null && listShow !== 'saved'), [items, feedId, listShow]);
   const showFirstRun = !feedsLoading && (feeds.length === 0 || firstRun === true);
 
   // Battery: only feeds older than the refresh interval are fetched, and only while here.
+  // Started after the tab has settled: parsing runs on the JS thread and would delay the
+  // first taps on older phones.
   useFocusEffect(
     useCallback(() => {
-      void refreshFeeds();
+      const t = setTimeout(() => void refreshFeeds(), REFRESH_DELAY);
+      return () => clearTimeout(t);
     }, []),
   );
 
@@ -132,9 +165,12 @@ export default function FeedsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
-      <Animated.FlatList
+      <AnimatedFlashList
         data={showFirstRun ? [] : rows}
         keyExtractor={(r) => r.key}
+        getItemType={(r) => r.k}
+        maintainVisibleContentPosition={{ disabled: true }}
+        drawDistance={400}
         renderItem={({ item: r }) =>
           r.k === 'lead' ? (
             <View style={styles.lead}>
@@ -159,12 +195,12 @@ export default function FeedsScreen() {
         ListEmptyComponent={
           showFirstRun || loading ? undefined : (
             <EmptyState
-              shape={show === 'saved' ? 'clover4Leaf' : 'cookie12Sided'}
-              title={show === 'saved' ? 'Nothing saved here' : show === 'new' ? 'All caught up' : 'No articles yet'}
+              shape={listShow === 'saved' ? 'clover4Leaf' : 'cookie12Sided'}
+              title={listShow === 'saved' ? 'Nothing saved here' : listShow === 'new' ? 'All caught up' : 'No articles yet'}
               body={
-                show === 'saved'
+                listShow === 'saved'
                   ? 'Tap the bookmark on any article to keep it in your stash.'
-                  : show === 'new'
+                  : listShow === 'new'
                     ? 'New articles will land here. Pull down to check now.'
                     : 'Pull down to fetch the latest articles.'
               }
@@ -186,8 +222,6 @@ export default function FeedsScreen() {
           )
         }
         contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: Layout.navBarClearance + insets.bottom }}
-        initialNumToRender={8}
-        windowSize={7}
       />
 
       {adding && <AddFeedSheet onDismiss={() => setAdding(false)} onAdded={(id) => setFeedId(id)} />}

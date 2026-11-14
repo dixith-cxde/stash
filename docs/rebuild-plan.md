@@ -1,10 +1,9 @@
-# Stash rebuild plan (v3: fluid React Native)
-
-Status (2026-11-14): phases 1–6 done. Designed screens are built on real data: Home, Library, Collection
-(+ smart views), Item detail, Capture sheet, Note, Markdown editor. Phase 7: keyword search (`/find`)
-done; smart Search tab, PDF reader, Settings, Tag still to do. Phase 8: Feeds tab (replaces the
-Highlights tab), article reader and one-tap save done. Dev routes: `stash://dev/shapes`, `/dev/kit`, `/dev/transitions`,
-`/dev/seed` (design sample data; `?clear=1` removes it). Haptics: save / cancel / delete only.
+Status (2026-11-14): phases 1–8 done; phase 9 (motion polish) code pass done, on-device feel
+check pending; phase 10 (docs) done. Phase 7 delivered keyword search (`/find`), the smart Search
+tab, Settings, Tag pages, the new/edit collection sheet and the in-app PDF reader (`pdf/[id]`).
+Phase 8: Feeds tab (replaces the Highlights tab), article reader with reader mode, one-tap save.
+Dev routes: `stash://dev/shapes`, `/dev/kit`, `/dev/transitions`, `/dev/seed` (design sample
+data; `?clear=1` removes it). Haptics: save / cancel / delete only.
 
 Target design: the Design canvas *Stash — M3 Expressive redesign*
 (<https://claude.ai/artifact/ApNigGtc6hbe7MB9Mw5Bte>), seven 390×844 artboards:

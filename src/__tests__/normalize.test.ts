@@ -50,6 +50,7 @@ describe('helpers', () => {
   it('detects file types from name when mime is missing', () => {
     expect(typeForFile({ path: '/x/Doc.PDF' })).toBe('pdf');
     expect(typeForFile({ path: '/x/a.zip', mimeType: 'application/zip' })).toBe('file');
-    expect(typeForFile({ path: '/x/n.txt', mimeType: 'text/plain' })).toBe('text');
+    // Text files are files (shown in the file viewer), not editable notes.
+    expect(typeForFile({ path: '/x/n.txt', mimeType: 'text/plain' })).toBe('file');
   });
 });

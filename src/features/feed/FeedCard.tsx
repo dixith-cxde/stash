@@ -7,9 +7,12 @@ import {
   cardKind,
   DECOR_SHAPES,
   type FeedItem,
+  filePreview,
   formatDuration,
   glyphFor,
   hostSeed,
+  kindIcon,
+  kindLabel,
   sourceLabel,
   tasksIn,
 } from '@/features/stash/model';
@@ -17,6 +20,7 @@ import { relativeTime } from '@/lib/format';
 import { Shape } from '@/shapes/Shape';
 import { useAppTheme } from '@/theme/AppTheme';
 import { collectionTones, STASH_PALETTE } from '@/theme/palette';
+import { MONO_FAMILY } from '@/theme/type';
 import { TagPill } from '@/ui/Chip';
 import { Ico } from '@/ui/Ico';
 import { ProgressBar } from '@/ui/ProgressBar';
@@ -40,6 +44,9 @@ export const FeedCard = memo(function FeedCard({ f }: { f: FeedItem }) {
       return <ImageCard b={b} />;
     case 'file':
       return <FileCard b={b} />;
+    case 'markdown':
+    case 'textfile':
+      return <TextFileCard b={b} />;
     default:
       return <LinkCard b={b} />;
   }
@@ -83,6 +90,7 @@ function LinkCard({ b }: { b: BookmarkWithTags }) {
         <Text variant="titleSmall" numberOfLines={3} style={{ marginTop: 6 }}>
           {b.title}
         </Text>
+        <LinkKindRow b={b} />
         {b.tags[0] && (
           <View style={{ marginTop: 10 }}>
             <TagPill label={`#${b.tags[0].name}`} small />
@@ -90,6 +98,20 @@ function LinkCard({ b }: { b: BookmarkWithTags }) {
         )}
       </View>
     </TransformCard>
+  );
+}
+
+/** "App · Play Store", "Repo · owner/name", "Docs · MDN" under a link's title (plain links: nothing). */
+function LinkKindRow({ b }: { b: BookmarkWithTags }) {
+  const { colors } = useAppTheme();
+  const label = kindLabel(b);
+  if (!label) return null;
+  const icon = kindIcon(b);
+  return (
+    <View style={[styles.metaRow, { marginTop: 8 }]}>
+      {icon && <Ico name={icon} size={16} color={colors.primary} />}
+      <Meta color="primary">{label}</Meta>
+    </View>
   );
 }
 
@@ -293,7 +315,49 @@ function FileCard({ b }: { b: BookmarkWithTags }) {
   );
 }
 
+/** Saved Markdown / text file: type label, title, and the first lines of the file. */
+function TextFileCard({ b }: { b: BookmarkWithTags }) {
+  const { colors } = useAppTheme();
+  const markdown = cardKind(b) === 'markdown';
+  const preview = filePreview(b, 4);
+  return (
+    <TransformCard
+      href={`/item/${b.id}`}
+      color={colors.surfaceContainer}
+      corner={R}
+      accessibilityLabel={`${kindLabel(b) ?? 'File'}: ${b.title}`}
+      contentStyle={{ padding: 16 }}
+    >
+      <View style={styles.noteTop}>
+        <Text variant="overline" color="primary" style={{ letterSpacing: 0.6 }}>
+          {kindLabel(b) ?? 'File'}
+        </Text>
+        <Ico name={kindIcon(b) ?? 'description'} size={20} color={colors.primary} />
+      </View>
+      <Text variant="titleSmall" numberOfLines={2} style={{ marginTop: 6 }}>
+        {b.title || 'Untitled file'}
+      </Text>
+      {preview ? (
+        <View style={[styles.excerpt, { backgroundColor: colors.surfaceContainerHigh }]}>
+          <Text
+            variant="bodySmall"
+            color="onSurfaceVariant"
+            numberOfLines={4}
+            style={markdown ? undefined : { fontFamily: MONO_FAMILY, fontSize: 12, lineHeight: 16 }}
+          >
+            {preview}
+          </Text>
+        </View>
+      ) : null}
+      <View style={{ marginTop: 10 }}>
+        <Meta>{`${b.readAt ? 'Opened' : 'Unread'} · ${ago(b.createdAt)}`}</Meta>
+      </View>
+    </TransformCard>
+  );
+}
+
 const styles = StyleSheet.create({
+  excerpt: { marginTop: 10, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 8 },
   linkCover: { height: 132, overflow: 'hidden', justifyContent: 'flex-end' },
   siteMark: { position: 'absolute', right: 14, bottom: 12, left: 14, textAlign: 'right', fontSize: 30, lineHeight: 34 },
   body: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 16 },

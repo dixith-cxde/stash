@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
 import { findFeedByUrl } from '@/db/repo';
 import { hostSeed } from '@/features/stash/model';
 import { haptic } from '@/motion/haptics';
+import { enterFade, exitFade } from '@/motion/layout';
 import { LoadingIndicator } from '@/shapes/LoadingIndicator';
 import { Shape } from '@/shapes/Shape';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -152,7 +153,7 @@ function AddressForm({ onAdded }: { onAdded: () => void }) {
         <Button label="Follow" height={52} corners={[10, 26, 26, 10]} onPress={() => void submit()} disabled={busy} />
       </View>
       {msg ? (
-        <Animated.View entering={FadeIn} exiting={FadeOut}>
+        <Animated.View entering={enterFade} exiting={exitFade}>
           <Text variant="labelLarge" color={colors.onPrimaryContainer} style={{ marginTop: 10 }}>
             {msg}
           </Text>
@@ -205,7 +206,7 @@ export function FirstRun({ onDone }: { onDone: () => void }) {
       </View>
 
       {following > 0 && (
-        <Animated.View entering={FadeIn} style={{ paddingHorizontal: Layout.gutter, paddingTop: 20 }}>
+        <Animated.View entering={enterFade} style={{ paddingHorizontal: Layout.gutter, paddingTop: 20 }}>
           <Button label="Show my feed" icon="arrowForward" height={56} onPress={onDone} />
         </Animated.View>
       )}

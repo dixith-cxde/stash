@@ -1,10 +1,11 @@
+import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
-import Animated, { interpolateColor, useAnimatedStyle } from 'react-native-reanimated';
+import Animated, { interpolateColor, type SharedValue, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 
 import { MotionSpec } from '@/motion/tokens';
 import { usePressMorph } from '@/motion/usePressMorph';
-import { useSelection } from '@/motion/useSelection';
+import { useSharedSelection } from '@/motion/useSelection';
 import { useColors } from '@/theme/AppTheme';
 import type { ColorRole } from '@/theme/palette';
 import { FONT_FAMILY, Type } from '@/theme/type';
@@ -40,12 +41,21 @@ export function ButtonGroup<K extends string>({
   height = 40,
   selectedColors = { bg: 'primary', fg: 'onPrimary' },
 }: Props<K>) {
+  // The chosen index lives on the UI thread: a tap moves the selection in its own frame,
+  // and React catches up afterwards (the list below may take a while on older phones).
+  const index = items.findIndex((i) => i.key === value);
+  const active = useSharedValue(index);
+  useEffect(() => {
+    active.set(index);
+  }, [index, active]);
   return (
     <View accessibilityRole="radiogroup" accessibilityLabel={accessibilityLabel} style={styles.row}>
       {items.map((item, i) => (
         <Segment
           key={item.key}
           label={item.label}
+          index={i}
+          active={active}
           selected={item.key === value}
           first={i === 0}
           last={i === items.length - 1}
@@ -62,6 +72,8 @@ export function ButtonGroup<K extends string>({
 
 function Segment({
   label,
+  index,
+  active,
   selected,
   first,
   last,
@@ -70,6 +82,8 @@ function Segment({
   onPress,
 }: {
   label: string;
+  index: number;
+  active: SharedValue<number>;
   selected: boolean;
   first: boolean;
   last: boolean;
@@ -78,8 +92,17 @@ function Segment({
   onPress: () => void;
 }) {
   const colors = useColors();
-  const sel = useSelection(selected);
-  const { gesture, progress } = usePressMorph({ kind: 'card', corner: 0, pressedScale: 1, onPress });
+  const sel = useSharedSelection(active, index);
+  const { gesture, progress } = usePressMorph({
+    kind: 'card',
+    corner: 0,
+    pressedScale: 1,
+    onPressWorklet: () => {
+      'worklet';
+      active.set(index);
+    },
+    onPress,
+  });
   const outer = height / 2;
   const offBg = colors.surfaceContainerHigh;
   const onBg = colors[selectedColors.bg];

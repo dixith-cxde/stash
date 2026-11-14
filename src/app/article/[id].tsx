@@ -1,34 +1,40 @@
-import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { useEffect, useState } from 'react';
-import { Share, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Platform, Share, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDbQuery } from '@/db/hooks';
 import { getFeedItem, markFeedItemRead } from '@/db/repo';
 import { hideArticle, saveArticle } from '@/features/feeds/ArticleCard';
-import { cleanTeaser, hostOf, readMinutes } from '@/features/feeds/format';
+import { cleanTeaser, hostOf, markdownTextLength, readMinutes } from '@/features/feeds/format';
 import { loadArticle } from '@/features/feeds/sync';
 import { MarkdownView } from '@/features/notes/MarkdownView';
-import { useSettings } from '@/state/settings';
+import { aggregatorInfo, parseReaderMarkdown } from '@/features/reader/discussion';
+import { DiscussionSection } from '@/features/reader/DiscussionSection';
+import { readerImageUrl, sameImage } from '@/features/reader/images';
+import { MetaCard } from '@/features/reader/MetaCard';
+import { ReaderImage } from '@/features/reader/ReaderImage';
 import { hostSeed } from '@/features/stash/model';
-import { relativeTime } from '@/lib/format';
 import { TransitionScreen, useTransitionClose } from '@/motion/transition/TransitionScreen';
 import { LoadingIndicator } from '@/shapes/LoadingIndicator';
 import { Shape } from '@/shapes/Shape';
+import { useSettings } from '@/state/settings';
 import { useAppTheme } from '@/theme/AppTheme';
 import { collectionTones, HIGHLIGHT_TONES } from '@/theme/palette';
 import { ActionSheet } from '@/ui/ActionSheet';
 import { BackPill, HeroIconButton } from '@/ui/BackPill';
 import { Button } from '@/ui/Button';
+import { Ico } from '@/ui/Ico';
 import { IconButton } from '@/ui/IconButton';
 import { Text } from '@/ui/Text';
 
 /**
  * Feed article reader (design: Feed article). Shows the feed's own text when it carries the
  * whole article; otherwise fetches the page once and shows its readable body (reader mode).
+ * Sections, top to bottom: tonal hero with the title, metadata card, lead image, body,
+ * discussion band, "Read on site" footer.
  */
 export default function ArticleScreen() {
   const { origin } = useLocalSearchParams<{ origin?: string }>();
@@ -44,8 +50,12 @@ const isWeb = (u: string | null): u is string => !!u && /^https?:\/\//i.test(u);
 /** A short paragraph that opens with a quote mark reads as a pull quote. */
 const isPullQuote = (p: string) => /^[“"]/.test(p) && p.length < 220;
 
-/** Avatar letter: first letter of the feed's name, ignoring a leading "The ". */
-const initial = (name: string) => (name.replace(/^the\s+/i, '').trim()[0] ?? '?').toUpperCase();
+/** Justified reading text; Android breaks lines and hyphenates so justified lines stay even. */
+const justify =
+  Platform.OS === 'android' ? ({ textBreakStrategy: 'highQuality', android_hyphenationFrequency: 'full' } as const) : {};
+
+/** The first image in the body, so a lead image that repeats it is not shown twice. */
+const firstImage = (md: string) => /!\[[^\]]*\]\(([^)\s]+)/.exec(md)?.[1] ?? null;
 
 /** Dock height plus its gap above the bottom inset, so the last line clears it. */
 const DOCK_CLEARANCE = 64 + 20 + 32;
@@ -83,21 +93,34 @@ function ArticleBody() {
   const onScroll = useAnimatedScrollHandler((e) => scrollY.set(e.contentOffset.y));
   const decor = useAnimatedStyle(() => ({ transform: [{ translateY: scrollY.get() * 0.5 }, { rotate: `${scrollY.get() * 0.08}deg` }] }));
 
+  // Parsed once per article: the body without its comment thread, the page byline, the thread.
+  const full = readerMode && a?.article ? a.article : null;
+  const parsed = useMemo(() => (full ? parseReaderMarkdown(full) : null), [full]);
+  const content = a?.content ?? null;
+  const summary = a?.summary ?? null;
+  const aggregator = useMemo(() => aggregatorInfo(content, summary), [content, summary]);
+  const toolbarColor = colors.surface;
+  const openUrl = useCallback((u: string) => void WebBrowser.openBrowserAsync(u, { toolbarColor }), [toolbarColor]);
+
   if (!a) return <View style={{ flex: 1, backgroundColor: colors.surface }} />;
 
   const tone = collectionTones(hostSeed(a.feedSiteUrl ?? a.url ?? a.feedTitle), dark);
   const quote = HIGHLIGHT_TONES.yellow[dark ? 'dark' : 'light'];
-  const full = readerMode && a.article ? a.article : null;
   const fetching = needsFetch && !tried && isWeb(a.url);
-  const body = cleanTeaser(a.content) ?? cleanTeaser(a.summary) ?? '';
-  const paragraphs = body
+  const teaser = cleanTeaser(a.content) ?? cleanTeaser(a.summary) ?? '';
+  const paragraphs = teaser
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter(Boolean);
-  const minutes = readMinutes(a.chars);
-  const meta = [relativeTime(a.publishedAt ?? a.createdAt), minutes ? `${minutes} min read` : null].filter(Boolean).join(' · ');
   const web = isWeb(a.url) ? a.url : null;
-  const openWeb = () => web && void WebBrowser.openBrowserAsync(web, { toolbarColor: colors.surface });
+  const host = hostOf(web);
+  const minutes = readMinutes(parsed ? Math.min(a.chars, markdownTextLength(parsed.body)) : a.chars);
+  // On link aggregators the feed's author is whoever posted the link; the page byline is the writer.
+  const byline = parsed?.meta?.byline ?? null;
+  const author = byline ? `By ${byline}` : a.author ? (aggregator ? `Posted by ${a.author}` : `By ${a.author}`) : null;
+  const leadImage = readerImageUrl(a.imageUrl, web);
+  const showLead = !!leadImage && !(parsed && sameImage(leadImage, readerImageUrl(firstImage(parsed.body), web)));
+  const openWeb = () => web && openUrl(web);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
@@ -114,51 +137,33 @@ function ArticleBody() {
             <BackPill label="Feeds" onPress={close} onHero={tone.onContainer} />
             <HeroIconButton icon="moreVert" label="Article options" onPress={() => setMenu(true)} onHero={tone.onContainer} />
           </View>
-
           <View style={styles.heroText}>
-            <View style={styles.source}>
-              <View style={[styles.avatar, { backgroundColor: tone.onContainer }]}>
-                <Text variant="titleMedium" color={tone.container} style={{ fontSize: 17, fontWeight: '800' }}>
-                  {initial(a.feedTitle)}
-                </Text>
-              </View>
-              <View style={{ flexShrink: 1 }}>
-                <Text variant="labelLarge" color={tone.onContainer} numberOfLines={1} style={{ fontWeight: '700' }}>
-                  {a.feedTitle}
-                </Text>
-                <Text variant="labelMedium" color={tone.onContainer} numberOfLines={1} style={{ fontWeight: '600', opacity: 0.8 }}>
-                  {meta}
-                </Text>
-              </View>
-            </View>
             <Text
               variant="headlineLarge"
               color={tone.onContainer}
               accessibilityRole="header"
               selectable
-              style={{ marginTop: 16, fontSize: 30, lineHeight: 36, fontWeight: '800', letterSpacing: -0.6 }}
+              style={{ fontSize: 30, lineHeight: 36, fontWeight: '800', letterSpacing: -0.6 }}
             >
               {a.title}
             </Text>
-            {a.author ? (
-              <Text variant="labelLarge" color={tone.onContainer} style={{ marginTop: 10, fontWeight: '600', opacity: 0.8 }}>
-                {`By ${a.author}`}
-              </Text>
-            ) : null}
           </View>
         </View>
 
-        {a.imageUrl ? (
-          <Image source={a.imageUrl} style={[styles.image, { backgroundColor: colors.surfaceContainerHigh }]} contentFit="cover" transition={200} />
-        ) : null}
+        <MetaCard
+          feedTitle={a.feedTitle}
+          host={host}
+          tone={tone}
+          author={author}
+          published={a.publishedAt ?? a.createdAt}
+          minutes={minutes}
+        />
+
+        {showLead && leadImage ? <ReaderImage uri={leadImage} corner={28} style={styles.lead} /> : null}
 
         <View style={styles.body}>
-          {full ? (
-            <MarkdownView
-              markdown={full}
-              reading
-              onOpenLink={(u) => void WebBrowser.openBrowserAsync(u, { toolbarColor: colors.surface })}
-            />
+          {parsed && parsed.body.trim() ? (
+            <MarkdownView markdown={parsed.body} reading baseUrl={web} onOpenLink={openUrl} />
           ) : fetching ? (
             <View style={styles.loading}>
               <LoadingIndicator size={48} />
@@ -175,21 +180,34 @@ function ArticleBody() {
                   </Text>
                 </View>
               ) : (
-                <Text key={i} variant="bodyLarge" selectable style={{ fontSize: 17, lineHeight: 28 }}>
+                <Text key={i} variant="bodyLarge" selectable {...justify} style={styles.paragraph}>
                   {p}
                 </Text>
               ),
             )
           ) : (
-            <Text variant="bodyLarge" color="onSurfaceVariant" style={{ fontSize: 17, lineHeight: 28 }}>
-              {web ? 'Couldn’t load the full article. Check your connection, or read it on the site.' : 'This feed only shares headlines.'}
-            </Text>
+            <View style={[styles.empty, { backgroundColor: colors.surfaceContainerLow }]}>
+              <Ico name="info" size={20} color={colors.onSurfaceVariant} />
+              <Text variant="bodyMedium" color="onSurfaceVariant" style={{ flex: 1 }}>
+                {web
+                  ? readerMode
+                    ? 'Couldn’t load the full article. Check your connection, or read it on the site.'
+                    : 'This feed only shares headlines. Turn on reader mode in Settings to fetch full articles.'
+                  : 'This feed only shares headlines.'}
+              </Text>
+            </View>
           )}
         </View>
 
+        <DiscussionSection discussion={parsed?.discussion ?? null} aggregator={aggregator} host={host} baseUrl={web} onOpen={openUrl} />
+
         {web && (
-          <View style={styles.readOn}>
-            <Button label={`Read on ${hostOf(web) ?? 'the site'}`} icon="openInNew" variant="tonal" height={48} onPress={openWeb} style={{ maxWidth: '100%' }} />
+          <View style={styles.footer}>
+            <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />
+            <Text variant="labelLarge" color="onSurfaceVariant">
+              Original article
+            </Text>
+            <Button label={`Read on ${host ?? 'the site'}`} icon="openInNew" variant="tonal" height={48} onPress={openWeb} style={{ maxWidth: '100%' }} />
           </View>
         )}
       </Animated.ScrollView>
@@ -243,13 +261,15 @@ const styles = StyleSheet.create({
   decor: { position: 'absolute', right: -80, top: -70 },
   heroBar: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12 },
   heroText: { paddingHorizontal: 24, paddingTop: 28 },
-  source: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  avatar: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  image: { marginHorizontal: 16, marginTop: 16, height: 200, borderRadius: 28 },
-  body: { paddingHorizontal: 24, paddingTop: 24, gap: 16 },
-  quote: { borderRadius: 24, paddingVertical: 18, paddingHorizontal: 20, marginVertical: 4 },
+  lead: { marginHorizontal: 16, marginTop: 16 },
+  // 20dp gutters keep a ~60-character measure at 17sp on a phone.
+  body: { paddingHorizontal: 22, paddingTop: 8 },
+  paragraph: { marginTop: 18, fontSize: 17, lineHeight: 28, textAlign: 'justify' },
+  quote: { borderRadius: 24, paddingVertical: 18, paddingHorizontal: 20, marginTop: 20 },
   loading: { alignItems: 'center', gap: 12, paddingVertical: 32 },
-  readOn: { paddingHorizontal: 24, paddingTop: 24, alignItems: 'flex-start' },
+  empty: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 20, padding: 16, marginTop: 16 },
+  footer: { paddingHorizontal: 24, paddingTop: 28, gap: 12, alignItems: 'flex-start' },
+  divider: { alignSelf: 'stretch', height: StyleSheet.hairlineWidth, marginBottom: 8 },
   dock: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', gap: 4 },
   shadow: { boxShadow: '0px 6px 20px rgba(0, 0, 0, 0.45)' },
 });

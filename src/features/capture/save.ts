@@ -5,10 +5,10 @@ import {
   findDuplicate,
   updateBookmark,
 } from '@/db/repo';
-import { importFile, makePdfThumbnail } from '@/features/files/storage';
+import { importFile, makePdfThumbnail, readTextExcerpt } from '@/features/files/storage';
 import { processPreviewQueue } from '@/features/preview/fetchPreview';
 
-import type { CaptureDraft } from './normalize';
+import { type CaptureDraft, textKindForFile } from './normalize';
 
 export type SaveOptions = { folderId?: string | null; tagIds?: string[]; note?: string };
 export type SaveResult = { kind: 'bookmark' | 'highlight'; id: string; duplicate?: boolean };
@@ -41,13 +41,21 @@ export async function saveDraft(draft: CaptureDraft, opts: SaveOptions = {}): Pr
   let filePath: string | undefined;
   let fileSize: number | undefined;
   let thumbPath: string | undefined;
+  let pageCount: number | undefined;
+  let content = draft.content;
 
   if (draft.file) {
     const copied = importFile(draft.file.path, id, draft.file.fileName, draft.file.mimeType);
     filePath = copied.uri;
     fileSize = copied.size ?? draft.file.size ?? undefined;
-    if (draft.type === 'pdf') thumbPath = (await makePdfThumbnail(copied.uri, id))?.uri;
+    if (draft.type === 'pdf') {
+      const thumb = await makePdfThumbnail(copied.uri, id);
+      thumbPath = thumb?.uri;
+      pageCount = thumb?.pageCount;
+    }
     if (draft.type === 'image') thumbPath = copied.uri;
+    // Markdown / text files: keep the opening as an excerpt for cards, previews and search.
+    if (!content && textKindForFile(draft.file)) content = (await readTextExcerpt(copied.uri)) ?? undefined;
   }
 
   // createBookmark generates its own id; keep ours so file names match the row.
@@ -55,11 +63,12 @@ export async function saveDraft(draft: CaptureDraft, opts: SaveOptions = {}): Pr
     type: draft.type,
     title: draft.title,
     url: draft.url,
-    content: draft.content,
+    content,
     note: opts.note,
     filePath,
     fileSize,
     thumbPath,
+    pageCount,
     mimeType: draft.file?.mimeType ?? undefined,
     sourceApp: draft.sourceApp,
     folderId: opts.folderId ?? null,

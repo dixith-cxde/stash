@@ -1,4 +1,5 @@
 import type { BookmarkType } from '@/db/schema';
+import { textFileKind } from '@/features/files/kinds';
 
 /** Platform-agnostic shape of whatever another app handed us. */
 export type IncomingShare = {
@@ -46,8 +47,15 @@ export function typeForFile(file: IncomingFile): BookmarkType {
   const name = file.fileName?.toLowerCase() ?? file.path.toLowerCase();
   if (mime === 'application/pdf' || name.endsWith('.pdf')) return 'pdf';
   if (mime.startsWith('image/') || /\.(png|jpe?g|gif|webp|heic|avif)$/.test(name)) return 'image';
-  if (mime.startsWith('text/') && !mime.includes('html')) return 'text';
   return 'file';
+}
+
+/**
+ * Markdown or plain-text file (kept as type "file"; the card kind comes from mime/extension),
+ * or null. Text files are files, not notes: they open in the file viewer, read-only.
+ */
+export function textKindForFile(file: IncomingFile) {
+  return textFileKind({ mimeType: file.mimeType, fileName: file.fileName ?? file.path });
 }
 
 export function hostOf(url: string): string {
@@ -88,7 +96,7 @@ export function normalizeShare(share: IncomingShare): CaptureDraft[] {
     drafts.push({
       kind: 'bookmark',
       type,
-      title: file.fileName ?? (type === 'pdf' ? 'Untitled PDF' : 'Untitled file'),
+      title: file.fileName ?? (type === 'pdf' ? 'Untitled PDF' : textKindForFile(file) ? 'Untitled text file' : 'Untitled file'),
       file,
       sourceApp,
     });

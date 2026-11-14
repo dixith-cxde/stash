@@ -1,8 +1,20 @@
 import type { BottomTabNavigationOptions } from 'expo-router/tabs';
+import type { Animated } from 'react-native';
 
 import { MotionSpec, Spring } from './tokens';
 
 const { stiffness, damping, mass } = Spring.defaultSpatial;
+const fx = Spring.defaultEffects;
+
+type TabTransition = Pick<BottomTabNavigationOptions, 'transitionSpec' | 'sceneStyleInterpolator'>;
+
+/** Outgoing tab gone by halfway; incoming tab hidden until halfway, then fades in. */
+const fadeThroughOpacity = (progress: Animated.Value) =>
+  progress.interpolate({
+    inputRange: [-1, -0.5, 0, 0.5, 1],
+    outputRange: [0, 0, 1, 0, 0],
+    extrapolate: 'clamp',
+  });
 
 /**
  * Fade through between tabs (docs/animation.md §6), run by the tab navigator on the native
@@ -12,15 +24,11 @@ const { stiffness, damping, mass } = Spring.defaultSpatial;
  * fades out over the first half; the incoming one stays hidden until halfway, then fades in
  * while it scales 0.92 → 1. One defaultSpatial spring drives both.
  */
-export const TAB_TRANSITION: Pick<BottomTabNavigationOptions, 'transitionSpec' | 'sceneStyleInterpolator'> = {
+export const TAB_TRANSITION: TabTransition = {
   transitionSpec: { animation: 'spring', config: { stiffness, damping, mass } },
   sceneStyleInterpolator: ({ current }) => ({
     sceneStyle: {
-      opacity: current.progress.interpolate({
-        inputRange: [-1, -0.5, 0, 0.5, 1],
-        outputRange: [0, 0, 1, 0, 0],
-        extrapolate: 'clamp',
-      }),
+      opacity: fadeThroughOpacity(current.progress),
       transform: [
         {
           scale: current.progress.interpolate({
@@ -31,4 +39,17 @@ export const TAB_TRANSITION: Pick<BottomTabNavigationOptions, 'transitionSpec' |
       ],
     },
   }),
+};
+
+/**
+ * Reduced motion (docs/animation.md §10.6): the same fade through without the scale, on a
+ * defaultEffects spring (no overshoot). The tab navigator runs RN Animated, which ignores
+ * Reanimated's reduced-motion handling, so this has to be chosen explicitly.
+ */
+export const TAB_TRANSITION_REDUCED: TabTransition = {
+  transitionSpec: {
+    animation: 'spring',
+    config: { stiffness: fx.stiffness, damping: fx.damping, mass: fx.mass, overshootClamping: true },
+  },
+  sceneStyleInterpolator: ({ current }) => ({ sceneStyle: { opacity: fadeThroughOpacity(current.progress) } }),
 };

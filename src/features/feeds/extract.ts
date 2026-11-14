@@ -3,10 +3,18 @@
  * tokenizer builds a tree, junk is pruned, an article root is chosen (semantic tags first, then
  * Readability-style scoring) and rendered to Markdown.
  */
+import {
+  type Discussion,
+  MAX_COMMENTS,
+  type ReaderComment,
+  serializeExtras,
+  splitInlineThread,
+} from '@/features/reader/discussion';
+
 import { decodeEntities, resolveUrl } from './parse';
 
 export type Extracted = {
-  /** Readable article body as Markdown: paragraphs, ## / ### headings, - and 1. lists, > quotes, **bold**, *italic*, [links](abs-url), fenced ``` code for <pre>, images as ![alt](abs-url) on their own line. */
+  /** Readable article body as Markdown: paragraphs, ## / ### headings, - and 1. lists, > quotes, **bold**, *italic*, [links](abs-url), fenced ``` code for <pre>, images as ![alt](abs-url) on their own line. May end with a `<!-- stash:… -->` block (byline, comment thread): read it with `parseReaderMarkdown` (src/features/reader/discussion.ts). */
   markdown: string;
   /** Plain-text length of the body (for read time). */
   chars: number;
@@ -753,15 +761,145 @@ function walk(n: Node, ctx: Ctx): void {
 }
 
 function toMarkdown(root: El, env: Env): string {
-  let md = blocksOf([root], env)
+  return blocksOf([root], env)
     .join('\n\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
-  if (md.length > MAX_MARKDOWN) {
-    const cut = md.lastIndexOf('\n\n', MAX_MARKDOWN);
-    md = md.slice(0, cut > MAX_MARKDOWN / 2 ? cut : MAX_MARKDOWN).trim();
+}
+
+function capMarkdown(md: string, max: number): string {
+  if (md.length <= max) return md;
+  const cut = md.lastIndexOf('\n\n', max);
+  return md.slice(0, cut > max / 2 ? cut : max).trim();
+}
+
+// ---------------------------------------------------------------------------------------------
+// Comment threads
+//
+// Comment sections are lifted out of the page before cleaning, so they neither leak into the
+// article body (forum-style posts often sit in <article> elements, which survive pruning) nor
+// get lost: they become a structured discussion appended to the Markdown (see
+// src/features/reader/discussion.ts).
+
+const classTokens = (el: El) => `${el.attrs.class ?? ''} ${el.attrs.id ?? ''}`.toLowerCase().split(/\s+/).filter(Boolean);
+
+const SECTION_TOKEN =
+  /^(comments?|comment-?list|commentlist|comments?[-_](area|section|container|wrapper|thread|list|block)|discussion|disqus_thread|responses|replies|comment-?section|article-comments|post-comments)$/;
+const SECTION_TAGS = words('div section ol ul aside footer');
+
+const ITEM_TOKEN = /^(comment|comment-?item|message|reply|response|post|js-post|comment-?wrapper)$/;
+const isCommentSection = (el: El) => SECTION_TAGS.has(el.tag) && classTokens(el).some((t) => SECTION_TOKEN.test(t));
+const isCommentItem = (el: El) =>
+  'data-author' in el.attrs ||
+  hasToken(el.attrs.itemprop, 'comment') ||
+  /schema\.org\/comment$/i.test(el.attrs.itemtype ?? '') ||
+  /^(comment|post|reply)[-_]?\d+$/i.test(el.attrs.id ?? '') ||
+  (el.tag !== 'a' && el.tag !== 'span' && classTokens(el).some((t) => ITEM_TOKEN.test(t)));
+
+const AUTHOR_SIG = /(^|[\s_-])(author|username|user-name|fn|commenter|nick|nickname|comment-author)([\s_-]|$)/i;
+const BODY_SIG = /(^|[\s_-])(comment-?content|comment-?text|comment-?body|commentbody|bbwrapper|message-?content|message-?body|post-?body|post-?content|content|text|body)([\s_-]|$)/i;
+const CHROME_SIG =
+  /(^|[\s_-])(meta|metadata|author|avatar|user|userinfo|user-info|actions|reply|reply-link|vote|votes|share|signature|attribution|toolbar|reactions|likes|permalink|footer|header)([\s_-]|$)/i;
+
+/** Descendants of `item` that do not belong to a nested comment. */
+function ownFind(item: El, items: Set<El>, pred: (el: El) => boolean): El | null {
+  const stack: El[] = [];
+  for (let k = item.children.length - 1; k >= 0; k--) {
+    const c = item.children[k];
+    if (isEl(c)) stack.push(c);
   }
-  return md;
+  while (stack.length) {
+    const el = stack.pop()!;
+    if (items.has(el)) continue;
+    if (pred(el)) return el;
+    for (let k = el.children.length - 1; k >= 0; k--) {
+      const c = el.children[k];
+      if (isEl(c)) stack.push(c);
+    }
+  }
+  return null;
+}
+
+function cleanAuthor(s: string): string | null {
+  const t = collapse(s).replace(/\s+(says|said|wrote)\s*:?$/i, '').replace(/:$/, '');
+  return t && t.length <= 60 ? t : null;
+}
+
+/** Prunes page chrome inside one (already detached) comment. */
+function pruneComment(el: El) {
+  const doomed: El[] = [];
+  forEachEl(el, (d) => {
+    if (d === el) return;
+    const sig = `${d.attrs.class ?? ''} ${d.attrs.id ?? ''}`;
+    if (JUNK_TAGS.has(d.tag) || isHidden(d) || (CHROME_SIG.test(sig) && !BODY_SIG.test(sig))) doomed.push(d);
+  });
+  for (const d of doomed) remove(d);
+}
+
+function takeDiscussion(doc: El, env: Env): Discussion | null {
+  // Outermost comment sections only.
+  const sections: El[] = [];
+  const visit = (el: El) => {
+    for (const c of el.children) {
+      if (!isEl(c)) continue;
+      if (isCommentSection(c) && !findFirst(c, (d) => d.tag === 'h1')) sections.push(c);
+      else visit(c);
+    }
+  };
+  visit(doc);
+  if (!sections.length) return null;
+
+  const records: { el: El; depth: number; author: string | null; time: string | null; permalink: string | null }[] = [];
+  let title: string | null = null;
+  let count: number | null = null;
+  let url: string | null = null;
+  for (const section of sections) {
+    const items = new Set(findAll(section, (el) => el !== section && isCommentItem(el)));
+    if (!items.size) continue;
+    const heading = findFirst(section, (el) => HEADINGS.has(el.tag));
+    const headText = heading ? collapse(textOf(heading)) : '';
+    if (!title && headText && headText.length < 120) title = headText.replace(/\s+on\s+.*$/i, '');
+    const n = /(\d[\d,.]*)\s+(comments?|responses|replies|thoughts)\b/i.exec(headText)?.[1];
+    if (n && count === null) count = parseInt(n.replace(/[,.]/g, ''), 10);
+    if (!url && section.attrs.id) url = `${env.base.replace(/#.*$/, '')}#${section.attrs.id}`;
+
+    forEachEl(section, (el) => {
+      if (!items.has(el)) return;
+      let depth = 0;
+      for (let p = el.parent; p && p !== section; p = p.parent) if (items.has(p)) depth++;
+      const a = el.attrs['data-author'] ?? null;
+      const authorEl = a ? null : ownFind(el, items, (d) => hasToken(d.attrs.itemprop, 'author') || AUTHOR_SIG.test(d.attrs.class ?? ''));
+      const nameEl = authorEl && (findFirst(authorEl, (d) => d !== authorEl && (hasToken(d.attrs.class, 'fn') || hasToken(d.attrs.itemprop, 'name'))) ?? authorEl);
+      const timeEl = ownFind(el, items, (d) => d.tag === 'time');
+      const linkEl = ownFind(el, items, (d) => d.tag === 'a' && /^#?\d+$/.test(collapse(textOf(d))));
+      records.push({
+        el,
+        depth,
+        author: a ? cleanAuthor(a) : nameEl ? cleanAuthor(textOf(nameEl)) : null,
+        time: timeEl ? (timeEl.attrs.datetime?.trim() || collapse(textOf(timeEl)) || null) : null,
+        permalink: linkEl ? httpOnly(resolveUrl(linkEl.attrs.href, env.base)) : null,
+      });
+    });
+  }
+  // Detach every section (and every comment from its parent) before rendering bodies, so a
+  // comment's Markdown never includes its replies.
+  for (const s of sections) remove(s);
+  for (let k = records.length - 1; k >= 0; k--) remove(records[k].el);
+
+  const comments: ReaderComment[] = [];
+  for (const r of records) {
+    if (comments.length >= MAX_COMMENTS) break;
+    const bodyEl = findFirst(r.el, (d) => d !== r.el && BODY_SIG.test(`${d.attrs.class ?? ''}`) && !CHROME_SIG.test(`${d.attrs.class ?? ''}`.replace(BODY_SIG, ' ')));
+    const target = bodyEl ?? r.el;
+    pruneComment(target);
+    const md = blocksOf(target.children, env)
+      .filter((b) => !/^\[?#\d+\]?(\(\S*\))?$/.test(b))
+      .join('\n\n')
+      .trim();
+    if (md) comments.push({ author: r.author, time: r.time, depth: Math.min(r.depth, 8), markdown: md, permalink: r.permalink });
+  }
+  if (!comments.length) return null;
+  return { title, count: count ?? comments.length, url, comments };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -776,19 +914,35 @@ export function extractArticle(html: string, pageUrl: string): Extracted | null 
   const base = (baseEl && resolveUrl(baseEl.attrs.href, pageUrl)) || pageUrl;
 
   const meta = extractMeta(doc, base);
+  const lifted = takeDiscussion(doc, { base, titles: new Set(), skippedTitle: true });
 
   clean(doc);
   const body = findFirst(doc, (el) => el.tag === 'body') ?? doc;
   const stats = computeStats(doc);
   const root = chooseRoot(body, stats);
 
-  const plain = collapse(textOf(root));
+  let plain = collapse(textOf(root));
   if (plain.length < MIN_CHARS) return null;
 
   const titles = new Set<string>();
   for (const t of [meta.title, meta.ogTitle, meta.docTitle]) if (t) titles.add(norm(t));
-  const markdown = toMarkdown(root, { base, titles, skippedTitle: false });
+  let markdown = toMarkdown(root, { base, titles, skippedTitle: false });
   if (!markdown) return null;
+
+  // A thread the section detection missed ("37 Comments" heading, then "#1" posts) is split
+  // off the Markdown instead.
+  let discussion = lifted;
+  if (!discussion) {
+    const inline = splitInlineThread(markdown);
+    if (inline) {
+      plain = plain.slice(0, Math.round(plain.length * (inline.body.length / markdown.length)));
+      markdown = inline.body;
+      discussion = inline.discussion;
+    }
+  }
+  const extras = serializeExtras({ byline: meta.byline, siteName: meta.siteName }, discussion);
+  markdown = capMarkdown(markdown, MAX_MARKDOWN - (extras ? extras.length + 2 : 0));
+  if (extras) markdown += `\n\n${extras}`;
 
   return {
     markdown,

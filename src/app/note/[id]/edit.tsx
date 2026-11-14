@@ -2,7 +2,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { type ComponentRef, useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDbQuery } from '@/db/hooks';
@@ -12,6 +12,7 @@ import { MarkdownView } from '@/features/notes/MarkdownView';
 import { tintMarkdown } from '@/features/notes/tint';
 import { tasksIn, toggleTask } from '@/features/stash/model';
 import { haptic } from '@/motion/haptics';
+import { enterFade, exitFade } from '@/motion/layout';
 import { TransitionScreen, useTransitionClose } from '@/motion/transition/TransitionScreen';
 import { LoadingIndicator } from '@/shapes/LoadingIndicator';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -149,7 +150,7 @@ function Editor() {
           {status === 'saving' ? (
             <LoadingIndicator size={22} accessibilityLabel="Saving" />
           ) : (
-            <Animated.View entering={FadeIn} exiting={FadeOut}>
+            <Animated.View entering={enterFade} exiting={exitFade}>
               <Ico name="cloudDone" size={18} color={colors.onSurfaceVariant} />
             </Animated.View>
           )}
@@ -185,7 +186,7 @@ function Editor() {
       </View>
 
       {tab === 'write' ? (
-        <Animated.View key="write" entering={FadeIn.duration(180)} style={{ flex: 1 }}>
+        <Animated.View key="write" entering={enterFade} style={{ flex: 1 }}>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 120 }}>
             <TextInput
               ref={input}
@@ -203,7 +204,7 @@ function Editor() {
           </ScrollView>
         </Animated.View>
       ) : (
-        <Animated.View key="preview" entering={FadeIn.duration(180)} style={{ flex: 1 }}>
+        <Animated.View key="preview" entering={enterFade} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 8, paddingBottom: 60 }}>
             <MarkdownView
               markdown={body}

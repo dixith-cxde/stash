@@ -2,18 +2,78 @@
 import type { BookmarkWithTags, HighlightWithTags } from '@/db/repo';
 import type { BookmarkType, Folder } from '@/db/schema';
 import { hostOf } from '@/features/capture/normalize';
+import { fileGlyph, fileLabel, headLines, markdownPlain, textFileKind } from '@/features/files/kinds';
+import { linkKind, linkKindLabel } from '@/features/links/linkKind';
 import { youtubeId } from '@/features/preview/parseMeta';
 import type { MaterialShapeName } from '@/shapes/names';
 import type { IconName } from '@/theme/icons';
 import { COLLECTION_SEEDS } from '@/theme/palette';
 
-/** How a bookmark is drawn: links to YouTube get the video card, text bookmarks are notes. */
-export type CardKind = 'link' | 'video' | 'pdf' | 'note' | 'image' | 'file';
+/**
+ * How a bookmark is drawn: links to YouTube get the video card, text bookmarks are notes,
+ * saved Markdown / text files get the text-file card and open in the in-app viewer.
+ */
+export type CardKind = 'link' | 'video' | 'pdf' | 'note' | 'image' | 'file' | 'markdown' | 'textfile';
 
-export function cardKind(b: Pick<BookmarkWithTags, 'type' | 'url'>): CardKind {
+type KindFields = Pick<BookmarkWithTags, 'type' | 'url'> & Partial<Pick<BookmarkWithTags, 'mimeType' | 'filePath' | 'title'>>;
+
+export function cardKind(b: KindFields): CardKind {
   if (b.type === 'link') return b.url && youtubeId(b.url) ? 'video' : 'link';
+  // Files: a text file shared by older builds was stored as type "text" with a file.
+  if (b.type === 'file' || (b.type === 'text' && b.filePath)) {
+    const t = textFileKind(b);
+    if (t === 'markdown') return 'markdown';
+    if (t === 'text') return 'textfile';
+    return b.type === 'text' ? 'note' : 'file';
+  }
   if (b.type === 'text') return 'note';
   return b.type;
+}
+
+/** True for kinds the in-app file viewer (`/file/[id]`) shows. */
+export const isTextFileKind = (k: CardKind) => k === 'markdown' || k === 'textfile';
+
+/** Label for what an item is beyond its type: "App · Play Store", "Repo · a/b", "Markdown", ".csv". */
+export function kindLabel(b: KindFields): string | null {
+  const k = cardKind(b);
+  if (k === 'link') return linkKindLabel(linkKind(b.url));
+  if (k === 'markdown' || k === 'textfile' || k === 'file') return fileLabel(b);
+  return null;
+}
+
+/** Icon matching `kindLabel` (null: none, the card has its own artwork). */
+export function kindIcon(b: KindFields): IconName | null {
+  const k = cardKind(b);
+  if (k === 'link') {
+    switch (linkKind(b.url).kind) {
+      case 'app':
+        return 'apps';
+      case 'repo':
+        return 'code';
+      case 'package':
+        return 'category';
+      case 'docs':
+        return 'menuBook';
+      default:
+        return null;
+    }
+  }
+  if (k === 'markdown') return 'markdown';
+  if (k === 'textfile') {
+    const label = fileLabel(b);
+    if (label === '.csv' || label === '.tsv') return 'tableChart';
+    if (label === 'Text' || label === '.log') return 'textSnippet';
+    return 'dataObject';
+  }
+  if (k === 'file') return 'description';
+  return null;
+}
+
+/** A few lines of a saved text file's excerpt (Markdown flattened to plain text). */
+export function filePreview(b: KindFields & Pick<BookmarkWithTags, 'content'>, lines = 4): string {
+  const text = b.content ?? '';
+  if (!text) return '';
+  return cardKind(b) === 'markdown' ? markdownPlain(text, lines * 60) : headLines(text, lines, 80);
 }
 
 export type FeedItem =
@@ -71,8 +131,11 @@ export function estimateHeight(f: FeedItem): number {
     }
     case 'image':
       return 160 + 70;
+    case 'markdown':
+    case 'textfile':
+      return 74 + 4 * 18 + 40;
     default:
-      return 132 + 110;
+      return 132 + 110 + (kindLabel(f.item) ? 24 : 0);
   }
 }
 
@@ -120,17 +183,21 @@ export const DECOR_SHAPES: MaterialShapeName[] = ['cookie9Sided', 'clover4Leaf']
 
 // --- Text ------------------------------------------------------------------------------------
 
-/** "theverge.com", "YouTube", or the source app for files. */
-export function sourceLabel(b: Pick<BookmarkWithTags, 'url' | 'siteName' | 'type' | 'sourceApp'>): string {
+/** "theverge.com", "YouTube", "Markdown", ".csv", or the source app for other files. */
+export function sourceLabel(b: Pick<BookmarkWithTags, 'url' | 'siteName' | 'type' | 'sourceApp'> & Partial<Pick<BookmarkWithTags, 'mimeType' | 'filePath' | 'title'>>): string {
   if (b.url) return youtubeId(b.url) ? 'YouTube' : hostOf(b.url);
   if (b.type === 'pdf') return 'PDF';
+  const k = cardKind(b);
+  if (k === 'markdown' || k === 'textfile') return fileLabel(b);
   if (b.type === 'text') return 'Note';
-  return b.sourceApp ?? 'File';
+  return b.sourceApp ?? fileLabel(b);
 }
 
-/** Two-letter-ish glyph for an item without artwork ("V" for The Verge, "PDF", "MD"). */
-export function glyphFor(b: Pick<BookmarkWithTags, 'url' | 'siteName' | 'type' | 'title'>): string {
+/** Two-letter-ish glyph for an item without artwork ("V" for The Verge, "PDF", "MD", "CSV"). */
+export function glyphFor(b: Pick<BookmarkWithTags, 'url' | 'siteName' | 'type' | 'title'> & Partial<Pick<BookmarkWithTags, 'mimeType' | 'filePath'>>): string {
   if (b.type === 'pdf') return 'PDF';
+  const k = cardKind(b);
+  if (k === 'markdown' || k === 'textfile' || k === 'file') return fileGlyph(b);
   if (b.type === 'text') return 'MD';
   const name = b.siteName || (b.url ? hostOf(b.url) : b.title) || '?';
   return name.replace(/^the\s+/i, '').charAt(0).toUpperCase();

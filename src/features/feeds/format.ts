@@ -53,3 +53,33 @@ export function dropTitleHeading(markdown: string, title: string): string {
     .filter((l) => !(/^#{1,6}\s/.test(l) && norm(l.replace(/^#+\s*/, '')) === want))
     .join('\n');
 }
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+/** "12 Nov 2026, 14:30" in local time (24-hour clock, the same on every device). */
+export function formatPublished(d: Date): string {
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}, ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+/** A comment's time: "14 Nov, 04:01" for ISO dates (year added when not this year), else the page's text. */
+export function formatCommentTime(t: string | null, now = new Date()): string | null {
+  if (!t) return null;
+  if (!/^\d{4}-\d{2}-\d{2}/.test(t)) return t.length > 40 ? null : t;
+  const d = new Date(t);
+  if (Number.isNaN(d.getTime())) return null;
+  const year = d.getFullYear() === now.getFullYear() ? '' : ` ${d.getFullYear()}`;
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}${year}, ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+/** Readable characters in Markdown: link targets, images and markup removed (for read time). */
+export function markdownTextLength(md: string): number {
+  return md
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/[#>*_`|-]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim().length;
+}
