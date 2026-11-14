@@ -7,7 +7,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CollectionCard, SmartViewTile } from '@/features/collections/CollectionCards';
 import type { Collection } from '@/features/stash/queries';
 import { useCollections, useTotals } from '@/features/stash/queries';
-import { FadeThrough } from '@/motion/FadeThrough';
 import { reflow } from '@/motion/layout';
 import { useChromeScroll } from '@/motion/ScrollChrome';
 import { useSelection } from '@/motion/useSelection';
@@ -40,7 +39,7 @@ export default function Library() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
-      <FadeThrough>
+      <>
         <Animated.ScrollView
           onScroll={onScroll}
           scrollEventThrottle={16}
@@ -112,7 +111,7 @@ export default function Library() {
             </View>
           )}
         </Animated.ScrollView>
-      </FadeThrough>
+      </>
     </View>
   );
 }

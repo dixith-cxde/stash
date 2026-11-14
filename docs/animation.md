@@ -380,6 +380,14 @@ For switching tabs (Home ↔ Library ↔ Highlights ↔ Search), where the scree
 - Fade uses `defaultEffects`, scale uses `defaultSpatial`. MDC's timed version is `long1` with emphasized easing.
 - The floating nav bar doesn't take part. Only its indicator moves (§7).
 
+**How it's built** (`src/motion/tabTransition.ts`): the tab navigator's own
+`transitionSpec` (a `defaultSpatial` spring) and `sceneStyleInterpolator`, run on the **native
+driver**, so the fade starts in the same commit as the tab change and never waits on JS. One
+progress drives both screens: the outgoing tab is gone by halfway, the incoming one fades in
+over the second half while scaling 0.92 → 1. Hidden tabs are frozen (`freezeOnBlur`) and the
+other tabs are preloaded 1.5 s after launch, so the first switch to each doesn't mount a
+screen mid-transition.
+
 ### Predictive back (Android 14+; `predictiveBackGestureEnabled` is already on in `app.json`)
 
 The gesture's progress (0..1) goes through `standardDecelerate` (0,0,0,1) and drives a *preview*.

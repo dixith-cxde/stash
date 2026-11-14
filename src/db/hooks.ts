@@ -3,6 +3,9 @@ import { NavigationContext } from 'expo-router/react-navigation';
 import { use, useEffect, useEffectEvent, useRef, useState } from 'react';
 
 type Listener = () => void;
+
+/** JSON.stringify drops Map and Set contents; keep them so changes are seen. */
+const serialize = (_: string, v: unknown) => (v instanceof Map || v instanceof Set ? [...v] : v);
 const listeners = new Set<Listener>();
 let scheduled = false;
 
@@ -37,6 +40,8 @@ export function useDbQuery<T>(query: () => Promise<T>, deps: unknown[], initial:
   const focused = useRef(true);
   const stale = useRef(false);
   const run = useRef<() => void>(() => {});
+  /** Serialized last result: an unchanged re-run (e.g. refresh on focus) skips the re-render. */
+  const last = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,7 +51,14 @@ export function useDbQuery<T>(query: () => Promise<T>, deps: unknown[], initial:
       stale.current = false;
       runQuery()
         .then((data) => {
-          if (!cancelled && v === version) setState({ data, loading: false });
+          if (cancelled || v !== version) return;
+          const key = JSON.stringify(data, serialize);
+          if (key === last.current) {
+            setState((s) => (s.loading ? { ...s, loading: false } : s));
+            return;
+          }
+          last.current = key;
+          setState({ data, loading: false });
         })
         .catch((e) => {
           console.warn('[useDbQuery]', e);

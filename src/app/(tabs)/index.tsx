@@ -8,7 +8,6 @@ import { CollectionCard, NewCollectionCard } from '@/features/collections/Collec
 import { Masonry } from '@/features/feed/Masonry';
 import { type FeedFilter, matchesFilter } from '@/features/stash/model';
 import { useCollections, useFeed, useTotals } from '@/features/stash/queries';
-import { FadeThrough } from '@/motion/FadeThrough';
 import { useChromeScroll } from '@/motion/ScrollChrome';
 import { useColors } from '@/theme/AppTheme';
 import { Layout } from '@/theme/tokens';
@@ -43,7 +42,7 @@ export default function Home() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
-      <FadeThrough>
+      <>
         <Animated.ScrollView
           onScroll={onScroll}
           scrollEventThrottle={16}
@@ -103,7 +102,7 @@ export default function Home() {
             />
           )}
         </Animated.ScrollView>
-      </FadeThrough>
+      </>
     </View>
   );
 }

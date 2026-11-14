@@ -2,7 +2,6 @@ import { View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { FadeThrough } from '@/motion/FadeThrough';
 import { useChromeScroll } from '@/motion/ScrollChrome';
 import { useColors } from '@/theme/AppTheme';
 import { Layout } from '@/theme/tokens';
@@ -16,7 +15,7 @@ export function ScreenPlaceholder({ title }: { title: string }) {
   const onScroll = useChromeScroll();
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
-      <FadeThrough>
+      <>
         <Animated.ScrollView
           onScroll={onScroll}
           scrollEventThrottle={16}
@@ -26,7 +25,7 @@ export function ScreenPlaceholder({ title }: { title: string }) {
             <Text variant="displayLarge">{title}</Text>
           </View>
         </Animated.ScrollView>
-      </FadeThrough>
+      </>
     </View>
   );
 }

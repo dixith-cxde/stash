@@ -137,8 +137,8 @@ Removed: `@expo/ui`.
 | `capture` | Quick-save sheet | Custom transparent modal with our own gesture-driven sheet, not the native sheet, so it can follow the spec springs and drag velocity. |
 | `pdf/[id]`, `tag/[id]`, `settings` | *not designed* | Built from the same kit. |
 
-Tabs use a custom tab bar with no native tab transition. Switching tabs is a fade through
-(animation.md §6). Stack screens use a JS-driven transition so the container transform and
+Tabs use a custom tab bar. Switching tabs is a fade through (animation.md §6) run by the tab
+navigator on the native driver. Stack screens use a JS-driven transition so the container transform and
 predictive back share one spring system.
 
 ## 6. Code layout
