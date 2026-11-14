@@ -4,10 +4,8 @@ import { View } from 'react-native';
 import Animated, { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CollectionCarousel } from '@/features/collections/CollectionCarousel';
+import { CollectionRow } from '@/features/collections/CollectionRow';
 import { Masonry } from '@/features/feed/Masonry';
-import { GroupCards } from '@/features/feed/GroupCards';
-import { ShapeWall } from '@/features/feed/ShapeWall';
 import { HomeTour } from '@/features/onboarding/HomeTour';
 import { type FeedFilter, matchesFilter } from '@/features/stash/model';
 import { useCollections, useFeed, useTotals } from '@/features/stash/queries';
@@ -18,7 +16,6 @@ import { Layout } from '@/theme/tokens';
 import { ButtonGroup } from '@/ui/ButtonGroup';
 import { EmptyState } from '@/ui/EmptyState';
 import { IconButton } from '@/ui/IconButton';
-import { IconToggleGroup } from '@/ui/IconToggleGroup';
 import { CollapsedAppBar, ScreenHeader } from '@/ui/ScreenHeader';
 import { SearchPill } from '@/ui/SearchPill';
 
@@ -40,8 +37,6 @@ export default function Home() {
   const { data: feed, loading } = useFeed({});
   const [filter, setFilter] = useState<FeedFilter>('all');
   const visible = feed.filter((f) => matchesFilter(f, filter));
-  const layout = useSettings((s) => s.homeLayout);
-  const setLayout = useSettings((s) => s.setHomeLayout);
   // First launch: the welcome pages, then a short tour of Home.
   const onboarded = useSettings((s) => s.onboarded);
   const tourDone = useSettings((s) => s.tourDone);
@@ -68,33 +63,14 @@ export default function Home() {
           />
           <SearchPill href="/find" />
 
-          <CollectionCarousel collections={collections} />
+          <CollectionRow collections={collections} />
 
           <View style={{ paddingHorizontal: Layout.gutter, paddingTop: 20, paddingBottom: 12 }}>
             <ButtonGroup items={FILTERS} value={filter} onChange={setFilter} accessibilityLabel="Filter by type" />
-            <View style={{ alignSelf: 'flex-end', marginTop: 8 }}>
-              <IconToggleGroup
-                items={[
-                  { key: 'cards', icon: 'gridView', label: 'Cards' },
-                  { key: 'shapes', icon: 'category', label: 'Playful' },
-                ]}
-                value={layout === 'shapes' ? 'shapes' : 'cards'}
-                onChange={setLayout}
-                accessibilityLabel="Home layout"
-                subtle
-              />
-            </View>
           </View>
 
           {visible.length > 0 ? (
-            layout === 'shapes' ? (
-              <>
-                <ShapeWall items={visible} />
-                <GroupCards items={visible} />
-              </>
-            ) : (
-              <Masonry items={visible} />
-            )
+            <Masonry items={visible} />
           ) : loading ? null : (
             <EmptyState
               shape={filter === 'all' ? 'cookie9Sided' : 'clover4Leaf'}

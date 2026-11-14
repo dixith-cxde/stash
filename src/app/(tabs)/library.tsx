@@ -4,7 +4,7 @@ import { View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CollectionCard, SmartViewTile } from '@/features/collections/CollectionCards';
+import { CollectionCard, PILL_LEFT, PILL_RIGHT, SmartViewTile } from '@/features/collections/CollectionCards';
 import type { Collection } from '@/features/stash/queries';
 import { useCollections, useTotals } from '@/features/stash/queries';
 import { reflow } from '@/motion/layout';
@@ -54,12 +54,12 @@ export default function Library() {
           />
 
           <Overline>Smart views</Overline>
-          <View style={{ paddingHorizontal: Layout.gutter, gap: LIST_GAP }}>
+          <View style={{ paddingHorizontal: Layout.gutter, gap: 8 }}>
             <View style={{ flexDirection: 'row', gap: LIST_GAP }}>
               <SmartViewTile
                 href="/collection/all"
                 label="All items"
-                corners={[24, 4, 4, 4]}
+                corners={PILL_LEFT}
                 detail={String(totals.all)}
                 icon="gridView"
                 tile={{ bg: colors.surfaceContainerHighest, fg: colors.onSecondaryContainer }}
@@ -67,7 +67,7 @@ export default function Library() {
               <SmartViewTile
                 href="/collection/pdfs"
                 label="PDFs"
-                corners={[4, 24, 4, 4]}
+                corners={PILL_RIGHT}
                 detail={totals.pdfsInProgress ? `${totals.pdfs} · ${totals.pdfsInProgress} in progress` : String(totals.pdfs)}
                 glyph="PDF"
                 tile={{ bg: colors.tertiaryContainer, fg: colors.onTertiaryContainer }}
@@ -77,7 +77,7 @@ export default function Library() {
               <SmartViewTile
                 href="/collection/notes"
                 label="Notes"
-                corners={[4, 4, 4, 24]}
+                corners={PILL_LEFT}
                 detail={String(totals.notes)}
                 icon="markdown"
                 tile={{ bg: colors.secondaryContainer, fg: colors.onSecondaryContainer }}
@@ -85,7 +85,7 @@ export default function Library() {
               <SmartViewTile
                 href="/collection/highlights"
                 label="Highlights"
-                corners={[4, 4, 24, 4]}
+                corners={PILL_RIGHT}
                 detail={String(totals.highlights)}
                 icon="inkHighlighter"
                 tile={{ bg: colors.primaryContainer, fg: colors.onPrimaryContainer }}
