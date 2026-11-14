@@ -1,11 +1,12 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import Animated, { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BLOCK_GAP, blockCorners, CollectionBlock, NewCollectionBlock } from '@/features/collections/CollectionCards';
+import { CollectionCarousel } from '@/features/collections/CollectionCarousel';
 import { Masonry } from '@/features/feed/Masonry';
+import { GroupCards } from '@/features/feed/GroupCards';
 import { ShapeWall } from '@/features/feed/ShapeWall';
 import { HomeTour } from '@/features/onboarding/HomeTour';
 import { type FeedFilter, matchesFilter } from '@/features/stash/model';
@@ -41,11 +42,6 @@ export default function Home() {
   const visible = feed.filter((f) => matchesFilter(f, filter));
   const layout = useSettings((s) => s.homeLayout);
   const setLayout = useSettings((s) => s.setHomeLayout);
-  // Collections as one connected group in two rows; "New collection" closes it.
-  const blocks: ((typeof collections)[number] | 'new')[] = [...collections, 'new'];
-  const half = Math.ceil(blocks.length / 2);
-  const rows = [blocks.slice(0, half), blocks.slice(half)].filter((r) => r.length);
-
   // First launch: the welcome pages, then a short tour of Home.
   const onboarded = useSettings((s) => s.onboarded);
   const tourDone = useSettings((s) => s.tourDone);
@@ -87,31 +83,21 @@ export default function Home() {
           />
           <SearchPill href="/find" />
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: Layout.gutter, paddingTop: 16 }}
-            accessibilityRole="list"
-            accessibilityLabel="Collections"
-          >
-            <View style={{ gap: BLOCK_GAP }}>
-              {rows.map((row, r) => (
-                <View key={r} style={{ flexDirection: 'row', gap: BLOCK_GAP }}>
-                  {row.map((c, i) => {
-                    const corners = blockCorners(r as 0 | 1, i, row.length, rows[1 - r]?.length ?? 0);
-                    return c === 'new' ? <NewCollectionBlock key="new" corners={corners} /> : <CollectionBlock key={c.id} c={c} corners={corners} />;
-                  })}
-                </View>
-              ))}
-            </View>
-          </ScrollView>
+          <CollectionCarousel collections={collections} />
 
           <View style={{ paddingHorizontal: Layout.gutter, paddingTop: 20, paddingBottom: 12 }}>
             <ButtonGroup items={FILTERS} value={filter} onChange={setFilter} accessibilityLabel="Filter by type" />
           </View>
 
           {visible.length > 0 ? (
-            layout === 'shapes' ? <ShapeWall items={visible} /> : <Masonry items={visible} />
+            layout === 'shapes' ? (
+              <>
+                <ShapeWall items={visible} />
+                <GroupCards items={visible} />
+              </>
+            ) : (
+              <Masonry items={visible} />
+            )
           ) : loading ? null : (
             <EmptyState
               shape={filter === 'all' ? 'cookie9Sided' : 'clover4Leaf'}

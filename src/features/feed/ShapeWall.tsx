@@ -84,6 +84,41 @@ export function ShapeWall({ items }: { items: FeedItem[] }) {
   );
 }
 
+/** An item's picture cut into a MaterialShape (tone fill when it has none). */
+export function ShapeArt({
+  b,
+  size,
+  shape,
+  rotation = 0,
+  ring,
+}: {
+  b: BookmarkWithTags;
+  size: number;
+  shape: MaterialShapeName;
+  rotation?: number;
+  /** Outline color, for art stacked on top of each other. */
+  ring?: string;
+}) {
+  const { colors, dark } = useAppTheme();
+  const d = useMemo(() => svgPath(materialShape(shape), size, rotation), [shape, size, rotation]);
+  const art = b.thumbPath ?? b.imageUrl;
+  const note = cardKind(b) === 'note';
+  const tone = collectionTones(hostSeed(b.url ?? b.title), dark);
+  const clip = `clip-${b.id}-${size}`;
+  return (
+    <Svg width={size} height={size} pointerEvents="none">
+      <Defs>
+        <ClipPath id={clip}>
+          <Path d={d} />
+        </ClipPath>
+      </Defs>
+      <Path d={d} fill={note ? colors.secondaryContainer : tone.container} />
+      {art ? <SvgImage href={art} width={size} height={size} preserveAspectRatio="xMidYMid slice" clipPath={`url(#${clip})`} /> : null}
+      {ring ? <Path d={d} fill="none" stroke={ring} strokeWidth={3} /> : null}
+    </Svg>
+  );
+}
+
 const ShapeTile = memo(function ShapeTile({
   b,
   size,
@@ -96,12 +131,10 @@ const ShapeTile = memo(function ShapeTile({
   rotation: number;
 }) {
   const { colors, dark } = useAppTheme();
-  const d = useMemo(() => svgPath(materialShape(shape), size, rotation), [shape, size, rotation]);
   const art = b.thumbPath ?? b.imageUrl;
   const note = cardKind(b) === 'note';
   const tone = collectionTones(hostSeed(b.url ?? b.title), dark);
   const title = b.title || 'Untitled';
-  const clip = `clip-${b.id}`;
   return (
     <PressableSurface
       kind="card"
@@ -110,17 +143,7 @@ const ShapeTile = memo(function ShapeTile({
       accessibilityLabel={title}
       style={{ width: size, height: size, backgroundColor: 'transparent' }}
     >
-      <Svg width={size} height={size} pointerEvents="none">
-        <Defs>
-          <ClipPath id={clip}>
-            <Path d={d} />
-          </ClipPath>
-        </Defs>
-        <Path d={d} fill={note ? colors.secondaryContainer : tone.container} />
-        {art ? (
-          <SvgImage href={art} width={size} height={size} preserveAspectRatio="xMidYMid slice" clipPath={`url(#${clip})`} />
-        ) : null}
-      </Svg>
+      <ShapeArt b={b} size={size} shape={shape} rotation={rotation} />
       {!art && (
         <View style={{ position: 'absolute', inset: size * 0.22, alignItems: 'center', justifyContent: 'center' }} pointerEvents="none">
           <Text
