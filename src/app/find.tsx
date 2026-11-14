@@ -4,16 +4,15 @@ import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDbQuery } from '@/db/hooks';
-import { type HighlightWithTags, search, type SearchResults } from '@/db/repo';
+import { search, type SearchResults } from '@/db/repo';
 import { ItemRow } from '@/features/collections/ItemViews';
+import { HighlightResult } from '@/features/search/HighlightResult';
 import { TransitionScreen, useTransitionClose } from '@/motion/transition/TransitionScreen';
 import { useAppTheme } from '@/theme/AppTheme';
-import { HIGHLIGHT_TONES } from '@/theme/palette';
 import { FONT_FAMILY, Type } from '@/theme/type';
 import { EmptyState } from '@/ui/EmptyState';
 import { IconButton } from '@/ui/IconButton';
 import { Text } from '@/ui/Text';
-import { TransformCard } from '@/ui/TransformCard';
 
 /** Typing pauses this long (ms) before the query runs, so each keystroke doesn't hit SQLite. */
 const DEBOUNCE = 120;
@@ -96,30 +95,6 @@ function FindBody() {
         )}
       </ScrollView>
     </View>
-  );
-}
-
-function HighlightResult({ h }: { h: HighlightWithTags }) {
-  const { dark } = useAppTheme();
-  const tone = HIGHLIGHT_TONES[h.color][dark ? 'dark' : 'light'];
-  const source = h.bookmarkTitle ?? h.sourceTitle ?? h.sourceApp;
-  return (
-    <TransformCard
-      href={h.bookmarkId ? `/item/${h.bookmarkId}` : `/highlight/${h.id}`}
-      color={tone.bg}
-      corner={24}
-      accessibilityLabel={`Highlight: ${h.text}`}
-      contentStyle={{ padding: 16 }}
-    >
-      <Text variant="bodyLarge" color={tone.fg} numberOfLines={4} style={{ fontWeight: '600', lineHeight: 23 }}>
-        {`“${h.text}”`}
-      </Text>
-      {source ? (
-        <Text variant="labelSmall" color={tone.fg} numberOfLines={1} style={{ marginTop: 8, opacity: 0.8 }}>
-          {source}
-        </Text>
-      ) : null}
-    </TransformCard>
   );
 }
 

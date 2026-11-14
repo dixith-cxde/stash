@@ -12,6 +12,7 @@ import { hideArticle, saveArticle } from '@/features/feeds/ArticleCard';
 import { cleanTeaser, hostOf, readMinutes } from '@/features/feeds/format';
 import { loadArticle } from '@/features/feeds/sync';
 import { MarkdownView } from '@/features/notes/MarkdownView';
+import { useSettings } from '@/state/settings';
 import { hostSeed } from '@/features/stash/model';
 import { relativeTime } from '@/lib/format';
 import { TransitionScreen, useTransitionClose } from '@/motion/transition/TransitionScreen';
@@ -63,8 +64,9 @@ function ArticleBody() {
   }, [id]);
 
   // Reader mode: fetch the full article the first time it is opened (once, then cached).
+  const readerMode = useSettings((s) => s.readerMode);
   const [tried, setTried] = useState(false);
-  const needsFetch = !!a && a.article === null;
+  const needsFetch = readerMode && !!a && a.article === null;
   const itemId = a?.id;
   useEffect(() => {
     if (!needsFetch || !a) return;
@@ -85,8 +87,8 @@ function ArticleBody() {
 
   const tone = collectionTones(hostSeed(a.feedSiteUrl ?? a.url ?? a.feedTitle), dark);
   const quote = HIGHLIGHT_TONES.yellow[dark ? 'dark' : 'light'];
-  const full = a.article ? a.article : null;
-  const fetching = a.article === null && !tried && isWeb(a.url);
+  const full = readerMode && a.article ? a.article : null;
+  const fetching = needsFetch && !tried && isWeb(a.url);
   const body = cleanTeaser(a.content) ?? cleanTeaser(a.summary) ?? '';
   const paragraphs = body
     .split(/\n{2,}/)

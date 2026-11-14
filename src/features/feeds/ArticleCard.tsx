@@ -49,11 +49,10 @@ export function useSourceTone(a: { feedSiteUrl: string | null; url?: string | nu
 /** First letter of a site's name, without a leading "The". */
 export const sourceGlyph = (title: string) => (title.replace(/^the\s+/i, '').trim().charAt(0) || '•').toUpperCase();
 
-function meta(a: FeedItemWithFeed, withSource = true) {
+/** "6h · 4 min": age and read time, kept whole while the source name truncates beside it. */
+function when(a: FeedItemWithFeed) {
   const mins = readMinutes(a.chars);
-  return [withSource ? a.feedTitle : null, relativeTime(a.publishedAt ?? a.createdAt).replace(' ago', ''), mins ? `${mins} min` : null]
-    .filter(Boolean)
-    .join(' · ');
+  return [relativeTime(a.publishedAt ?? a.createdAt).replace(' ago', ''), mins ? `${mins} min` : null].filter(Boolean).join(' · ');
 }
 
 /**
@@ -132,7 +131,10 @@ export const ArticleRow = memo(function ArticleRow({ a }: { a: FeedItemWithFeed 
           <View style={styles.meta}>
             {unread && <View style={[styles.dot, { backgroundColor: colors.primary }]} />}
             <Text variant="labelSmall" color={unread ? 'primary' : 'onSurfaceVariant'} numberOfLines={1} style={{ fontWeight: '700', flexShrink: 1 }}>
-              {meta(a)}
+              {a.feedTitle}
+            </Text>
+            <Text variant="labelSmall" color="onSurfaceVariant" numberOfLines={1} style={{ flexShrink: 0 }}>
+              {`· ${when(a)}`}
             </Text>
           </View>
           <Text
@@ -191,8 +193,11 @@ export function LeadCard({ a }: { a: FeedItemWithFeed }) {
       <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 18 }}>
         <View style={styles.meta}>
           <View style={[styles.dot, { backgroundColor: tone.onContainer }]} />
-          <Text variant="labelSmall" color={tone.onContainer} numberOfLines={1} style={{ fontWeight: '700', opacity: 0.85 }}>
-            {meta(a)}
+          <Text variant="labelSmall" color={tone.onContainer} numberOfLines={1} style={{ fontWeight: '700', opacity: 0.85, flexShrink: 1 }}>
+            {a.feedTitle}
+          </Text>
+          <Text variant="labelSmall" color={tone.onContainer} numberOfLines={1} style={{ opacity: 0.85, flexShrink: 0 }}>
+            {`· ${when(a)}`}
           </Text>
         </View>
         <Text variant="headlineSmall" color={tone.onContainer} numberOfLines={3} style={{ marginTop: 8, fontWeight: '800' }}>

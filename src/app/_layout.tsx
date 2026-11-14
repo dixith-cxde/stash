@@ -52,6 +52,7 @@ function ThemedStack() {
         <Stack.Screen name="note/[id]/edit" options={TRANSITION_SCREEN} />
         <Stack.Screen name="collection/[id]" options={TRANSITION_SCREEN} />
         <Stack.Screen name="collection/new" options={TRANSITION_SCREEN} />
+        <Stack.Screen name="settings" options={TRANSITION_SCREEN} />
         <Stack.Screen name="dev/detail" options={TRANSITION_SCREEN} />
         <Stack.Screen name="dev/axis" options={TRANSITION_SCREEN} />
       </Stack>
@@ -60,6 +61,9 @@ function ThemedStack() {
     </ThemeProvider>
   );
 }
+
+/** Deep links (shares, notifications, stash:// links) open over Home, so Back returns to the app. */
+export const unstable_settings = { initialRouteName: '(tabs)' };
 
 export default function RootLayout() {
   const { success, error } = useMigrations(db, migrations);

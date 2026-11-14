@@ -30,7 +30,9 @@ export const useSnackbar = create<SnackState>((set) => ({
 
 export const showSnackbar = (message: string, action?: Snack['action']) => useSnackbar.getState().show(message, action);
 
+/** M3: 4 s for a message; snackbars with an action (Undo) stay longer so it can be reached. */
 const DURATION_MS = 4000;
+const ACTION_DURATION_MS = 7000;
 const ds = Spring.defaultSpatial;
 
 /** Enters from below on defaultSpatial; leaves with a quick fade (fastEffects-like). */
@@ -54,7 +56,7 @@ export function SnackbarHost() {
 
   useEffect(() => {
     if (!current) return;
-    const t = setTimeout(hide, DURATION_MS);
+    const t = setTimeout(hide, current.action ? ACTION_DURATION_MS : DURATION_MS);
     return () => clearTimeout(t);
   }, [current, hide]);
 

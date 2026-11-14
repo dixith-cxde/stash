@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -63,7 +64,16 @@ export function OrganizeCard({ b, compact }: { b: BookmarkWithTags; compact?: bo
         </PressableSurface>
         {visibleTags.map((t) => (
           <Animated.View key={t.id} layout={reflow} entering={enterRise} exiting={exitShrink}>
-            <TagPill label={`#${t.name}`} />
+            <PressableSurface
+              corner={12}
+              pressedScale={0.94}
+              onPress={() => router.push({ pathname: '/collection/[id]', params: { id: `tag-${t.id}` } })}
+              accessibilityRole="link"
+              accessibilityLabel={`Everything tagged ${t.name}`}
+              style={{ backgroundColor: 'transparent' }}
+            >
+              <TagPill label={`#${t.name}`} />
+            </PressableSurface>
           </Animated.View>
         ))}
         <Animated.View layout={reflow}>

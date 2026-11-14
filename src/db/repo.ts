@@ -1,6 +1,19 @@
-import { and, asc, count, desc, eq, inArray, isNotNull, isNull, like, max, ne, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, getTableColumns, inArray, isNotNull, isNull, like, max, ne, or, sql } from 'drizzle-orm';
 
 import { deleteLocalFiles } from '@/features/files/storage';
+import {
+  applyCorrections,
+  correctedQuery,
+  maxTypoDistance,
+  ownForms,
+  parseQuery,
+  pickCorrection,
+  type QueryTerm,
+  rankDocs,
+  type SearchDoc,
+  toSmartFts,
+  type VocabWord,
+} from '@/features/search/smart';
 import { canonicalUrl } from '@/features/suggest/suggest';
 
 import { db, newId } from './client';
@@ -712,4 +725,230 @@ export async function markAllFeedItemsRead(feedId?: string) {
 
 export async function linkFeedItemBookmark(id: string, bookmarkId: string | null) {
   await db.update(feedItems).set({ bookmarkId }).where(eq(feedItems.id, id));
+}
+
+/* ------------------------------ Smart search ------------------------------ */
+// The Search tab: FTS5 candidates (stems, prefixes, synonyms) plus tag and folder matches,
+// typo correction against the FTS vocabulary (drizzle/0005_search_vocab.sql), then re-ranked
+// in JS by src/features/search/smart.ts. Local only; a query touches a few hundred rows.
+
+export type SmartScope = 'all' | 'links' | 'pdfs' | 'notes' | 'highlights';
+export type SmartHit =
+  | { kind: 'bookmark'; key: string; b: BookmarkWithTags; why: string | null }
+  | { kind: 'highlight'; key: string; h: HighlightWithTags; why: string | null };
+export type SmartResults = { hits: SmartHit[]; corrected: string | null };
+
+const SMART_TYPES: Record<SmartScope, SmartFilter['types']> = {
+  all: undefined,
+  links: ['link'],
+  pdfs: ['pdf'],
+  notes: ['text'],
+  highlights: undefined,
+};
+/** FTS candidates per pass, and the most results shown. */
+const SMART_CAP = 200;
+const SMART_SHOWN = 100;
+/** Characters of content read per candidate for matching (enough for the opening, cheap). */
+const SMART_BODY_CHARS = 1500;
+const TOP = String.fromCodePoint(0x10ffff);
+
+/** "% form%" against a tag or folder name, with dashes read as spaces ("web-design"). */
+const nameLike = (col: typeof tags.name | typeof folders.name, form: string) =>
+  sql`(' ' || replace(lower(${col}), '-', ' ')) like ${`% ${form}%`}`;
+
+function smartForms(terms: QueryTerm[]) {
+  return [...new Set(terms.flatMap((t) => t.variants.map((v) => v.form)))].slice(0, 40);
+}
+
+/** Does this word (or its stem) occur anywhere: FTS vocab, tag names or folder names? */
+async function smartWordExists(forms: string[]): Promise<boolean> {
+  const checks = forms.flatMap((f) => [
+    sql`exists (select 1 from bookmarks_vocab where term >= ${f} and term < ${f + TOP})`,
+    sql`exists (select 1 from highlights_vocab where term >= ${f} and term < ${f + TOP})`,
+    sql`exists (select 1 from ${tags} where ${nameLike(tags.name, f)})`,
+    sql`exists (select 1 from ${folders} where ${nameLike(folders.name, f)})`,
+  ]);
+  const row = await db.get<{ ok: number }>(sql`select (${sql.join(checks, sql` or `)}) as ok`);
+  return !!row?.ok;
+}
+
+/** Vocabulary words that could be one or two edits away (same length band, same first or second letter). */
+async function smartVocab(word: string): Promise<VocabWord[]> {
+  const max = maxTypoDistance(word);
+  const lo = word.length - max;
+  const hi = word.length + max;
+  const a = word[0];
+  const b = word[1] ?? '';
+  const near = (table: string) =>
+    sql`select term, doc as freq from ${sql.identifier(table)}
+        where length(term) between ${lo} and ${hi} and (substr(term, 1, 1) = ${a} or substr(term, 2, 1) = ${b})`;
+  const rows = await db.all<VocabWord>(
+    sql`${near('bookmarks_vocab')} union all ${near('highlights_vocab')} order by freq desc limit 3000`,
+  );
+  const freq = new Map<string, number>();
+  for (const r of rows) freq.set(r.term, (freq.get(r.term) ?? 0) + r.freq);
+  // Tag names count as well-used words: they are the user's own vocabulary.
+  const tagRows = await db.select({ name: tags.name }).from(tags);
+  for (const t of tagRows) {
+    for (const w of t.name.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean)) freq.set(w, (freq.get(w) ?? 0) + 5);
+  }
+  return [...freq].map(([term, f]) => ({ term, freq: f }));
+}
+
+async function smartCorrections(terms: QueryTerm[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  for (const t of terms) {
+    if (!maxTypoDistance(t.raw) || (await smartWordExists(ownForms(t)))) continue;
+    const fixed = pickCorrection(t.raw, await smartVocab(t.raw));
+    if (fixed) out.set(t.raw, fixed);
+  }
+  return out;
+}
+
+async function smartBookmarkDocs(terms: QueryTerm[], scope: SmartScope): Promise<{ docs: SearchDoc[]; rows: Map<string, BookmarkWithTags> }> {
+  const filter = whereForFilter({ types: SMART_TYPES[scope] }) ?? sql`1`;
+  const ranked = new Map<string, { bm25: number | null; all: boolean }>();
+  const pass = async (match: string | null, all: boolean, limit: number) => {
+    if (!match) return;
+    const rows = await db.all<{ id: string; score: number }>(
+      sql`select ${bookmarks.id} as id, bm25(bookmarks_fts, 10.0, 4.0, 1.0, 2.0, 3.0, 2.0) as score
+          from bookmarks_fts join ${bookmarks} on ${bookmarks}.rowid = bookmarks_fts.rowid
+          where bookmarks_fts match ${match} and ${filter} order by score limit ${limit}`,
+    );
+    for (const r of rows) if (!ranked.has(r.id)) ranked.set(r.id, { bm25: r.score, all });
+  };
+  await pass(toSmartFts(terms, 'and'), true, SMART_CAP);
+  if (terms.length > 1) await pass(toSmartFts(terms, 'or'), false, SMART_CAP / 2);
+
+  // Tag and folder names are not in the FTS index: match them directly.
+  const forms = smartForms(terms);
+  const named = await db
+    .select({ id: bookmarks.id })
+    .from(bookmarks)
+    .where(
+      and(
+        filter,
+        or(
+          sql`exists (select 1 from ${bookmarkTags} join ${tags} on ${tags.id} = ${bookmarkTags.tagId}
+              where ${bookmarkTags.bookmarkId} = ${bookmarks.id} and (${sql.join(forms.map((f) => nameLike(tags.name, f)), sql` or `)}))`,
+          sql`exists (select 1 from ${folders} where ${folders.id} = ${bookmarks.folderId}
+              and (${sql.join(forms.map((f) => nameLike(folders.name, f)), sql` or `)}))`,
+        ),
+      ),
+    )
+    .orderBy(...newestFirst)
+    .limit(SMART_CAP / 2);
+  for (const r of named) if (!ranked.has(r.id)) ranked.set(r.id, { bm25: null, all: false });
+  if (!ranked.size) return { docs: [], rows: new Map() };
+
+  const rows = await attachTags(
+    await db
+      .select({ ...getTableColumns(bookmarks), content: sql<string | null>`substr(${bookmarks.content}, 1, ${SMART_BODY_CHARS})` })
+      .from(bookmarks)
+      .where(inArray(bookmarks.id, [...ranked.keys()])),
+  );
+  const folderNames = new Map((await db.select({ id: folders.id, name: folders.name }).from(folders)).map((f) => [f.id, f.name]));
+  const docs = rows.map<SearchDoc>((b) => ({
+    id: `b:${b.id}`,
+    bm25: ranked.get(b.id)!.bm25,
+    allTerms: ranked.get(b.id)!.all,
+    title: b.title,
+    body: [b.description, b.note, b.content].filter(Boolean).join(' '),
+    site: b.siteName,
+    url: b.url,
+    tags: b.tags.map((t) => t.name),
+    folder: b.folderId ? (folderNames.get(b.folderId) ?? null) : null,
+    favorite: b.isFavorite,
+    unread: !b.readAt,
+    createdAt: b.createdAt.getTime(),
+  }));
+  return { docs, rows: new Map(rows.map((b) => [`b:${b.id}`, b])) };
+}
+
+async function smartHighlightDocs(terms: QueryTerm[]): Promise<{ docs: SearchDoc[]; rows: Map<string, HighlightWithTags> }> {
+  const ranked = new Map<string, { bm25: number | null; all: boolean }>();
+  const pass = async (match: string | null, all: boolean) => {
+    if (!match) return;
+    const rows = await db.all<{ id: string; score: number }>(
+      sql`select ${highlights.id} as id, bm25(highlights_fts, 4.0, 2.0, 1.0) as score
+          from highlights_fts join ${highlights} on ${highlights}.rowid = highlights_fts.rowid
+          where highlights_fts match ${match} order by score limit ${SMART_CAP / 2}`,
+    );
+    for (const r of rows) if (!ranked.has(r.id)) ranked.set(r.id, { bm25: r.score, all });
+  };
+  await pass(toSmartFts(terms, 'and'), true);
+  if (terms.length > 1) await pass(toSmartFts(terms, 'or'), false);
+  const forms = smartForms(terms);
+  const named = await db
+    .select({ id: highlightTags.highlightId })
+    .from(highlightTags)
+    .innerJoin(tags, eq(tags.id, highlightTags.tagId))
+    .where(sql`${sql.join(forms.map((f) => nameLike(tags.name, f)), sql` or `)}`)
+    .limit(SMART_CAP / 4);
+  for (const r of named) if (!ranked.has(r.id)) ranked.set(r.id, { bm25: null, all: false });
+  if (!ranked.size) return { docs: [], rows: new Map() };
+
+  const rows = await db
+    .select({ h: highlights, bookmarkTitle: bookmarks.title })
+    .from(highlights)
+    .leftJoin(bookmarks, eq(bookmarks.id, highlights.bookmarkId))
+    .where(inArray(highlights.id, [...ranked.keys()]));
+  const links = await db
+    .select({ highlightId: highlightTags.highlightId, tag: tags })
+    .from(highlightTags)
+    .innerJoin(tags, eq(tags.id, highlightTags.tagId))
+    .where(inArray(highlightTags.highlightId, [...ranked.keys()]));
+  const byId = new Map<string, Tag[]>();
+  for (const l of links) byId.set(l.highlightId, [...(byId.get(l.highlightId) ?? []), l.tag]);
+
+  const out = new Map<string, HighlightWithTags>();
+  const docs = rows.map<SearchDoc>(({ h, bookmarkTitle }) => {
+    const full: HighlightWithTags = { ...h, bookmarkTitle, tags: byId.get(h.id) ?? [] };
+    out.set(`h:${h.id}`, full);
+    return {
+      id: `h:${h.id}`,
+      bm25: ranked.get(h.id)!.bm25,
+      allTerms: ranked.get(h.id)!.all,
+      title: h.text,
+      body: [h.note, bookmarkTitle ?? h.sourceTitle].filter(Boolean).join(' '),
+      site: null,
+      url: h.sourceUrl,
+      tags: full.tags.map((t) => t.name),
+      folder: null,
+      favorite: false,
+      unread: false,
+      createdAt: h.createdAt.getTime(),
+    };
+  });
+  return { docs, rows: out };
+}
+
+/**
+ * Smart search for the Search tab. `correct: false` searches exactly what was typed
+ * (the "search for the original instead" link).
+ */
+export async function smartSearch(input: string, opts: { scope?: SmartScope; correct?: boolean } = {}): Promise<SmartResults> {
+  const scope = opts.scope ?? 'all';
+  let terms = parseQuery(input);
+  if (!terms.length) return { hits: [], corrected: null };
+  if (opts.correct !== false) terms = applyCorrections(terms, await smartCorrections(terms));
+
+  const [b, h] = await Promise.all([
+    scope === 'highlights' ? null : smartBookmarkDocs(terms, scope),
+    scope === 'all' || scope === 'highlights' ? smartHighlightDocs(terms) : null,
+  ]);
+  const ranked = rankDocs(terms, [...(b?.docs ?? []), ...(h?.docs ?? [])]).slice(0, SMART_SHOWN);
+  const hits = ranked.flatMap<SmartHit>((r) => {
+    const bm = b?.rows.get(r.id);
+    if (bm) return [{ kind: 'bookmark', key: r.id, b: bm, why: r.why }];
+    const hl = h?.rows.get(r.id);
+    return hl ? [{ kind: 'highlight', key: r.id, h: hl, why: r.why }] : [];
+  });
+  return { hits, corrected: correctedQuery(terms) };
+}
+
+/** Most-used tags, for the Search tab's "Try:" chips. */
+export async function topTags(n = 5): Promise<TagWithCount[]> {
+  const all = await listTags();
+  return all.filter((t) => t.count > 0).sort((a, b) => b.count - a.count).slice(0, n);
 }

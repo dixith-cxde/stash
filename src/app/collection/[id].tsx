@@ -5,10 +5,10 @@ import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDbQuery } from '@/db/hooks';
-import { deleteFolder, getFolder, queryHighlights } from '@/db/repo';
+import { deleteFolder, getFolder, listTags, queryHighlights } from '@/db/repo';
 import type { Folder, SmartFilter } from '@/db/schema';
 import { HighlightCard, ItemRow, ItemTile } from '@/features/collections/ItemViews';
-import { type FeedFilter, folderIcon, folderSeed, matchesFilter, TYPE_COUNT_LABEL } from '@/features/stash/model';
+import { type FeedFilter, folderIcon, folderSeed, matchesFilter, seedFor, TYPE_COUNT_LABEL } from '@/features/stash/model';
 import { useFeed } from '@/features/stash/queries';
 import { haptic } from '@/motion/haptics';
 import { enterRise, exitShrink, reflow } from '@/motion/layout';
@@ -61,9 +61,26 @@ export default function CollectionScreen() {
   );
 }
 
+/** Tag pages live at /collection/tag-<tagId>: everything with that tag, in its own tone. */
+const TAG_PREFIX = 'tag-';
+
 function useScope(id: string) {
-  const { data: folder, loading } = useDbQuery(() => (SMART[id] ? Promise.resolve(undefined) : getFolder(id)), [id], undefined);
+  const tagId = id.startsWith(TAG_PREFIX) ? id.slice(TAG_PREFIX.length) : null;
+  const { data: folder, loading } = useDbQuery(
+    () => (SMART[id] || tagId ? Promise.resolve(undefined) : getFolder(id)),
+    [id],
+    undefined,
+  );
+  const { data: tag } = useDbQuery(
+    () => (tagId ? listTags().then((ts) => ts.find((t) => t.id === tagId) ?? null) : Promise.resolve(null)),
+    [tagId],
+    null,
+  );
   if (SMART[id]) return { scope: SMART[id] as Scope, loading: false };
+  if (tagId) {
+    if (!tag) return { scope: null, loading: true };
+    return { scope: { title: `#${tag.name}`, seed: seedFor(`tag:${tag.name}`), icon: 'sell' as IconName, filter: { tagIds: [tag.id] } }, loading: false };
+  }
   if (!folder) return { scope: null, loading };
   return {
     scope: { title: folder.name, seed: folderSeed(folder), icon: folderIcon(folder), filter: { folderId: folder.id }, folder },
@@ -209,6 +226,11 @@ function CollectionBody() {
           title={scope.title}
           onDismiss={() => setMenu(false)}
           actions={[
+            {
+              label: 'Edit collection',
+              icon: 'edit',
+              onPress: () => router.push({ pathname: '/collection/new', params: { id: scope.folder!.id } }),
+            },
             {
               label: 'Delete collection',
               icon: 'delete',

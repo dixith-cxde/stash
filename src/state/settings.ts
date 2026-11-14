@@ -13,10 +13,13 @@ type Settings = {
   seedColor: string | null;
   themeMode: ThemeMode;
   homeLayout: HomeLayout;
+  /** Open feed articles and saved links in Stash's reader view instead of the web page. */
+  readerMode: boolean;
   setColorSource: (c: ColorSource) => void;
   setSeedColor: (c: string | null) => void;
   setThemeMode: (m: ThemeMode) => void;
   setHomeLayout: (l: HomeLayout) => void;
+  setReaderMode: (on: boolean) => void;
 };
 
 export const useSettings = create<Settings>()(
@@ -27,9 +30,11 @@ export const useSettings = create<Settings>()(
       setColorSource: (colorSource) => set({ colorSource }),
       themeMode: 'system',
       homeLayout: 'cards',
+      readerMode: true,
       setSeedColor: (seedColor) => set({ seedColor }),
       setThemeMode: (themeMode) => set({ themeMode }),
       setHomeLayout: (homeLayout) => set({ homeLayout }),
+      setReaderMode: (readerMode) => set({ readerMode }),
     }),
     {
       name: 'stash.settings',
