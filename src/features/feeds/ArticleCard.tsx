@@ -1,9 +1,10 @@
 import { Image } from 'expo-image';
-import { memo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
+import { memo, useState } from 'react';
+import { Share, StyleSheet, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle } from 'react-native-reanimated';
 
-import type { FeedItemWithFeed } from '@/db/repo';
+import { type FeedItemWithFeed, markFeedItemRead, setFeedItemHidden } from '@/db/repo';
 import { hostSeed } from '@/features/stash/model';
 import { relativeTime } from '@/lib/format';
 import { haptic } from '@/motion/haptics';
@@ -11,14 +12,23 @@ import { useSelection } from '@/motion/useSelection';
 import { Shape } from '@/shapes/Shape';
 import { useAppTheme } from '@/theme/AppTheme';
 import { collectionTones } from '@/theme/palette';
+import { ActionSheet } from '@/ui/ActionSheet';
 import { Ico } from '@/ui/Ico';
 import { PressableSurface } from '@/ui/PressableSurface';
 import { showSnackbar } from '@/ui/Snackbar';
 import { Text } from '@/ui/Text';
 import { TransformCard } from '@/ui/TransformCard';
 
-import { readMinutes } from './format';
+import { cleanTeaser, readMinutes } from './format';
+import { SwipeRow } from './SwipeRow';
 import { saveFeedItem } from './sync';
+
+/** Hides an article from the list, with Undo. */
+export async function hideArticle(id: string) {
+  await setFeedItemHidden(id, true);
+  haptic.remove();
+  showSnackbar('Article hidden', { label: 'Undo', onPress: () => void setFeedItemHidden(id, false) });
+}
 
 export async function saveArticle(id: string) {
   try {
@@ -79,13 +89,33 @@ export const ArticleRow = memo(function ArticleRow({ a }: { a: FeedItemWithFeed 
   const { colors } = useAppTheme();
   const tone = useSourceTone(a);
   const unread = !a.readAt;
+  const saved = !!a.bookmarkId;
+  const [menu, setMenu] = useState(false);
   return (
+    <>
+    <SwipeRow
+      radius={24}
+      start={
+        saved
+          ? undefined
+          : { icon: 'bookmarkAdd', label: 'Save', bg: colors.primary, fg: colors.onPrimary, onCommit: () => void saveArticle(a.id) }
+      }
+      end={{
+        icon: 'visibilityOff',
+        label: 'Hide',
+        bg: colors.secondaryContainer,
+        fg: colors.onSecondaryContainer,
+        removes: true,
+        onCommit: () => void hideArticle(a.id),
+      }}
+    >
     <View style={[styles.row, { backgroundColor: unread ? colors.surfaceContainer : colors.surfaceContainerLow }]}>
       <TransformCard
         href={`/article/${a.id}`}
         color={unread ? colors.surfaceContainer : colors.surfaceContainerLow}
         corner={16}
         accessibilityLabel={a.title}
+        onLongPress={() => setMenu(true)}
         style={{ flex: 1 }}
         contentStyle={styles.rowBody}
       >
@@ -117,6 +147,24 @@ export const ArticleRow = memo(function ArticleRow({ a }: { a: FeedItemWithFeed 
       </TransformCard>
       <SaveButton a={a} />
     </View>
+    </SwipeRow>
+    {menu && (
+      <ActionSheet
+        title={a.title}
+        onDismiss={() => setMenu(false)}
+        actions={[
+          unread
+            ? { label: 'Mark as read', icon: 'doneAll', onPress: () => void markFeedItemRead(a.id, true) }
+            : { label: 'Mark as unread', icon: 'markEmailUnread', onPress: () => void markFeedItemRead(a.id, false) },
+          saved
+            ? { label: 'Open in your stash', icon: 'bookmarkFill', onPress: () => router.push({ pathname: '/item/[id]', params: { id: a.bookmarkId! } }) }
+            : { label: 'Save to Stash', icon: 'bookmarkAdd', onPress: () => void saveArticle(a.id) },
+          ...(a.url ? [{ label: 'Share', icon: 'share' as const, onPress: () => void Share.share({ message: `${a.title}\n${a.url}` }) }] : []),
+          { label: 'Hide', icon: 'visibilityOff', onPress: () => void hideArticle(a.id) },
+        ]}
+      />
+    )}
+    </>
   );
 });
 
@@ -150,9 +198,9 @@ export function LeadCard({ a }: { a: FeedItemWithFeed }) {
         <Text variant="headlineSmall" color={tone.onContainer} numberOfLines={3} style={{ marginTop: 8, fontWeight: '800' }}>
           {a.title}
         </Text>
-        {a.summary ? (
+        {cleanTeaser(a.summary) ? (
           <Text variant="bodyMedium" color={tone.onContainer} numberOfLines={2} style={{ marginTop: 6, opacity: 0.8 }}>
-            {a.summary}
+            {cleanTeaser(a.summary)}
           </Text>
         ) : null}
       </View>

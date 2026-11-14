@@ -11,6 +11,7 @@ type Props = {
   /** See usePressMorph: measure `measureRef` on the UI thread and pass the frame. */
   onPressMeasured?: (frame: MeasuredDimensions | null) => void;
   measureRef?: AnimatedRef<Animated.View>;
+  onLongPress?: () => void;
   kind?: PressMorphKind;
   /** Corner radius at rest (the style's borderRadius is ignored; this drives the morph). */
   corner: number;
@@ -30,6 +31,7 @@ export function PressableSurface({
   onPressIn,
   onPressMeasured,
   measureRef,
+  onLongPress,
   kind,
   corner,
   pressedCorner,
@@ -49,6 +51,7 @@ export function PressableSurface({
     onPressIn,
     onPressMeasured,
     measureRef,
+    onLongPress,
     disabled,
   });
   return (

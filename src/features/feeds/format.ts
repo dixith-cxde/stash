@@ -25,3 +25,31 @@ export function dayLabel(d: Date, now = new Date()): string {
   if (days < 7) return d.toLocaleDateString(undefined, { weekday: 'long' });
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
+
+/** "Article URL: https://…", "Points: 14", "# Comments: 0": link-aggregator boilerplate. */
+const BOILERPLATE = /(^|\s)#?\s?[A-Za-z][\w ]{0,20}:\s*(https?:\/\/\S+|\d[\d,.]*)(?=\s|$)/g;
+
+/**
+ * Drops aggregator boilerplate (Hacker News, Lobsters, Reddit feeds) from a teaser or feed
+ * body, whether it sits on its own lines or runs together on one. Returns null when nothing
+ * readable is left, so the UI shows no summary at all.
+ */
+export function cleanTeaser(text: string | null): string | null {
+  if (!text) return null;
+  const out = text
+    .split(/\n{2,}/)
+    .map((p) => p.replace(BOILERPLATE, ' ').replace(/[ \t]+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n\n');
+  return out.length >= 20 ? out : null;
+}
+
+/** Drops a heading that just repeats the article title (sites often repeat it in the body). */
+export function dropTitleHeading(markdown: string, title: string): string {
+  const norm = (t: string) => t.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().toLowerCase();
+  const want = norm(title);
+  return markdown
+    .split('\n')
+    .filter((l) => !(/^#{1,6}\s/.test(l) && norm(l.replace(/^#+\s*/, '')) === want))
+    .join('\n');
+}

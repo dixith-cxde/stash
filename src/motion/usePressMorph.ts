@@ -1,4 +1,4 @@
-import { useTapGesture } from 'react-native-gesture-handler';
+import { useExclusiveGestures, useLongPressGesture, useTapGesture } from 'react-native-gesture-handler';
 import Animated, {
   type AnimatedRef,
   measure,
@@ -36,8 +36,13 @@ type Options = {
    */
   onPressMeasured?: (frame: MeasuredDimensions | null) => void;
   measureRef?: AnimatedRef<Animated.View>;
+  /** Hold to open a menu. While held long enough, the surface stays pressed, then the menu opens. */
+  onLongPress?: () => void;
   disabled?: boolean;
 };
+
+/** Hold this long (ms) for a long press. */
+const LONG_PRESS = 450;
 
 /** A touch that moves further than this (dp) is a scroll or drag, never a tap. */
 const TAP_SLOP = 10;
@@ -62,6 +67,7 @@ export function usePressMorph({
   onPressIn,
   onPressMeasured,
   measureRef,
+  onLongPress,
   disabled,
 }: Options) {
   const springs = useSprings();
@@ -72,7 +78,7 @@ export function usePressMorph({
   // fastEffects, which has no bounce, as the button spec asks.
   const release = kind === 'card' ? springs.fastSpatial : springs.fastEffects;
 
-  const gesture = useTapGesture({
+  const tap = useTapGesture({
     enabled: !disabled,
     maxDuration: 100_000,
     maxDistance: TAP_SLOP,
@@ -97,6 +103,20 @@ export function usePressMorph({
     },
   });
 
+  // Long press wins over the tap when held; a quick tap fails it at once (no added latency).
+  const longPress = useLongPressGesture({
+    enabled: !disabled && !!onLongPress,
+    minDuration: LONG_PRESS,
+    maxDistance: TAP_SLOP,
+    onActivate: () => {
+      'worklet';
+      tapped.set(true);
+      if (onLongPress) scheduleOnRN(onLongPress);
+      progress.set(withSequence(withSpring(1, springs.fastEffects), withSpring(0, release)));
+    },
+  });
+  const composed = useExclusiveGestures(longPress, tap);
+
   const style = useAnimatedStyle(() => {
     const p = progress.get();
     return {
@@ -105,5 +125,5 @@ export function usePressMorph({
     };
   });
 
-  return { gesture, style, progress };
+  return { gesture: onLongPress ? composed : tap, style, progress };
 }

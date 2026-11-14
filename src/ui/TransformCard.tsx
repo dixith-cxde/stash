@@ -27,7 +27,7 @@ type Props = {
  * shrinks back into it. The card is measured on the UI thread inside the tap gesture, so
  * navigation starts in the same JS hop as the tap.
  */
-export function TransformCard({ href, color, corner = 28, children, style, contentStyle, accessibilityLabel }: Props) {
+export function TransformCard({ href, color, corner = 28, children, style, contentStyle, accessibilityLabel, onLongPress }: Props) {
   const frameRef = useAnimatedRef<Animated.View>();
   const { openAt, hidden } = useContainerSource({
     corner,
@@ -41,6 +41,7 @@ export function TransformCard({ href, color, corner = 28, children, style, conte
         measureRef={frameRef}
         onPressMeasured={(frame) => openAt(href, frame)}
         onPress={() => openAt(href, null)}
+        onLongPress={onLongPress}
         accessibilityRole="link"
         accessibilityLabel={accessibilityLabel}
         style={[{ flexGrow: 1, backgroundColor: color }, contentStyle]}

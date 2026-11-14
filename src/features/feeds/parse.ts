@@ -68,7 +68,7 @@ const LOOSE = new Set(['amp', 'lt', 'gt', 'quot', 'nbsp']);
 
 const ENTITY_RE = /&(#[xX][0-9a-fA-F]+|#[0-9]+|[A-Za-z][A-Za-z0-9]*)(;?)/g;
 
-function decodeEntities(s: string): string {
+export function decodeEntities(s: string): string {
   if (s.indexOf('&') === -1) return s;
   return s.replace(ENTITY_RE, (m, body: string, semi: string) => {
     if (body.charCodeAt(0) === 35 /* # */) {
@@ -272,7 +272,7 @@ function removeDotSegments(path: string): string {
   return joined.startsWith('/') ? joined : '/' + joined;
 }
 
-function resolveUrl(href: string | null | undefined, base: string | null | undefined): string | null {
+export function resolveUrl(href: string | null | undefined, base: string | null | undefined): string | null {
   const h = (href ?? '').trim();
   if (!h) return null;
   if (ABS_RE.test(h)) return /^(javascript|data|vbscript):/i.test(h) ? null : h;

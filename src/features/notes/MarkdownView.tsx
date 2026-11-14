@@ -1,7 +1,8 @@
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
 import { Lexer, type Token, type Tokens } from 'marked';
-import { Fragment, useMemo, useState } from 'react';
+import { Image } from 'expo-image';
+import { createContext, Fragment, use, useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import { useAppTheme } from '@/theme/AppTheme';
@@ -18,29 +19,62 @@ type Props = {
   onToggleTask?: (index: number) => void;
   /** Resolves a [[wiki link]] title to a bookmark id (open on tap). */
   resolveLink?: (title: string) => string | undefined;
+  /** Makes [links](url) tappable (articles open them in the browser). */
+  onOpenLink?: (url: string) => void;
+  /** Long-form reading: larger body text and line height (feed articles). */
+  reading?: boolean;
 };
+
+const ReadingContext = createContext<{ onOpenLink?: (url: string) => void; reading: boolean }>({ reading: false });
+
+/** An image block that keeps its own aspect ratio once loaded (articles). */
+function MdImage({ src, alt }: { src: string; alt: string }) {
+  const { colors } = useAppTheme();
+  const [ratio, setRatio] = useState(16 / 9);
+  return (
+    <Image
+      source={src}
+      accessibilityLabel={alt || undefined}
+      onLoad={(e) => {
+        if (e.source.width && e.source.height) setRatio(e.source.width / e.source.height);
+      }}
+      style={{
+        width: '100%',
+        aspectRatio: Math.max(0.5, Math.min(ratio, 3)),
+        borderRadius: 20,
+        marginTop: 16,
+        backgroundColor: colors.surfaceContainerHigh,
+      }}
+      contentFit="cover"
+      transition={150}
+    />
+  );
+}
 
 /**
  * Renders a Markdown note with Stash components (design: Note artboard): headings, quote
  * cards, checklists with progress, code blocks with Copy, inline bold/italic/code/links and
  * [[saved item]] links.
  */
-export function MarkdownView({ markdown, onToggleTask, resolveLink }: Props) {
+export function MarkdownView({ markdown, onToggleTask, resolveLink, onOpenLink, reading = false }: Props) {
   const tokens = useMemo(() => Lexer.lex(markdown, { gfm: true }), [markdown]);
+  const ctx = useMemo(() => ({ onOpenLink, reading }), [onOpenLink, reading]);
   let task = 0;
   const nextTask = () => task++;
 
   return (
-    <View>
-      {tokens.map((t, i) => {
-        const next = tokens.slice(i + 1).find((n) => n.type !== 'space');
-        return (
-          <Fragment key={i}>
-            <Block t={t} next={next} nextTask={nextTask} onToggleTask={onToggleTask} resolveLink={resolveLink} />
-          </Fragment>
-        );
-      })}
-    </View>
+    <ReadingContext value={ctx}>
+      <View>
+        {tokens.map((t, i) => {
+          const next = tokens.slice(i + 1).find((n) => n.type !== 'space');
+          return (
+            <Fragment key={i}>
+              <Block t={t} next={next} nextTask={nextTask} onToggleTask={onToggleTask} resolveLink={resolveLink} />
+            </Fragment>
+          );
+        })}
+      </View>
+    </ReadingContext>
   );
 }
 
@@ -79,12 +113,22 @@ function Block({ t, next, nextTask, onToggleTask, resolveLink }: BlockProps) {
         </View>
       );
     }
-    case 'paragraph':
-      return (
-        <Text variant="bodyLarge" style={{ marginTop: 16 }}>
-          <Inline tokens={(t as Tokens.Paragraph).tokens} resolveLink={resolveLink} />
-        </Text>
-      );
+    case 'paragraph': {
+      const inline = (t as Tokens.Paragraph).tokens ?? [];
+      const images = inline.filter((x) => x.type === 'image') as Tokens.Image[];
+      // A paragraph that is only images (articles) renders them as blocks.
+      const onlyImages = inline.every((x) => x.type === 'image' || x.type === 'br' || (x.type === 'text' && !x.raw.trim()));
+      if (images.length && onlyImages) {
+        return (
+          <>
+            {images.map((img, i) => (
+              <MdImage key={i} src={img.href} alt={img.text} />
+            ))}
+          </>
+        );
+      }
+      return <Paragraph tokens={inline} resolveLink={resolveLink} />;
+    }
     case 'blockquote':
       return (
         <View style={{ borderRadius: 24, padding: 16, paddingHorizontal: 18, backgroundColor: colors.tertiaryContainer, marginTop: 4 }}>
@@ -136,8 +180,22 @@ function Block({ t, next, nextTask, onToggleTask, resolveLink }: BlockProps) {
   }
 }
 
+function Paragraph({ tokens, resolveLink }: { tokens: Token[]; resolveLink?: (title: string) => string | undefined }) {
+  const { reading } = use(ReadingContext);
+  return (
+    <Text
+      variant="bodyLarge"
+      selectable={reading}
+      style={reading ? { marginTop: 16, fontSize: 17, lineHeight: 28 } : { marginTop: 16 }}
+    >
+      <Inline tokens={tokens} resolveLink={resolveLink} />
+    </Text>
+  );
+}
+
 function Inline({ tokens, resolveLink }: { tokens?: Token[]; resolveLink?: (title: string) => string | undefined }) {
   const { colors } = useAppTheme();
+  const { onOpenLink } = use(ReadingContext);
   if (!tokens) return null;
   return (
     <>
@@ -167,12 +225,21 @@ function Inline({ tokens, resolveLink }: { tokens?: Token[]; resolveLink?: (titl
                 {(t as Tokens.Codespan).text}
               </Text>
             );
-          case 'link':
+          case 'link': {
+            const l = t as Tokens.Link;
+            const web = /^https?:\/\//i.test(l.href);
             return (
-              <Text key={i} style={{ color: colors.primary, fontWeight: '700', textDecorationLine: 'underline' }}>
-                {(t as Tokens.Link).text}
+              <Text
+                key={i}
+                onPress={web && onOpenLink ? () => onOpenLink(l.href) : undefined}
+                style={{ color: colors.primary, fontWeight: '700', textDecorationLine: 'underline' }}
+              >
+                {l.tokens?.length ? <Inline tokens={l.tokens} resolveLink={resolveLink} /> : l.text}
               </Text>
             );
+          }
+          case 'image':
+            return null;
           case 'br':
             return '\n';
           case 'text':

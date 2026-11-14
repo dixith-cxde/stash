@@ -230,6 +230,14 @@ export const feedItems = sqliteTable(
     imageUrl: text('image_url'),
     publishedAt: integer('published_at', { mode: 'timestamp_ms' }),
     readAt: integer('read_at', { mode: 'timestamp_ms' }),
+    /** Hidden from the list by the user (swipe or menu). */
+    hiddenAt: integer('hidden_at', { mode: 'timestamp_ms' }),
+    /**
+     * The full article as Markdown, extracted from its web page the first time it is opened
+     * (feeds like Hacker News carry only links). '' = extraction found nothing; null = not tried.
+     */
+    article: text('article'),
+    articleChars: integer('article_chars'),
     bookmarkId: text('bookmark_id').references(() => bookmarks.id, { onDelete: 'set null' }),
     ...timestamps,
   },

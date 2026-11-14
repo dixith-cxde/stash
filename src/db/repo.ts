@@ -572,7 +572,7 @@ export async function listFeeds(): Promise<FeedWithCounts[]> {
     .select({
       f: feeds,
       total: count(feedItems.id),
-      unread: sql<number>`coalesce(sum(case when ${feedItems.readAt} is null then 1 else 0 end), 0)`,
+      unread: sql<number>`coalesce(sum(case when ${feedItems.readAt} is null and ${feedItems.hiddenAt} is null then 1 else 0 end), 0)`,
       latestAt: max(feedItems.publishedAt),
     })
     .from(feeds)
@@ -600,7 +600,7 @@ const itemWithFeed = {
   feedTitle: feeds.title,
   feedIconUrl: feeds.iconUrl,
   feedSiteUrl: feeds.siteUrl,
-  chars: sql<number>`length(coalesce(${feedItems.content}, ${feedItems.summary}, ''))`,
+  chars: sql<number>`coalesce(${feedItems.articleChars}, length(coalesce(${feedItems.content}, ${feedItems.summary}, '')))`,
 };
 const flatten = (r: {
   item: FeedItem;
@@ -624,6 +624,7 @@ export async function listFeedItems(
   if (opts.feedId) conditions.push(eq(feedItems.feedId, opts.feedId));
   if (opts.unreadOnly) conditions.push(isNull(feedItems.readAt));
   if (opts.savedOnly) conditions.push(isNotNull(feedItems.bookmarkId));
+  conditions.push(isNull(feedItems.hiddenAt));
   const rows = await db
     .select(itemWithFeed)
     .from(feedItems)
@@ -631,7 +632,8 @@ export async function listFeedItems(
     .where(and(...conditions))
     .orderBy(desc(sql`coalesce(${feedItems.publishedAt}, ${feedItems.createdAt})`))
     .limit(opts.limit ?? 150);
-  return rows.map((r) => ({ ...flatten(r), content: null }));
+  // The list never needs article bodies; drop them so each re-run stays light.
+  return rows.map((r) => ({ ...flatten(r), content: null, article: null }));
 }
 
 export async function getFeedItem(id: string): Promise<FeedItemWithFeed | null> {
@@ -690,6 +692,15 @@ export async function upsertFeedItems(
 
 export async function markFeedItemRead(id: string, read = true) {
   await db.update(feedItems).set({ readAt: read ? new Date() : null }).where(eq(feedItems.id, id));
+}
+
+export async function setFeedItemHidden(id: string, hidden = true) {
+  await db.update(feedItems).set({ hiddenAt: hidden ? new Date() : null }).where(eq(feedItems.id, id));
+}
+
+/** Caches the extracted article ('' when the page had nothing readable). */
+export async function setFeedItemArticle(id: string, markdown: string, chars: number) {
+  await db.update(feedItems).set({ article: markdown, articleChars: chars }).where(eq(feedItems.id, id));
 }
 
 export async function markAllFeedItemsRead(feedId?: string) {

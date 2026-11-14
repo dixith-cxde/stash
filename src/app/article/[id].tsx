@@ -8,11 +8,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDbQuery } from '@/db/hooks';
 import { getFeedItem, markFeedItemRead } from '@/db/repo';
-import { saveArticle } from '@/features/feeds/ArticleCard';
-import { hostOf, readMinutes } from '@/features/feeds/format';
+import { hideArticle, saveArticle } from '@/features/feeds/ArticleCard';
+import { cleanTeaser, hostOf, readMinutes } from '@/features/feeds/format';
+import { loadArticle } from '@/features/feeds/sync';
+import { MarkdownView } from '@/features/notes/MarkdownView';
 import { hostSeed } from '@/features/stash/model';
 import { relativeTime } from '@/lib/format';
 import { TransitionScreen, useTransitionClose } from '@/motion/transition/TransitionScreen';
+import { LoadingIndicator } from '@/shapes/LoadingIndicator';
 import { Shape } from '@/shapes/Shape';
 import { useAppTheme } from '@/theme/AppTheme';
 import { collectionTones, HIGHLIGHT_TONES } from '@/theme/palette';
@@ -22,7 +25,10 @@ import { Button } from '@/ui/Button';
 import { IconButton } from '@/ui/IconButton';
 import { Text } from '@/ui/Text';
 
-/** Feed article reader: the article's text as the feed delivered it, with save and open. */
+/**
+ * Feed article reader (design: Feed article). Shows the feed's own text when it carries the
+ * whole article; otherwise fetches the page once and shows its readable body (reader mode).
+ */
 export default function ArticleScreen() {
   const { origin } = useLocalSearchParams<{ origin?: string }>();
   return (
@@ -56,6 +62,20 @@ function ArticleBody() {
     void markFeedItemRead(id);
   }, [id]);
 
+  // Reader mode: fetch the full article the first time it is opened (once, then cached).
+  const [tried, setTried] = useState(false);
+  const needsFetch = !!a && a.article === null;
+  const itemId = a?.id;
+  useEffect(() => {
+    if (!needsFetch || !a) return;
+    let live = true;
+    void loadArticle(a).finally(() => live && setTried(true));
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemId, needsFetch]);
+
   // Hero decoration drifts at half the scroll speed (parallax), as on the collection page.
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => scrollY.set(e.contentOffset.y));
@@ -65,7 +85,9 @@ function ArticleBody() {
 
   const tone = collectionTones(hostSeed(a.feedSiteUrl ?? a.url ?? a.feedTitle), dark);
   const quote = HIGHLIGHT_TONES.yellow[dark ? 'dark' : 'light'];
-  const body = a.content ?? a.summary ?? '';
+  const full = a.article ? a.article : null;
+  const fetching = a.article === null && !tried && isWeb(a.url);
+  const body = cleanTeaser(a.content) ?? cleanTeaser(a.summary) ?? '';
   const paragraphs = body
     .split(/\n{2,}/)
     .map((p) => p.trim())
@@ -129,7 +151,20 @@ function ArticleBody() {
         ) : null}
 
         <View style={styles.body}>
-          {paragraphs.length ? (
+          {full ? (
+            <MarkdownView
+              markdown={full}
+              reading
+              onOpenLink={(u) => void WebBrowser.openBrowserAsync(u, { toolbarColor: colors.surface })}
+            />
+          ) : fetching ? (
+            <View style={styles.loading}>
+              <LoadingIndicator size={48} />
+              <Text variant="bodyMedium" color="onSurfaceVariant">
+                Getting the full article…
+              </Text>
+            </View>
+          ) : paragraphs.length ? (
             paragraphs.map((p, i) =>
               isPullQuote(p) ? (
                 <View key={i} style={[styles.quote, { backgroundColor: quote.bg }]}>
@@ -145,7 +180,7 @@ function ArticleBody() {
             )
           ) : (
             <Text variant="bodyLarge" color="onSurfaceVariant" style={{ fontSize: 17, lineHeight: 28 }}>
-              This feed only shares headlines. Open the article to read it.
+              {web ? 'Couldn’t load the full article. Check your connection, or read it on the site.' : 'This feed only shares headlines.'}
             </Text>
           )}
         </View>
@@ -191,7 +226,10 @@ function ArticleBody() {
         <ActionSheet
           title={a.title}
           onDismiss={() => setMenu(false)}
-          actions={[{ label: 'Mark as unread', icon: 'markEmailUnread', onPress: () => void markFeedItemRead(a.id, false).then(close) }]}
+          actions={[
+            { label: 'Mark as unread', icon: 'markEmailUnread', onPress: () => void markFeedItemRead(a.id, false).then(close) },
+            { label: 'Hide from Feeds', icon: 'visibilityOff', onPress: () => void hideArticle(a.id).then(close) },
+          ]}
         />
       )}
     </View>
@@ -208,6 +246,7 @@ const styles = StyleSheet.create({
   image: { marginHorizontal: 16, marginTop: 16, height: 200, borderRadius: 28 },
   body: { paddingHorizontal: 24, paddingTop: 24, gap: 16 },
   quote: { borderRadius: 24, paddingVertical: 18, paddingHorizontal: 20, marginVertical: 4 },
+  loading: { alignItems: 'center', gap: 12, paddingVertical: 32 },
   readOn: { paddingHorizontal: 24, paddingTop: 24, alignItems: 'flex-start' },
   dock: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', gap: 4 },
   shadow: { boxShadow: '0px 6px 20px rgba(0, 0, 0, 0.45)' },
