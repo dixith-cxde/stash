@@ -72,3 +72,10 @@ add searchable columns.
 Settings → Backup exports a full JSON backup or a Netscape bookmarks HTML file. Import accepts
 either format, so bookmarks exported from Chrome, Firefox, Pocket, Raindrop or Omnivore come in
 with their folders and tags.
+
+## License
+
+Stash is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE). You can use,
+change and share it for personal, hobby, research, educational or other noncommercial purposes.
+You may not use it, or anything built from it, to make money or run a business. For commercial
+use, ask the author for a separate license.
