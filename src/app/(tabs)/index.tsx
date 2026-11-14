@@ -62,7 +62,7 @@ export default function Home() {
               />
             }
           />
-          <SearchPill onPress={() => router.navigate('/search')} />
+          <SearchPill href="/find" />
 
           <SectionHeader
             title="Collections"
