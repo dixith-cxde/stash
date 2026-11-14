@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { createContext, use, useCallback, useEffect, useMemo, useState } from 'react';
+import { createContext, use, useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { BackHandler, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 import Animated, { type SharedValue, useAnimatedReaction, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
@@ -92,6 +92,9 @@ export function TransitionScreen({ kind, origin: originId, background, children 
   const [origin] = useState<Origin | undefined>(() =>
     originId ? useTransitions.getState().origins[originId] : undefined,
   );
+  useLayoutEffect(() => {
+    if (originId) useTransitions.getState().claim(originId);
+  }, [originId]);
   const mode: Kind = kind === 'container' && !origin ? 'axisY' : kind;
   const bg = background ?? colors.surface;
 
@@ -100,9 +103,15 @@ export function TransitionScreen({ kind, origin: originId, background, children 
   const back = useSharedValue(0);
   const closing = useSharedValue(false);
 
+  // The page body mounts one frame after the container starts growing: the spring runs on
+  // the UI thread meanwhile, so a heavy screen never delays the first frame of the open.
+  // Its content only fades in from 12% progress, so the deferral is never visible.
+  const [ready, setReady] = useState(mode !== 'container');
   useEffect(() => {
     p.set(springTo(1, springs.defaultSpatial));
     fade.set(springTo(1, springs.defaultEffects));
+    const raf = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(raf);
   }, [p, fade, springs]);
 
   const finish = useCallback(() => {
@@ -162,9 +171,15 @@ export function TransitionScreen({ kind, origin: originId, background, children 
     opacity: MotionSpec.scrimOpacity * clamp01(mode === 'container' ? p.get() : fade.get()),
   }));
 
+  // Worklets capture only the numbers: the origin also holds the card's React snapshot,
+  // which can't (and shouldn't) be copied to the UI thread.
+  const frame = origin
+    ? { x: origin.x, y: origin.y, width: origin.width, height: origin.height, corner: origin.corner }
+    : undefined;
+
   const container = useAnimatedStyle(() => {
     const pv = preview();
-    if (mode !== 'container' || !origin) {
+    if (mode !== 'container' || !frame) {
       const axis = (1 - p.get()) * MotionSpec.sharedAxisDistance;
       return {
         left: 0,
@@ -182,11 +197,11 @@ export function TransitionScreen({ kind, origin: originId, background, children 
     }
     const t = p.get();
     return {
-      left: origin.x + (0 - origin.x) * t,
-      top: origin.y + (0 - origin.y) * t,
-      width: origin.width + (W - origin.width) * t,
-      height: origin.height + (H - origin.height) * t,
-      borderRadius: Math.max(pv.corner, origin.corner * (1 - clamp01(t))),
+      left: frame.x + (0 - frame.x) * t,
+      top: frame.y + (0 - frame.y) * t,
+      width: frame.width + (W - frame.width) * t,
+      height: frame.height + (H - frame.height) * t,
+      borderRadius: Math.max(pv.corner, frame.corner * (1 - clamp01(t))),
       backgroundColor: bg,
       transform: [{ translateX: pv.shift }, { scale: pv.scale }],
     };
@@ -194,22 +209,22 @@ export function TransitionScreen({ kind, origin: originId, background, children 
 
   // Page content: laid out at full size, scaled with the container width, fading in 25–75%.
   const content = useAnimatedStyle(() => {
-    if (mode !== 'container' || !origin) return { opacity: 1, transform: [{ scale: 1 }] };
+    if (mode !== 'container' || !frame) return { opacity: 1, transform: [{ scale: 1 }] };
     const t = p.get();
-    const w = origin.width + (W - origin.width) * t;
+    const w = frame.width + (W - frame.width) * t;
     return { opacity: band(t, 0.12, 0.45), transform: [{ scale: w / W }] };
   });
 
   // Card snapshot: drawn at card size, scaled with the container, fading out over 0–25%.
   const ghost = useAnimatedStyle(() => {
-    if (!origin) return { opacity: 0 };
+    if (!frame) return { opacity: 0 };
     const t = p.get();
-    const w = origin.width + (W - origin.width) * t;
-    return { opacity: 1 - band(t, 0, 0.15), transform: [{ scale: w / origin.width }] };
+    const w = frame.width + (W - frame.width) * t;
+    return { opacity: 1 - band(t, 0, 0.15), transform: [{ scale: w / frame.width }] };
   });
 
   const containerBg = useAnimatedStyle(() => {
-    if (mode !== 'container' || !origin) return { opacity: 0 };
+    if (mode !== 'container' || !frame) return { opacity: 0 };
     // The card color shows through while the page content is still fading in.
     return { opacity: 1 - band(p.get(), 0.12, 0.45) };
   });
@@ -224,7 +239,7 @@ export function TransitionScreen({ kind, origin: originId, background, children 
           {origin && (
             <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: origin.color }, containerBg]} />
           )}
-          <Animated.View style={[{ width: W, height: H, transformOrigin: 'top left' }, content]}>{children}</Animated.View>
+          <Animated.View style={[{ width: W, height: H, transformOrigin: 'top left' }, content]}>{ready ? children : null}</Animated.View>
           {origin?.ghost && (
             <Animated.View
               pointerEvents="none"

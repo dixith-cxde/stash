@@ -10,6 +10,27 @@ Target design: the Design canvas *Stash — M3 Expressive redesign*
 Home, Library, Collection, Item detail, Quick-save sheet, Markdown editor, Note.
 Motion reference: [animation.md](./animation.md).
 
+## 0. Purpose
+
+**Read & remember:** save anything, read it later, keep what matters, find it again.
+
+Stash is a calm read-it-later app and personal knowledge inbox:
+
+- **Capture:** one tap, from any app.
+- **Reading queue:** what's saved and still to read.
+- **Keep what matters:** highlights and notes.
+- **Recall:** smart local search.
+- **Intake:** RSS feeds, with one-tap save of the articles worth keeping.
+
+Decided 2026-11-14:
+
+- **Search:** the Home search pill is instant keyword search (FTS5). The Search tab is
+  "smart" local search: FTS plus synonyms, fuzzy and prefix matching, and weighting by tags,
+  collections and sites. No AI model and no network: it has to stay light and battery-efficient.
+- **Feeds:** RSS/Atom feeds get their own tab, replacing the Highlights tab. Highlights stay as
+  a smart view in Library, so the tabs are Home, Library, Feeds, Search. Feeds refresh in the
+  background a few times a day, never constantly.
+
 ## 1. The decision
 
 v1 and v2 drew the UI with Jetpack Compose (`@expo/ui` plus about 2,300 lines of Kotlin in
@@ -169,11 +190,14 @@ Each phase ends with typecheck, lint, tests and a debug build on the USB phone.
    hide/show.
 6. **Screens, in design order:** Home → Library → Collection → Item detail → Capture sheet →
    Note → Editor. Each screen is wired to real `repo.ts` queries from the start, with no mock data.
-7. **Undesigned screens:** Highlights, Search, PDF reader chrome, Tag, Settings. Built from the
-   same kit. Ask for design frames for these first if wanted.
-8. **Motion polish pass.** Run through animation.md §10 on device. Check reduced motion and
+7. **Undesigned screens:** keyword search (from the Home pill), smart Search tab, PDF reader
+   chrome, Tag, Settings. Built from the same kit.
+8. **Feeds (RSS/Atom):** a Feeds tab with tonal source cards, an article list and the container
+   transform into a clean reader; one tap saves to Stash. Feeds refresh in the background
+   with battery-friendly scheduling. Add a feed by URL or by site (feed autodiscovery).
+9. **Motion polish pass.** Run through animation.md §10 on device. Check reduced motion and
    that frame times stay under 8 ms on 120 Hz.
-9. **Docs.** Update README and AGENTS.md: remove the Compose rules, describe the RN kit and
+10. **Docs.** Update README and AGENTS.md: remove the Compose rules, describe the RN kit and
    motion rules.
 
 ## 8. Risks and open questions

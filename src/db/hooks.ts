@@ -34,7 +34,7 @@ export function useDbQuery<T>(query: () => Promise<T>, deps: unknown[], initial:
   const [state, setState] = useState<{ data: T; loading: boolean }>({ data: initial, loading: true });
   const runQuery = useEffectEvent(query);
   const navigation = use(NavigationContext);
-  const focused = useRef(navigation ? navigation.isFocused() : true);
+  const focused = useRef(true);
   const stale = useRef(false);
   const run = useRef<() => void>(() => {});
 
@@ -69,6 +69,8 @@ export function useDbQuery<T>(query: () => Promise<T>, deps: unknown[], initial:
 
   useEffect(() => {
     if (!navigation) return;
+    // Read after mount: during render isFocused() can be stale.
+    focused.current = navigation.isFocused();
     const offFocus = navigation.addListener('focus', () => {
       focused.current = true;
       if (stale.current) run.current();

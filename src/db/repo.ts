@@ -474,6 +474,22 @@ export async function queryHighlights(
   return rows.map<HighlightWithTags>((r) => ({ ...r.h, bookmarkTitle: r.bookmarkTitle, tags: byId.get(r.h.id) ?? [] }));
 }
 
+export async function getHighlight(id: string): Promise<HighlightWithTags | null> {
+  const row = await db
+    .select({ h: highlights, bookmarkTitle: bookmarks.title })
+    .from(highlights)
+    .leftJoin(bookmarks, eq(bookmarks.id, highlights.bookmarkId))
+    .where(eq(highlights.id, id))
+    .get();
+  if (!row) return null;
+  const links = await db
+    .select({ tag: tags })
+    .from(highlightTags)
+    .innerJoin(tags, eq(tags.id, highlightTags.tagId))
+    .where(eq(highlightTags.highlightId, id));
+  return { ...row.h, bookmarkTitle: row.bookmarkTitle, tags: links.map((l) => l.tag) };
+}
+
 export async function createHighlight(input: {
   text: string;
   bookmarkId?: string;

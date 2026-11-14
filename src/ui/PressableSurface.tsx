@@ -1,6 +1,6 @@
 import type { AccessibilityRole, StyleProp, ViewStyle } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
-import Animated from 'react-native-reanimated';
+import Animated, { type AnimatedRef, type MeasuredDimensions } from 'react-native-reanimated';
 
 import { type PressMorphKind, usePressMorph } from '@/motion/usePressMorph';
 
@@ -8,6 +8,9 @@ type Props = {
   children?: React.ReactNode;
   onPress?: () => void;
   onPressIn?: () => void;
+  /** See usePressMorph: measure `measureRef` on the UI thread and pass the frame. */
+  onPressMeasured?: (frame: MeasuredDimensions | null) => void;
+  measureRef?: AnimatedRef<Animated.View>;
   kind?: PressMorphKind;
   /** Corner radius at rest (the style's borderRadius is ignored; this drives the morph). */
   corner: number;
@@ -25,6 +28,8 @@ export function PressableSurface({
   children,
   onPress,
   onPressIn,
+  onPressMeasured,
+  measureRef,
   kind,
   corner,
   pressedCorner,
@@ -42,6 +47,8 @@ export function PressableSurface({
     pressedScale,
     onPress,
     onPressIn,
+    onPressMeasured,
+    measureRef,
     disabled,
   });
   return (

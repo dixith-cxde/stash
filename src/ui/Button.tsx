@@ -3,6 +3,7 @@ import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 import { type Corners4, cornerStyle, uniform } from '@/motion/useSelection';
+import { MotionSpec } from '@/motion/tokens';
 import { usePressMorph } from '@/motion/usePressMorph';
 import { useColors } from '@/theme/AppTheme';
 import type { IconName } from '@/theme/icons';
@@ -76,7 +77,10 @@ export function Button({
   const bg = resolve(override?.bg, v.bg);
   const fg = resolve(override?.fg, v.fg);
 
-  const morph = useAnimatedStyle(() => cornerStyle(rest, spec.pressed, progress.get()));
+  const morph = useAnimatedStyle(() => {
+    const p = progress.get();
+    return { ...cornerStyle(rest, spec.pressed, p), transform: [{ scale: 1 + (MotionSpec.buttonPressScale - 1) * p }] };
+  });
 
   return (
     <GestureDetector gesture={gesture}>

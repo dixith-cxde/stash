@@ -4,7 +4,13 @@ import { type ComponentRef, useEffect, useMemo, useRef, useState } from "react";
 import { TextInput, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 
-import { createBookmark, deleteBookmarks, deleteHighlight } from "@/db/repo";
+import { useDbQuery } from "@/db/hooks";
+import {
+  createBookmark,
+  deleteBookmarks,
+  deleteHighlight,
+  listTags,
+} from "@/db/repo";
 import {
   type CaptureDraft,
   extractUrl,
@@ -733,7 +739,13 @@ function TagRow(p: FormProps) {
     const ids = new Set([...s.tags.map((t) => t.id), ...p.tagIds]);
     return [...ids];
   }, [s.tags, p.tagIds]);
-  const names = new Map(s.tags.map((t) => [t.id, t.name]));
+  // Selected tags can come from the full picker (or be created there), not just the
+  // suggestions, so resolve labels against every tag. Live, so new tags show at once.
+  const { data: allTags } = useDbQuery(listTags, [], []);
+  const names = useMemo(
+    () => new Map([...allTags, ...s.tags].map((t) => [t.id, t.name])),
+    [allTags, s.tags],
+  );
   useEffect(() => {
     if (!p.folderId && s.folderId) p.setFolderId(s.folderId);
     // Only adopt the suggested collection once, when nothing was chosen.
@@ -760,7 +772,7 @@ function TagRow(p: FormProps) {
         {shown.map((id) => (
           <Chip
             key={id}
-            label={`#${names.get(id) ?? "tag"}`}
+            label={`#${names.get(id) ?? ""}`}
             selected={p.tagIds.includes(id)}
             onPress={() =>
               p.setTagIds(

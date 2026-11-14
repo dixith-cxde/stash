@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
+import { TextInput, View } from 'react-native';
 
 import { useDbQuery } from '@/db/hooks';
 import { ensureTag, listTags, normalizeTagName } from '@/db/repo';
@@ -12,7 +12,7 @@ import { Button } from '@/ui/Button';
 import { Chip } from '@/ui/Chip';
 import { Ico } from '@/ui/Ico';
 import { PressableSurface } from '@/ui/PressableSurface';
-import { Sheet } from '@/ui/Sheet';
+import { Sheet, SheetScrollView } from '@/ui/Sheet';
 import { Text } from '@/ui/Text';
 
 /** Pick (or clear) the collection an item belongs to. */
@@ -30,11 +30,11 @@ export function CollectionPicker({
   return (
     <Sheet accessibilityLabel="Move to collection" onDismiss={onDismiss}>
       {(close) => (
-        <View style={{ gap: 4 }}>
+        <View style={{ gap: 4, flexShrink: 1 }}>
           <Text variant="headlineSmall" style={{ paddingHorizontal: 8, paddingBottom: 12 }}>
             Move to
           </Text>
-          <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ gap: 4 }}>
+          <SheetScrollView contentContainerStyle={{ gap: 4 }}>
             {[{ id: null, name: 'No collection' }, ...collections].map((c) => {
               const tone = c.id ? collectionTones(folderSeed(c as { id: string; color: string | null }), dark) : null;
               const selected = c.id === current;
@@ -80,7 +80,7 @@ export function CollectionPicker({
                 </PressableSurface>
               );
             })}
-          </ScrollView>
+          </SheetScrollView>
         </View>
       )}
     </Sheet>
@@ -111,7 +111,7 @@ export function TagPicker({
   return (
     <Sheet accessibilityLabel="Tags" onDismiss={onDismiss}>
       {(close) => (
-        <View style={{ gap: 16 }}>
+        <View style={{ gap: 16, flexShrink: 1 }}>
           <Text variant="headlineSmall" style={{ paddingHorizontal: 8 }}>
             Tags
           </Text>
@@ -143,7 +143,10 @@ export function TagPicker({
             />
             {draft.trim() ? <Button label="Add" size="s" onPress={() => void add()} /> : null}
           </View>
-          <ScrollView style={{ maxHeight: 260 }} contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          <SheetScrollView
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}
+          >
             {visible.map((t) => {
               const on = selected.includes(t.id);
               return (
@@ -155,7 +158,7 @@ export function TagPicker({
                 />
               );
             })}
-          </ScrollView>
+          </SheetScrollView>
           <Button label="Done" onPress={close} />
         </View>
       )}

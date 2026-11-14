@@ -240,7 +240,7 @@ function QuoteCard({ h }: { h: HighlightWithTags }) {
   const source = h.sourceTitle || h.bookmarkTitle || h.sourceApp || 'Highlight';
   return (
     <TransformCard
-      href={h.bookmarkId ? `/item/${h.bookmarkId}` : '/highlights'}
+      href={h.bookmarkId ? `/item/${h.bookmarkId}` : `/highlight/${h.id}`}
       color={colors.tertiaryContainer}
       corner={R}
       accessibilityLabel={`Highlight: ${h.text}`}

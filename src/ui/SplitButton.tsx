@@ -2,6 +2,7 @@ import { StyleSheet, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
+import { MotionSpec } from '@/motion/tokens';
 import { usePressMorph } from '@/motion/usePressMorph';
 import { cornerStyle, useSelection } from '@/motion/useSelection';
 import { useColors } from '@/theme/AppTheme';
@@ -36,7 +37,8 @@ export function SplitButton({ label, icon, onPress, onMenu, menuOpen = false, me
 
   const trailing = useAnimatedStyle(() => {
     const inner = INNER + (outer - INNER) * open.shape.get();
-    return cornerStyle([inner, outer, outer, inner], 12, progress.get());
+    const p = progress.get();
+    return { ...cornerStyle([inner, outer, outer, inner], 12, p), transform: [{ scale: 1 + (MotionSpec.buttonPressScale - 1) * p }] };
   });
   const chevron = useAnimatedStyle(() => ({ transform: [{ rotate: `${open.shape.get() * 180}deg` }] }));
 

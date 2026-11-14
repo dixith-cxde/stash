@@ -1,12 +1,25 @@
-import { useCallback, useEffect } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import {
   BackHandler,
   type LayoutChangeEvent,
   Pressable,
+  type ScrollViewProps,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from "react-native";
-import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
+import {
+  GestureDetector,
+  type PanGesture,
+  ScrollView as GHScrollView,
+  usePanGesture,
+} from "react-native-gesture-handler";
 import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
 import Animated, {
   useAnimatedStyle,
@@ -33,6 +46,11 @@ type Props = {
 const DISMISS_FRACTION = 0.35;
 /** Downward fling velocity (dp/s) that dismisses regardless of distance. */
 const DISMISS_VELOCITY = 900;
+/** Tallest the sheet may get, as a fraction of the window below the status bar. */
+const MAX_HEIGHT_FRACTION = 0.85;
+
+/** The sheet's drag-to-dismiss pan, so a scrolling body can claim vertical drags first. */
+const SheetPanContext = createContext<PanGesture | null>(null);
 
 /**
  * Modal bottom sheet (design: Capture). Mounting opens it: it springs up from below on
@@ -41,12 +59,18 @@ const DISMISS_VELOCITY = 900;
  * velocity. The scrim fades with the sheet's position; the keyboard pushes it up frame by
  * frame. Back and scrim taps dismiss with the same animation. Renders in the root portal,
  * so it always sits above the whole screen wherever it is written.
+ *
+ * The sheet sizes to its content up to ~85% of the window; taller content must put its
+ * long part in a `SheetScrollView`, which shrinks to fit and scrolls. Drags on that list
+ * scroll it; drags anywhere else (handle, title, buttons) still move the sheet.
  */
 export function Sheet({ onDismiss, children, accessibilityLabel }: Props) {
   const colors = useColors();
   const springs = useSprings();
   const insets = useSafeAreaInsets();
   const keyboard = useReanimatedKeyboardAnimation();
+  const win = useWindowDimensions();
+  const maxHeight = (win.height - insets.top) * MAX_HEIGHT_FRACTION;
 
   const height = useSharedValue(0);
   const y = useSharedValue(10_000);
@@ -115,6 +139,9 @@ export function Sheet({ onDismiss, children, accessibilityLabel }: Props) {
   });
 
   const sheet = useAnimatedStyle(() => ({
+    // The keyboard lifts the sheet (height is <= 0), so shrink the cap by as much to keep
+    // the top on screen.
+    maxHeight: maxHeight + keyboard.height.get(),
     transform: [{ translateY: y.get() + keyboard.height.get() }],
   }));
   const scrim = useAnimatedStyle(() => {
@@ -158,7 +185,11 @@ export function Sheet({ onDismiss, children, accessibilityLabel }: Props) {
             <View
               style={[styles.handle, { backgroundColor: colors.outline }]}
             />
-            {typeof children === "function" ? children(close) : children}
+            <SheetPanContext value={pan}>
+              <View style={styles.body}>
+                {typeof children === "function" ? children(close) : children}
+              </View>
+            </SheetPanContext>
           </Animated.View>
         </GestureDetector>
       </View>
@@ -166,7 +197,48 @@ export function Sheet({ onDismiss, children, accessibilityLabel }: Props) {
   );
 }
 
+/**
+ * Scrollable part of a `Sheet`'s content. It sizes to its content and shrinks (then
+ * scrolls) once the sheet hits its max height. Every ancestor between it and the sheet
+ * needs `flexShrink: 1` so the squeeze reaches it. While it can scroll, it claims vertical
+ * drags before the sheet's dismiss pan; when it fits, it is inert and the sheet drags as usual.
+ */
+export function SheetScrollView({
+  style,
+  onLayout,
+  onContentSizeChange,
+  ...rest
+}: ScrollViewProps) {
+  const pan = useContext(SheetPanContext);
+  const [viewport, setViewport] = useState(0);
+  const [content, setContent] = useState(0);
+  const scrolls = content > viewport + 1;
+  return (
+    <GHScrollView
+      {...rest}
+      block={scrolls && pan ? pan : undefined}
+      scrollEnabled={scrolls}
+      style={[styles.scroll, style]}
+      onLayout={(e) => {
+        setViewport(e.nativeEvent.layout.height);
+        onLayout?.(e);
+      }}
+      onContentSizeChange={(w, h) => {
+        setContent(h);
+        onContentSizeChange?.(w, h);
+      }}
+    />
+  );
+}
+
 const styles = StyleSheet.create({
+  body: {
+    flexShrink: 1,
+  },
+  scroll: {
+    flexGrow: 0,
+    flexShrink: 1,
+  },
   sheet: {
     position: "absolute",
     left: 0,

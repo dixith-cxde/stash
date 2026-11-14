@@ -1,5 +1,14 @@
 import { useTapGesture } from 'react-native-gesture-handler';
-import { useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring } from 'react-native-reanimated';
+import Animated, {
+  type AnimatedRef,
+  measure,
+  type MeasuredDimensions,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withSpring,
+} from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { useSprings } from './springs';
@@ -17,10 +26,16 @@ type Options = {
   corner: number;
   /** Corner radius while held. Defaults to the card spec (14) for cards. */
   pressedCorner?: number;
-  /** Scale while held. Defaults to 0.97 for cards, 1 for buttons. */
+  /** Scale while held. Defaults to 0.97 for cards, 0.94 for buttons. */
   pressedScale?: number;
   onPress?: () => void;
   onPressIn?: () => void;
+  /**
+   * Instead of `onPress`: measures `measureRef` on the UI thread the instant the tap lands and
+   * hands the frame to JS in the same hop (container transforms start a frame sooner).
+   */
+  onPressMeasured?: (frame: MeasuredDimensions | null) => void;
+  measureRef?: AnimatedRef<Animated.View>;
   disabled?: boolean;
 };
 
@@ -30,29 +45,32 @@ const TAP_SLOP = 10;
  * Holding still this long (ms) shows the pressed shape. Shorter touches that turn into a
  * scroll never morph, so scrolling a list doesn't flash every card under the finger.
  */
-const PRESS_DELAY = 70;
+const PRESS_DELAY = 40;
 
 /**
- * Press feedback as shape (docs/animation.md §5): corners tighten and the surface dips,
- * then springs back. Every completed tap plays the whole morph, even a quick one: the
- * shape reaches its pressed state, `onPress` fires at that moment (so the feedback is seen
- * before the next screen covers it), then it springs back. Scrolls cancel without firing.
- * Runs on the UI thread; only `onPress` hops to JS.
+ * Press feedback as shape and scale (docs/animation.md §5): corners tighten and the surface
+ * dips, then springs back up. `onPress` fires the instant the tap is recognised; a quick tap
+ * still plays a short dip (fastEffects in, no overshoot) and the spring back runs alongside
+ * the action. Scrolls cancel without firing. Runs on the UI thread; only `onPress` hops to JS.
  */
 export function usePressMorph({
   kind = 'card',
   corner,
   pressedCorner = kind === 'card' ? MotionSpec.cardPressCorner : corner,
-  pressedScale = kind === 'card' ? MotionSpec.cardPressScale : 1,
+  pressedScale = kind === 'card' ? MotionSpec.cardPressScale : MotionSpec.buttonPressScale,
   onPress,
   onPressIn,
+  onPressMeasured,
+  measureRef,
   disabled,
 }: Options) {
   const springs = useSprings();
   const progress = useSharedValue(0);
   const tapped = useSharedValue(false);
   const pressIn = kind === 'card' ? springs.fastSpatial : springs.fastEffects;
-  const release = kind === 'card' ? springs.fastSpatial : springs.defaultEffects;
+  // Cards come back on bouncy fastSpatial (a slight overshoot back up); buttons on
+  // fastEffects, which has no bounce, as the button spec asks.
+  const release = kind === 'card' ? springs.fastSpatial : springs.fastEffects;
 
   const gesture = useTapGesture({
     enabled: !disabled,
@@ -67,15 +85,9 @@ export function usePressMorph({
     onActivate: () => {
       'worklet';
       tapped.set(true);
-      progress.set(
-        withSequence(
-          withSpring(1, { ...pressIn, overshootClamping: true }, (finished) => {
-            'worklet';
-            if (finished && onPress) scheduleOnRN(onPress);
-          }),
-          withSpring(0, release),
-        ),
-      );
+      if (onPressMeasured) scheduleOnRN(onPressMeasured, measureRef ? measure(measureRef) : null);
+      else if (onPress) scheduleOnRN(onPress);
+      progress.set(withSequence(withSpring(1, springs.fastEffects), withSpring(0, release)));
     },
     onFinalize: () => {
       'worklet';

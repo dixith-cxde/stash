@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, { interpolateColor, useAnimatedStyle } from 'react-native-reanimated';
 
+import { MotionSpec } from '@/motion/tokens';
 import { usePressMorph } from '@/motion/usePressMorph';
 import { type Corners4, cornerStyle, useSelection } from '@/motion/useSelection';
 import { useColors } from '@/theme/AppTheme';
@@ -81,6 +82,7 @@ export function IconButton({
     const rest: Corners4 = toggle ? [r, r, r, r] : (corners ?? [round, round, round, round]);
     return {
       ...cornerStyle(rest, pressedCap, progress.get()),
+      transform: [{ scale: 1 + (MotionSpec.buttonPressScale - 1) * progress.get() }],
       backgroundColor: toggle ? interpolateColor(sel.color.get(), [0, 1], [offBg, onBg]) : offBg,
     };
   });

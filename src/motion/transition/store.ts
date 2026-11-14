@@ -19,14 +19,19 @@ type TransitionState = {
   origins: Record<string, Origin>;
   /** The origin currently expanded into a page; its source card hides meanwhile. */
   active: string | null;
+  /** The origin a TransitionScreen has taken over; an unclaimed one is released (see useContainerSource). */
+  claimed: string | null;
   open: (id: string, origin: Origin) => void;
   settle: (id: string) => void;
+  claim: (id: string) => void;
 };
 
 export const useTransitions = create<TransitionState>((set) => ({
   origins: {},
   active: null,
-  open: (id, origin) => set((s) => ({ origins: { ...s.origins, [id]: origin }, active: id })),
+  claimed: null,
+  open: (id, origin) => set((s) => ({ origins: { ...s.origins, [id]: origin }, active: id, claimed: null })),
+  claim: (id) => set({ claimed: id }),
   settle: (id) =>
     set((s) => {
       const { [id]: _, ...rest } = s.origins;

@@ -241,11 +241,13 @@ M3 Expressive treats shape as something that moves.
 **Tap handling (Stash):**
 
 - A touch that moves more than 10 dp is a scroll, never a tap.
-- The pressed shape appears only after the finger rests for 70 ms, so scrolling doesn't flash
+- The pressed shape appears only after the finger rests for 40 ms, so scrolling doesn't flash
   the cards under it.
-- Every completed tap plays the whole morph, even a very quick one: the surface springs
-  into its pressed shape on `fastSpatial` (cards) or `fastEffects` (buttons). The action fires
-  when it lands, then the surface springs back.
+- The action fires the instant the tap is recognised, never after the morph. A quick tap
+  still plays a short dip (`fastEffects` in, no overshoot) that springs back alongside the
+  action: cards on `fastSpatial` (a slight overshoot back up), buttons on `fastEffects`.
+- Everything pressable dips in scale while pressed, Pixel style: cards 0.97, buttons and icon
+  buttons 0.94 (`MotionSpec.buttonPressScale`).
 
 A pressed button's corners **tighten**: round → squarer while the finger is down, and back on
 release. From `AX/Button.kt` and the `Button*Tokens`:
@@ -264,13 +266,14 @@ their checked/pressed shape with **`fastSpatial`** (bouncy), and their color wit
 
 Stash's rule:
 
-- **Buttons and icon buttons:** the press morph uses `defaultEffects`, as in the spec.
+- **Buttons and icon buttons:** no bounce, as in the spec; Stash uses `fastEffects` rather
+  than `defaultEffects` so the release feels immediate.
 - **Selectable things** (toggles, filter segments, favorite, checkbox, chips) and **pressable
   cards**: shape and size use `fastSpatial`, color uses `defaultEffects`. This is where the bounce
   the design hints at comes from.
 - **Pressed cards** (design: `.press:active { border-radius: 14px; transform: scale(.97) }`):
-  the corner goes 28 → 14 and the scale 1 → 0.97 with `fastSpatial` on press-in. Release goes
-  back with `defaultSpatial`, so it settles more gently than it pressed. **(unverified):** the
+  the corner goes 28 → 14 and the scale 1 → 0.97 with `fastSpatial` on press-in, and back on
+  `fastSpatial` on release. **(unverified):** the
   0.97 scale and 14 dp corner come from the design, not from an M3 token.
 
 ### Shape morphing (MaterialShapes)

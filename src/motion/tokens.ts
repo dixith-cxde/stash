@@ -77,6 +77,8 @@ export const MotionSpec = {
   /** Card press (design canvas): scale and corner while held. */
   cardPressScale: 0.97,
   cardPressCorner: 14,
+  /** Buttons and icon buttons dip this far while pressed (Pixel-style press scale). */
+  buttonPressScale: 0.94,
   /** Fade through: incoming screen scales 0.92 → 1. */
   fadeThroughScale: 0.92,
   /** Shared axis slide distance (dp). */
