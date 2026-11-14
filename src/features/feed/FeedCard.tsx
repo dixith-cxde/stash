@@ -264,7 +264,7 @@ function PdfCard({ b, highlights, onLongPress }: { b: BookmarkWithTags; highligh
         </View>
         {progress > 0 && (
           <View style={{ marginTop: 10 }}>
-            <ProgressBar value={progress} trackColor={colors.surfaceVariant} />
+            <ProgressBar value={progress} wavy />
           </View>
         )}
       </View>

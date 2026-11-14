@@ -76,14 +76,16 @@ type Saved = {
  * picker and a split Save button; then a success state with Undo.
  */
 export default function CaptureScreen() {
-  const params = useLocalSearchParams<{ folderId?: string }>();
+  const params = useLocalSearchParams<{ folderId?: string; mode?: Mode }>();
   const drafts = useCapture((s) => s.drafts);
   const clearDrafts = useCapture((s) => s.clear);
   const incoming = drafts[0];
   const highlightDraft = incoming?.kind === "highlight" ? incoming : null;
 
   const [mode, setMode] = useState<Mode>(() =>
-    !incoming || incoming.kind === "highlight"
+    !incoming && (params.mode === "note" || params.mode === "file")
+      ? params.mode
+      : !incoming || incoming.kind === "highlight"
       ? "link"
       : incoming.type === "link"
         ? "link"

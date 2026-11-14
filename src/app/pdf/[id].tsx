@@ -257,7 +257,7 @@ function Reader({ b, source, startPage }: { b: BookmarkWithTags; source: string;
           >
             <Text variant="labelLargeEmphasized">{`Page ${current + 1} of ${pageCount}`}</Text>
             <View style={{ width: 96 }}>
-              <ProgressBar value={(current + 1) / pageCount} />
+              <ProgressBar value={(current + 1) / pageCount} wavy />
             </View>
           </PressableSurface>
         </Animated.View>

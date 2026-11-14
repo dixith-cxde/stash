@@ -3,10 +3,13 @@ import { type BottomTabBarProps, Tabs } from "expo-router/tabs";
 import { useEffect } from "react";
 import { useReducedMotion } from "react-native-reanimated";
 
-import { openQuickAdd } from "@/features/capture/quickAdd";
+import { openCapture, pickImages } from "@/features/capture/quickAdd";
+import { haptic } from "@/motion/haptics";
 import { ChromeProvider } from "@/motion/ScrollChrome";
 import { TAB_TRANSITION, TAB_TRANSITION_REDUCED } from "@/motion/tabTransition";
+import type { FabMenuItem } from "@/ui/FabMenu";
 import { FloatingNavBar, type NavItem } from "@/ui/FloatingNavBar";
+import { showSnackbar } from "@/ui/Snackbar";
 
 const TABS: Record<string, Omit<NavItem, "key">> = {
   index: { label: "Home", icon: "home", selectedIcon: "homeFill" },
@@ -19,6 +22,23 @@ const TABS: Record<string, Omit<NavItem, "key">> = {
   search: { label: "Search", icon: "search", selectedIcon: "searchFill" },
 };
 
+/** The + menu: what you can add to the stash. */
+const ADD_ITEMS: FabMenuItem[] = [
+  { label: "Link", icon: "addLink", onPress: () => void openCapture("link") },
+  { label: "Note", icon: "noteAdd", onPress: () => void openCapture("note") },
+  { label: "File or PDF", icon: "uploadFile", onPress: () => void openCapture("file") },
+  {
+    label: "Images",
+    icon: "addPhotoAlternate",
+    onPress: () =>
+      void pickImages().then((n) => {
+        if (!n) return;
+        haptic.save();
+        showSnackbar(n === 1 ? "Image saved" : `${n} images saved`);
+      }),
+  },
+];
+
 function TabBar({ state, navigateToTab }: BottomTabBarProps) {
   return (
     <FloatingNavBar
@@ -27,7 +47,7 @@ function TabBar({ state, navigateToTab }: BottomTabBarProps) {
         .map((r) => ({ key: r.key, ...TABS[r.name] }))}
       selectedKey={state.routes[state.index].key}
       onSelect={navigateToTab}
-      onFab={() => void openQuickAdd()}
+      fabItems={ADD_ITEMS}
       fabLabel="Add to Stash"
     />
   );

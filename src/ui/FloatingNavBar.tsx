@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +11,7 @@ import { withAlpha } from '@/theme/palette';
 import { Corner, Layout } from '@/theme/tokens';
 import { FONT_FAMILY, Type } from '@/theme/type';
 
+import { FabMenu, type FabMenuItem } from './FabMenu';
 import { Ico } from './Ico';
 import { PressableSurface } from './PressableSurface';
 
@@ -19,8 +21,9 @@ type Props = {
   items: NavItem[];
   selectedKey: string;
   onSelect: (key: string) => void;
-  onFab: () => void;
   fabLabel: string;
+  /** The FAB opens this menu (M3 FAB menu, 2–6 related actions). */
+  fabItems: FabMenuItem[];
 };
 
 const BAR_PADDING = 8;
@@ -39,11 +42,14 @@ const LABEL_MAX = 96;
  * indicator). Only the active destination shows its label, inside the indicator pill;
  * the active slot widens on a spatial spring like a standard button group.
  */
-export function FloatingNavBar({ items, selectedKey, onSelect, onFab, fabLabel }: Props) {
+export function FloatingNavBar({ items, selectedKey, onSelect, fabLabel, fabItems }: Props) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const index = Math.max(0, items.findIndex((i) => i.key === selectedKey));
   const hidden = useChromeHidden();
+  const [menu, setMenu] = useState<'closed' | 'open' | 'closing'>('closed');
+  const requestClose = useCallback(() => setMenu((m) => (m === 'open' ? 'closing' : m)), []);
+  const closed = useCallback(() => setMenu('closed'), []);
   const away = Layout.navBarHeight + Layout.navBarBottom + insets.bottom + 16;
   const barMotion = useAnimatedStyle(() => {
     const h = hidden ? hidden.get() : 0;
@@ -70,12 +76,21 @@ export function FloatingNavBar({ items, selectedKey, onSelect, onFab, fabLabel }
       <PressableSurface
         corner={BOTTOM_CORNER}
         pressedCorner={Corner.large}
-        onPress={onFab}
+        onPress={() => setMenu('open')}
         accessibilityLabel={fabLabel}
         style={[styles.fab, styles.fabTop, { backgroundColor: colors.primary, boxShadow: shadow(colors.shadow) }]}
       >
         <Ico name="add" size={28} color={colors.onPrimary} />
       </PressableSurface>
+      {menu !== 'closed' && (
+        <FabMenu
+          items={fabItems}
+          open={menu === 'open'}
+          onRequestClose={requestClose}
+          onClosed={closed}
+          fab={{ size: Layout.navBarHeight, bottom: insets.bottom + Layout.navBarBottom, right: Layout.gutter, topCorner: TOP_CORNER }}
+        />
+      )}
     </Animated.View>
   );
 }

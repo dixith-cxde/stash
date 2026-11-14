@@ -70,7 +70,7 @@ function QueueCard({ item, progress }: { item: BookmarkWithTags; progress: numbe
         <Text variant="labelMedium" color="onSurfaceVariant" numberOfLines={1}>
           {detail}
         </Text>
-        {progress != null && <ProgressBar value={progress} />}
+        {progress != null && <ProgressBar value={progress} wavy />}
       </View>
     </PressableSurface>
   );

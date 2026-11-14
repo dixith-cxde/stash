@@ -59,3 +59,9 @@ export async function pickImages(opts: SaveOptions = {}): Promise<number> {
 export async function openQuickAdd() {
   if (!(await captureFromClipboard())) router.push('/capture');
 }
+
+/** FAB menu: open the capture sheet on one tab (a link still prefills from the clipboard). */
+export async function openCapture(mode: 'link' | 'note' | 'file') {
+  if (mode === 'link') return openQuickAdd();
+  router.push({ pathname: '/capture', params: { mode } });
+}

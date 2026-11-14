@@ -83,7 +83,7 @@ export function ItemRow({ b, corners }: { b: BookmarkWithTags; corners?: Corners
         </Text>
         {progress > 0 && (
           <View style={{ marginTop: 8 }}>
-            <ProgressBar value={progress} trackColor={colors.surfaceVariant} />
+            <ProgressBar value={progress} wavy />
           </View>
         )}
       </View>

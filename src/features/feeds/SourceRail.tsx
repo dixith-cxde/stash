@@ -11,6 +11,7 @@ import { Ico } from '@/ui/Ico';
 import { PressableSurface } from '@/ui/PressableSurface';
 import { Text } from '@/ui/Text';
 
+import { MorphingShape } from '@/shapes/MorphingShape';
 import { sourceGlyph } from './ArticleCard';
 
 const SIZE = 56;
@@ -34,8 +35,8 @@ function Avatar({
 }) {
   const { colors } = useAppTheme();
   const sel = useSelection(selected);
-  // Selected: the rounded square springs into a circle and a ring fades in (fastSpatial / effects).
-  const shape = useAnimatedStyle(() => ({ borderRadius: 18 + (SIZE / 2 - 18) * sel.shape.get() }));
+  // Selected: the 9-sided cookie morphs into a circle (MaterialShapes, fastSpatial) and a ring
+  // fades in (effects).
   const ring = useAnimatedStyle(() => ({ opacity: sel.color.get(), transform: [{ scale: 0.9 + 0.1 * sel.shape.get() }] }));
   return (
     <PressableSurface
@@ -49,7 +50,8 @@ function Avatar({
     >
       <View style={styles.avatarBox}>
         <Animated.View style={[styles.ring, { borderColor: colors.primary }, ring]} />
-        <Animated.View style={[styles.avatar, { backgroundColor: bg }, shape]}>
+        <View style={styles.avatar}>
+          <MorphingShape shape={selected ? 'circle' : 'cookie9Sided'} size={SIZE} color={bg} fit="box" style={StyleSheet.absoluteFill} />
           {glyph ? (
             <Text variant="titleLargeEmphasized" color={fg} style={{ fontWeight: '700' }}>
               {glyph}
@@ -57,7 +59,7 @@ function Avatar({
           ) : (
             <Ico name="rssFeed" size={24} color={fg} />
           )}
-        </Animated.View>
+        </View>
         {count > 0 && (
           <View style={[styles.badge, { backgroundColor: colors.primary, borderColor: colors.surface }]}>
             <Text variant="labelMedium" color="onPrimary" style={{ fontSize: 11, fontWeight: '700' }}>
