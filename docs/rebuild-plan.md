@@ -1,8 +1,9 @@
 # Stash rebuild plan (v3: fluid React Native)
 
 Status (2026-11-14): phases 1–6 done. Designed screens are built on real data: Home, Library, Collection
-(+ smart views), Item detail, Capture sheet, Note, Markdown editor. Next: phase 7 (Highlights, Search,
-PDF reader, Settings, Tag). Dev routes: `stash://dev/shapes`, `/dev/kit`, `/dev/transitions`,
+(+ smart views), Item detail, Capture sheet, Note, Markdown editor. Phase 7: keyword search (`/find`)
+done; smart Search tab, PDF reader, Settings, Tag still to do. Phase 8: Feeds tab (replaces the
+Highlights tab), article reader and one-tap save done. Dev routes: `stash://dev/shapes`, `/dev/kit`, `/dev/transitions`,
 `/dev/seed` (design sample data; `?clear=1` removes it). Haptics: save / cancel / delete only.
 
 Target design: the Design canvas *Stash — M3 Expressive redesign*
@@ -128,7 +129,7 @@ Removed: `@expo/ui`.
 | --- | --- | --- |
 | `(tabs)/index` | Home | Tab. Floating nav bar and FAB. |
 | `(tabs)/library` | Library | Tab. |
-| `(tabs)/highlights` | *not designed* | Tab. Built from the same kit as Collection. |
+| `(tabs)/feeds`, `article/[id]` | *not designed* | Feeds tab and article reader (phase 8). Highlights live in Library's smart view. |
 | `(tabs)/search` | *not designed* | Tab. The Home search pill grows into it (container transform). |
 | `collection/[id]` | Collection | Stack. The card grows into the hero header. |
 | `item/[id]` | Item detail | Stack. The feed card grows into the hero. |
@@ -193,8 +194,11 @@ Each phase ends with typecheck, lint, tests and a debug build on the USB phone.
 7. **Undesigned screens:** keyword search (from the Home pill), smart Search tab, PDF reader
    chrome, Tag, Settings. Built from the same kit.
 8. **Feeds (RSS/Atom):** a Feeds tab with tonal source cards, an article list and the container
-   transform into a clean reader; one tap saves to Stash. Feeds refresh in the background
-   with battery-friendly scheduling. Add a feed by URL or by site (feed autodiscovery).
+   transform into a clean reader; one tap saves to Stash. Add a feed by URL or by site (feed
+   autodiscovery). **Battery:** no background polling; feeds refresh only when the Feeds tab
+   opens and they are more than 3 h old, or on pull-to-refresh, two at a time, with
+   conditional GETs (ETag / Last-Modified). Each feed keeps its newest 200 articles (saved
+   ones always). Code: `src/features/feeds/` (parse, sync, cards, add sheet).
 9. **Motion polish pass.** Run through animation.md §10 on device. Check reduced motion and
    that frame times stay under 8 ms on 120 Hz.
 10. **Docs.** Update README and AGENTS.md: remove the Compose rules, describe the RN kit and

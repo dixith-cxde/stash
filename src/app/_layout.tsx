@@ -48,6 +48,7 @@ function ThemedStack() {
         <Stack.Screen name="note/[id]/index" options={TRANSITION_SCREEN} />
         <Stack.Screen name="highlight/[id]" options={TRANSITION_SCREEN} />
         <Stack.Screen name="find" options={TRANSITION_SCREEN} />
+        <Stack.Screen name="article/[id]" options={TRANSITION_SCREEN} />
         <Stack.Screen name="note/[id]/edit" options={TRANSITION_SCREEN} />
         <Stack.Screen name="collection/[id]" options={TRANSITION_SCREEN} />
         <Stack.Screen name="collection/new" options={TRANSITION_SCREEN} />

@@ -6,6 +6,7 @@ import {
   primaryKey,
   sqliteTable,
   text,
+  uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
 export const BOOKMARK_TYPES = ['link', 'pdf', 'text', 'image', 'file'] as const;
@@ -192,3 +193,52 @@ export type Folder = typeof folders.$inferSelect;
 export type Tag = typeof tags.$inferSelect;
 export type List = typeof lists.$inferSelect;
 export type Highlight = typeof highlights.$inferSelect;
+
+/* --------------------------------- Feeds ---------------------------------- */
+
+/** An RSS/Atom subscription. */
+export const feeds = sqliteTable('feeds', {
+  id: text('id').primaryKey(),
+  /** The feed document's URL (after autodiscovery). */
+  url: text('url').notNull().unique(),
+  title: text('title').notNull(),
+  siteUrl: text('site_url'),
+  description: text('description'),
+  iconUrl: text('icon_url'),
+  /** Conditional-GET validators, so unchanged feeds cost one tiny request. */
+  etag: text('etag'),
+  lastModified: text('last_modified'),
+  lastFetchedAt: integer('last_fetched_at', { mode: 'timestamp_ms' }),
+  lastError: text('last_error'),
+  ...timestamps,
+});
+
+/** One article from a feed. Saving it to the stash creates a bookmark and links it here. */
+export const feedItems = sqliteTable(
+  'feed_items',
+  {
+    id: text('id').primaryKey(),
+    feedId: text('feed_id')
+      .notNull()
+      .references(() => feeds.id, { onDelete: 'cascade' }),
+    guid: text('guid').notNull(),
+    url: text('url'),
+    title: text('title').notNull(),
+    summary: text('summary'),
+    content: text('content'),
+    author: text('author'),
+    imageUrl: text('image_url'),
+    publishedAt: integer('published_at', { mode: 'timestamp_ms' }),
+    readAt: integer('read_at', { mode: 'timestamp_ms' }),
+    bookmarkId: text('bookmark_id').references(() => bookmarks.id, { onDelete: 'set null' }),
+    ...timestamps,
+  },
+  (t) => [
+    index('feed_items_feed_idx').on(t.feedId, t.publishedAt),
+    index('feed_items_published_idx').on(t.publishedAt),
+    uniqueIndex('feed_items_guid_idx').on(t.feedId, t.guid),
+  ],
+);
+
+export type Feed = typeof feeds.$inferSelect;
+export type FeedItem = typeof feedItems.$inferSelect;

@@ -8,6 +8,10 @@ import { newestFirst, toFtsQuery, whereForFilter } from './filters';
 import {
   type Bookmark,
   bookmarks,
+  type Feed,
+  type FeedItem,
+  feedItems,
+  feeds,
   bookmarkTags,
   type Folder,
   folders,
@@ -547,4 +551,139 @@ export async function search(query: string, filter: SmartFilter = {}): Promise<S
     found = await attachTags(rows.sort((a, b) => order.get(a.id)! - order.get(b.id)!));
   }
   return { bookmarks: found, highlights: await queryHighlights({ query }) };
+}
+
+/* ---------------------------------- Feeds --------------------------------- */
+
+export type FeedWithCounts = Feed & { unread: number; total: number; latestAt: Date | null };
+export type FeedItemWithFeed = FeedItem & { feedTitle: string; feedIconUrl: string | null; feedSiteUrl: string | null };
+
+/** Articles kept per feed (saved ones are always kept). */
+const FEED_ITEM_CAP = 200;
+
+export async function listFeeds(): Promise<FeedWithCounts[]> {
+  const rows = await db
+    .select({
+      f: feeds,
+      total: count(feedItems.id),
+      unread: sql<number>`coalesce(sum(case when ${feedItems.readAt} is null then 1 else 0 end), 0)`,
+      latestAt: max(feedItems.publishedAt),
+    })
+    .from(feeds)
+    .leftJoin(feedItems, eq(feedItems.feedId, feeds.id))
+    .groupBy(feeds.id)
+    .orderBy(asc(feeds.title));
+  return rows.map((r) => ({
+    ...r.f,
+    total: r.total,
+    unread: Number(r.unread),
+    latestAt: r.latestAt == null ? null : new Date(r.latestAt as unknown as number),
+  }));
+}
+
+export async function getFeed(id: string): Promise<Feed | null> {
+  return (await db.query.feeds.findFirst({ where: eq(feeds.id, id) })) ?? null;
+}
+
+export async function findFeedByUrl(url: string): Promise<Feed | null> {
+  return (await db.query.feeds.findFirst({ where: eq(feeds.url, url) })) ?? null;
+}
+
+const itemWithFeed = {
+  item: feedItems,
+  feedTitle: feeds.title,
+  feedIconUrl: feeds.iconUrl,
+  feedSiteUrl: feeds.siteUrl,
+};
+const flatten = (r: { item: FeedItem; feedTitle: string; feedIconUrl: string | null; feedSiteUrl: string | null }) => ({
+  ...r.item,
+  feedTitle: r.feedTitle,
+  feedIconUrl: r.feedIconUrl,
+  feedSiteUrl: r.feedSiteUrl,
+});
+
+/** Newest first; `unreadOnly` hides read articles. Light columns only: no `content`. */
+export async function listFeedItems(
+  opts: { feedId?: string; unreadOnly?: boolean; limit?: number } = {},
+): Promise<FeedItemWithFeed[]> {
+  const conditions = [];
+  if (opts.feedId) conditions.push(eq(feedItems.feedId, opts.feedId));
+  if (opts.unreadOnly) conditions.push(isNull(feedItems.readAt));
+  const rows = await db
+    .select(itemWithFeed)
+    .from(feedItems)
+    .innerJoin(feeds, eq(feeds.id, feedItems.feedId))
+    .where(and(...conditions))
+    .orderBy(desc(sql`coalesce(${feedItems.publishedAt}, ${feedItems.createdAt})`))
+    .limit(opts.limit ?? 150);
+  return rows.map((r) => ({ ...flatten(r), content: null }));
+}
+
+export async function getFeedItem(id: string): Promise<FeedItemWithFeed | null> {
+  const row = await db
+    .select(itemWithFeed)
+    .from(feedItems)
+    .innerJoin(feeds, eq(feeds.id, feedItems.feedId))
+    .where(eq(feedItems.id, id))
+    .get();
+  return row ? flatten(row) : null;
+}
+
+export async function createFeed(input: Omit<typeof feeds.$inferInsert, 'id'>): Promise<string> {
+  const id = newId();
+  await db.insert(feeds).values({ ...input, id });
+  return id;
+}
+
+export async function updateFeed(id: string, patch: Partial<Omit<Feed, 'id' | 'createdAt'>>) {
+  await db.update(feeds).set({ ...patch, updatedAt: new Date() }).where(eq(feeds.id, id));
+}
+
+export async function deleteFeed(id: string) {
+  await db.delete(feeds).where(eq(feeds.id, id));
+}
+
+/**
+ * Inserts articles not seen before (by feed + guid) and trims the feed to its newest
+ * FEED_ITEM_CAP, never dropping saved ones. Returns how many were new.
+ */
+export async function upsertFeedItems(
+  feedId: string,
+  items: Omit<typeof feedItems.$inferInsert, 'id' | 'feedId'>[],
+): Promise<number> {
+  if (!items.length) return 0;
+  let added = 0;
+  await db.transaction(async (tx) => {
+    const existing = await tx
+      .select({ guid: feedItems.guid })
+      .from(feedItems)
+      .where(and(eq(feedItems.feedId, feedId), inArray(feedItems.guid, items.map((i) => i.guid))));
+    const seen = new Set(existing.map((e) => e.guid));
+    const fresh = items.filter((i) => !seen.has(i.guid) && (seen.add(i.guid), true));
+    added = fresh.length;
+    if (fresh.length) {
+      await tx.insert(feedItems).values(fresh.map((i) => ({ ...i, id: newId(), feedId })));
+    }
+    await tx.run(sql`
+      delete from feed_items where feed_id = ${feedId} and bookmark_id is null and id not in (
+        select id from feed_items where feed_id = ${feedId}
+        order by coalesce(published_at, created_at) desc limit ${FEED_ITEM_CAP}
+      )`);
+  });
+  return added;
+}
+
+export async function markFeedItemRead(id: string, read = true) {
+  await db.update(feedItems).set({ readAt: read ? new Date() : null }).where(eq(feedItems.id, id));
+}
+
+export async function markAllFeedItemsRead(feedId?: string) {
+  await db
+    .update(feedItems)
+    .set({ readAt: new Date() })
+    .where(and(isNull(feedItems.readAt), feedId ? eq(feedItems.feedId, feedId) : undefined));
+}
+
+export async function linkFeedItemBookmark(id: string, bookmarkId: string | null) {
+  await db.update(feedItems).set({ bookmarkId }).where(eq(feedItems.id, id));
 }

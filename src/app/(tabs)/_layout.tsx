@@ -14,11 +14,7 @@ const TABS: Record<string, Omit<NavItem, "key">> = {
     icon: "collectionsBookmark",
     selectedIcon: "collectionsBookmarkFill",
   },
-  highlights: {
-    label: "Highlights",
-    icon: "inkHighlighter",
-    selectedIcon: "inkHighlighterFill",
-  },
+  feeds: { label: "Feeds", icon: "rssFeed", selectedIcon: "rssFeed" },
   search: { label: "Search", icon: "search", selectedIcon: "searchFill" },
 };
 
@@ -37,7 +33,7 @@ function TabBar({ state, navigateToTab }: BottomTabBarProps) {
 }
 
 /** Tabs other than Home, mounted in the background so the first switch to each is instant. */
-const PRELOAD = ["/library", "/highlights", "/search"] as const;
+const PRELOAD = ["/library", "/feeds", "/search"] as const;
 /** Long enough for Home to finish its first render and data load. */
 const PRELOAD_DELAY = 1500;
 
@@ -54,7 +50,7 @@ export default function TabsLayout() {
       >
         <Tabs.Screen name="index" />
         <Tabs.Screen name="library" />
-        <Tabs.Screen name="highlights" />
+        <Tabs.Screen name="feeds" />
         <Tabs.Screen name="search" />
       </Tabs>
     </ChromeProvider>
