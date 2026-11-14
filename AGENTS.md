@@ -3,13 +3,18 @@ This is **Stash**, an Expo SDK 58 / React Native 0.88 bookmark app (Android-firs
 
 ## Project rules
 
-- UI is Jetpack Compose via `@expo/ui/jetpack-compose`. Wrap Compose trees in `AppHost` (`src/theme/AppTheme.tsx`),
-  which applies the Expressive palette, Google Sans Flex and `MotionScheme.expressive()`. Keep one or a few large
-  Hosts per screen; never a Host per list row.
-- M3 Expressive components that Expo UI lacks belong in `modules/expressive` (Kotlin, `ExpoUIView` + `Slot` children).
-  Keep its Compose/material3 versions in lockstep with `node_modules/@expo/ui/android/build.gradle`.
-- Read colors with `useColors()`; never hardcode hex colors in screens. Icons go through `Ico` + `src/theme/icons.ts`
-  (add new ones with `npx @expo/material-symbols --style rounded -o assets/icons <name>`, then add them to the map).
+- v3 is being rebuilt in **plain React Native views** + Reanimated 4 + Gesture Handler 3 (+ Skia for
+  shape morphs). Do not add `@expo/ui` / Jetpack Compose UI. Plan: `docs/rebuild-plan.md`.
+  Target design: the "Stash — M3 Expressive redesign" canvas linked there.
+- Motion follows `docs/animation.md`. Use the spring tokens in `src/motion/tokens.ts` (never raw
+  numbers): spatial springs for position/size/shape, effects springs for color/opacity. Reanimated
+  springs need `{ mass: 1, stiffness, damping }`, never `dampingRatio` with `stiffness`.
+- Build pressables on `PressableSurface` / `usePressMorph` (UI-thread press shape morph).
+- Read colors with `useColors()`; never hardcode hex colors in screens. Collection colors come from
+  `collectionTones()`. Text goes through `<Text variant>` (`src/theme/type.ts`).
+- Icons go through `Ico` (`src/ui/Ico.tsx`): add with
+  `npx @expo/material-symbols --style rounded -o assets/icons <name>`, then `npm run icons`.
+- `modules/expressive` holds only native helpers (PDF page render, PROCESS_TEXT, dynamic color).
 - Data access goes through `src/db/repo.ts`; screens read with `useDbQuery`. Smart-list logic lives in `src/db/filters.ts`.
 - Node ≥ 22.13 is required (`.node-version` = 26).
 

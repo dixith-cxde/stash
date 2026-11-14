@@ -4,12 +4,16 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 export type HomeLayout = 'cards' | 'compact';
+/** stash = the design's palette · wallpaper = Android dynamic color · seed = Expressive scheme from seedColor. */
+export type ColorSource = 'stash' | 'wallpaper' | 'seed';
 
 type Settings = {
-  /** null = wallpaper-based dynamic color (Android 12+). */
+  colorSource: ColorSource;
+  /** Seed for colorSource 'seed'. */
   seedColor: string | null;
   themeMode: ThemeMode;
   homeLayout: HomeLayout;
+  setColorSource: (c: ColorSource) => void;
   setSeedColor: (c: string | null) => void;
   setThemeMode: (m: ThemeMode) => void;
   setHomeLayout: (l: HomeLayout) => void;
@@ -18,7 +22,9 @@ type Settings = {
 export const useSettings = create<Settings>()(
   persist(
     (set) => ({
+      colorSource: 'stash',
       seedColor: null,
+      setColorSource: (colorSource) => set({ colorSource }),
       themeMode: 'system',
       homeLayout: 'cards',
       setSeedColor: (seedColor) => set({ seedColor }),

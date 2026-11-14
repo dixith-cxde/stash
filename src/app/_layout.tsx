@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo } from 'react';
 import { Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { db } from '@/db/client';
 import { CaptureListener } from '@/features/capture/CaptureListener';
@@ -30,9 +31,9 @@ function ThemedStack() {
     <ThemeProvider value={navTheme}>
       <StatusBar style={dark ? 'light' : 'dark'} />
       <CaptureListener />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.surface }, animation: 'fade_from_bottom' }}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.surface }, animation: 'none' }}>
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="capture" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="capture" options={{ presentation: 'transparentModal', animation: 'none' }} />
       </Stack>
     </ThemeProvider>
   );
@@ -58,9 +59,11 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ShareIntentProvider options={{ resetOnBackground: true }}>
-        <AppThemeProvider>
-          <ThemedStack />
-        </AppThemeProvider>
+        <KeyboardProvider>
+          <AppThemeProvider>
+            <ThemedStack />
+          </AppThemeProvider>
+        </KeyboardProvider>
       </ShareIntentProvider>
     </GestureHandlerRootView>
   );

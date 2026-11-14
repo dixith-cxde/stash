@@ -4,25 +4,30 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
+import android.os.Build
 import android.os.ParcelFileDescriptor
 import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
-import expo.modules.expressive.stash.StashActionEvent
-import expo.modules.expressive.stash.StashDetailContent
-import expo.modules.expressive.stash.StashDetailProps
-import expo.modules.expressive.stash.StashQuickSaveContent
-import expo.modules.expressive.stash.StashQuickSaveProps
-import expo.modules.expressive.stash.StashHomeContent
-import expo.modules.expressive.stash.StashHomeProps
-import expo.modules.expressive.stash.StashNavToolbarContent
-import expo.modules.expressive.stash.StashNavToolbarProps
-import expo.modules.ui.ExpoUIView
 import java.io.File
 import java.io.FileOutputStream
 
 class PdfRenderException(message: String, cause: Throwable? = null) :
   CodedException("ERR_PDF_RENDER", message, cause)
+
+private val DYNAMIC_ROLES = listOf(
+  "primary", "onPrimary", "primaryContainer", "onPrimaryContainer",
+  "secondary", "onSecondary", "secondaryContainer", "onSecondaryContainer",
+  "tertiary", "onTertiary", "tertiaryContainer", "onTertiaryContainer",
+  "error", "onError", "errorContainer", "onErrorContainer",
+  "background", "onBackground", "surface", "onSurface", "surfaceVariant", "onSurfaceVariant",
+  "surfaceBright", "surfaceDim", "surfaceContainerLowest", "surfaceContainerLow",
+  "surfaceContainer", "surfaceContainerHigh", "surfaceContainerHighest",
+  "outline", "outlineVariant",
+  "primaryFixed", "primaryFixedDim", "onPrimaryFixed", "onPrimaryFixedVariant",
+  "secondaryFixed", "secondaryFixedDim", "onSecondaryFixed", "onSecondaryFixedVariant",
+  "tertiaryFixed", "tertiaryFixedDim", "onTertiaryFixed", "onTertiaryFixedVariant",
+)
 
 class ExpressiveModule : Module() {
   private var pendingProcessText: String? = null
@@ -52,6 +57,32 @@ class ExpressiveModule : Module() {
       val text = pendingProcessText
       pendingProcessText = null
       text
+    }
+
+    /**
+     * Wallpaper-based dynamic color (Android 12+). Returns `seed` (the system accent) and, on
+     * Android 14+, every color role the platform exposes as `system_<role>_<light|dark>`,
+     * keyed by camelCase role name. JS fills any missing role from the seed. Null below API 31.
+     */
+    Function("getDynamicColors") { dark: Boolean ->
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return@Function null
+      val context = appContext.reactContext ?: return@Function null
+      val res = context.resources
+      fun color(name: String): String? {
+        val id = res.getIdentifier(name, "color", "android")
+        if (id == 0) return null
+        return String.format("#%06X", 0xFFFFFF and context.getColor(id))
+      }
+      val out = mutableMapOf<String, String>()
+      color("system_accent1_500")?.let { out["seed"] = it }
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        val suffix = if (dark) "_dark" else "_light"
+        for (role in DYNAMIC_ROLES) {
+          val snake = role.replace(Regex("([A-Z])"), "_$1").lowercase()
+          (color("system_$snake$suffix") ?: color("system_$snake"))?.let { out[role] = it }
+        }
+      }
+      out
     }
 
     /**
@@ -94,54 +125,6 @@ class ExpressiveModule : Module() {
           }
         }
       }
-    }
-
-    ExpoUIView<ExpressiveThemeProps>("ExpressiveThemeView") {
-      Content { props -> ExpressiveThemeContent(props) }
-    }
-
-    ExpoUIView<ConnectedButtonGroupProps>("ConnectedButtonGroupView") {
-      val onSelectionChange by Event<SelectionChangeEvent>()
-      Content { props ->
-        ConnectedButtonGroupContent(props) { keys -> onSelectionChange(SelectionChangeEvent(keys)) }
-      }
-    }
-
-    ExpoUIView<FabMenuProps>("FabMenuView") {
-      val onItemPress by Event<FabMenuItemEvent>()
-      val onExpandedChange by Event<FabMenuExpandedEvent>()
-      Content { props ->
-        FabMenuContent(
-          props,
-          onItemPress = { onItemPress(FabMenuItemEvent(it)) },
-          onExpandedChange = { onExpandedChange(FabMenuExpandedEvent(it)) }
-        )
-      }
-    }
-
-    ExpoUIView<MorphingShapeProps>("MorphingShapeView") {
-      Content { props -> MorphingShapeContent(props) }
-    }
-
-    // Whole native screens (Stash v2). Data comes in as display records; intents go out as onAction.
-    ExpoUIView<StashHomeProps>("StashHomeView") {
-      val onAction by Event<StashActionEvent>()
-      Content { props -> StashHomeContent(props) { a, k -> onAction(StashActionEvent(a, k)) } }
-    }
-
-    ExpoUIView<StashDetailProps>("StashDetailView") {
-      val onAction by Event<StashActionEvent>()
-      Content { props -> StashDetailContent(props) { a, k, v -> onAction(StashActionEvent(a, k, v)) } }
-    }
-
-    ExpoUIView<StashQuickSaveProps>("StashQuickSaveView") {
-      val onAction by Event<StashActionEvent>()
-      Content { props -> StashQuickSaveContent(props) { a, k, v -> onAction(StashActionEvent(a, k, v)) } }
-    }
-
-    ExpoUIView<StashNavToolbarProps>("StashNavToolbarView") {
-      val onAction by Event<StashActionEvent>()
-      Content { props -> StashNavToolbarContent(props) { a, k -> onAction(StashActionEvent(a, k)) } }
     }
   }
 }
