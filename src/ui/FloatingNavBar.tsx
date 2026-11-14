@@ -4,6 +4,7 @@ import Animated, { type SharedValue, useAnimatedStyle, useSharedValue } from 're
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { springTo, useSprings } from '@/motion/springs';
+import { useGlide } from '@/motion/useGlide';
 import { useColors } from '@/theme/AppTheme';
 import type { IconName } from '@/theme/icons';
 import { Layout } from '@/theme/tokens';
@@ -29,42 +30,14 @@ const INDICATOR_INSET = 2;
 /**
  * M3 Expressive floating nav bar with the add FAB beside it (design: 64dp pill, 16dp from the
  * screen edges). Icon-only: each screen shows its own large title.
- *
- * The selection indicator glides between slots with its two edges on different springs:
- * the leading edge moves on fastSpatial, the trailing edge follows on defaultSpatial, so the
- * pill stretches toward the target and settles with a small overshoot.
+ * The selection indicator glides between slots (useGlide).
  */
 export function FloatingNavBar({ items, selectedKey, onSelect, onFab, fabLabel }: Props) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const springs = useSprings();
   const [slot, setSlot] = useState(0);
   const index = Math.max(0, items.findIndex((i) => i.key === selectedKey));
-
-  const left = useSharedValue(0);
-  const right = useSharedValue(0);
-  const placed = useSharedValue(false);
-
-  useEffect(() => {
-    if (!slot) return;
-    const l = BAR_PADDING + index * slot + INDICATOR_INSET;
-    const r = BAR_PADDING + (index + 1) * slot - INDICATOR_INSET;
-    if (!placed.value) {
-      left.value = l;
-      right.value = r;
-      placed.value = true;
-      return;
-    }
-    const movingRight = l > left.value;
-    left.value = springTo(l, movingRight ? springs.defaultSpatial : springs.fastSpatial);
-    right.value = springTo(r, movingRight ? springs.fastSpatial : springs.defaultSpatial);
-  }, [index, slot, springs, left, right, placed]);
-
-  const indicator = useAnimatedStyle(() => ({
-    opacity: placed.value ? 1 : 0,
-    transform: [{ translateX: left.value }],
-    width: Math.max(INDICATOR_HEIGHT, right.value - left.value),
-  }));
+  const indicator = useGlide({ index, slot, start: BAR_PADDING, inset: INDICATOR_INSET, minWidth: INDICATOR_HEIGHT });
 
   const onBarLayout = (e: LayoutChangeEvent) =>
     setSlot((e.nativeEvent.layout.width - BAR_PADDING * 2) / Math.max(1, items.length));

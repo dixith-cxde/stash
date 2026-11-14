@@ -12,6 +12,7 @@ import { db } from '@/db/client';
 import { CaptureListener } from '@/features/capture/CaptureListener';
 import { processPreviewQueue } from '@/features/preview/fetchPreview';
 import { AppThemeProvider, useAppTheme } from '@/theme/AppTheme';
+import { SnackbarHost } from '@/ui/Snackbar';
 
 import migrations from '../../drizzle/migrations';
 
@@ -35,6 +36,7 @@ function ThemedStack() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="capture" options={{ presentation: 'transparentModal', animation: 'none' }} />
       </Stack>
+      <SnackbarHost />
     </ThemeProvider>
   );
 }
