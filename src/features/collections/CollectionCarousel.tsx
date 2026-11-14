@@ -22,7 +22,7 @@ const GAP = 8;
 const CORNER = 28;
 const HEIGHT = 112;
 /** Decoration bleeding off each card's corner, like the collection page header. */
-const DECOR: MaterialShapeName[] = ['ghostish', 'cookie9Sided', 'clover4Leaf', 'cookie4Sided', 'arch', 'cookie7Sided'];
+const DECOR: MaterialShapeName[] = ['circle', 'pill', 'puffy'];
 
 type Entry = { key: string; href: `/collection/${string}`; label: string; detail: string; icon: IconName; bg: string; fg: string; accent: string };
 

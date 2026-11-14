@@ -157,7 +157,7 @@
       canvas.className = 'base';
       canvas.width = Math.floor(vp.width);
       canvas.height = Math.floor(vp.height);
-      return page.render({ canvasContext: canvas.getContext('2d', { alpha: false }), viewport: vp, annotationMode: 0 }).promise.then(function () {
+      return page.render({ canvasContext: canvas.getContext('2d', { alpha: false }), viewport: vp }).promise.then(function () {
         p.el.innerHTML = '';
         p.el.appendChild(canvas);
         p.base = canvas;
@@ -220,7 +220,6 @@
       p.page.render({
         canvasContext: canvas.getContext('2d', { alpha: false }),
         viewport: vp,
-        annotationMode: 0,
         transform: [1, 0, 0, 1, -lx * k, -ly * k],
       }).promise.then(function () {
         if (!p.base) return;

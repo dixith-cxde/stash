@@ -6,7 +6,7 @@ import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDbQuery } from '@/db/hooks';
-import { type BookmarkWithTags, deleteBookmarks, getBookmark, type HighlightWithTags, queryHighlights, setArchived, updateBookmark } from '@/db/repo';
+import { type BookmarkWithTags, deleteBookmarks, deleteHighlight, getBookmark, type HighlightWithTags, queryHighlights, setArchived, updateBookmark } from '@/db/repo';
 import { HighlightCard } from '@/features/collections/ItemViews';
 import { OrganizeCard } from '@/features/detail/OrganizeCard';
 import { FilePreview, hasFilePreview } from '@/features/files/FilePreview';
@@ -142,6 +142,12 @@ function ItemBody() {
                   key={h.id}
                   h={h}
                   unit={kind === 'pdf' ? 'Page' : 'Paragraph'}
+                  onDelete={() =>
+                    void deleteHighlight(h.id).then(() => {
+                      haptic.remove();
+                      showSnackbar('Highlight deleted');
+                    })
+                  }
                   onPress={
                     kind === 'pdf' && h.page && b.filePath
                       ? () => router.push({ pathname: '/pdf/[id]', params: { id: b.id, page: String(h.page) } })

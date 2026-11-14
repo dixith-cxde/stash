@@ -7,6 +7,7 @@ import { relativeTime } from '@/lib/format';
 import { useAppTheme } from '@/theme/AppTheme';
 import { collectionTones, HIGHLIGHT_TONES } from '@/theme/palette';
 import { Ico } from '@/ui/Ico';
+import { IconButton } from '@/ui/IconButton';
 import { ProgressBar } from '@/ui/ProgressBar';
 import { PressableSurface } from '@/ui/PressableSurface';
 import { Text } from '@/ui/Text';
@@ -121,11 +122,14 @@ export function HighlightCard({
   showSource,
   unit = 'Paragraph',
   onPress,
+  onDelete,
 }: {
   h: HighlightWithTags;
   showSource?: boolean;
   unit?: 'Page' | 'Paragraph';
   onPress?: () => void;
+  /** Shows a delete button in the corner. */
+  onDelete?: () => void;
 }) {
   const { dark } = useAppTheme();
   const tone = HIGHLIGHT_TONES[h.color][dark ? 'dark' : 'light'];
@@ -134,13 +138,16 @@ export function HighlightCard({
     .join(' · ');
   const body = (
     <>
-      <Text variant="bodyLarge" color={tone.fg} style={{ fontWeight: '600', lineHeight: 23 }}>
+      <Text variant="bodyLarge" color={tone.fg} style={{ fontWeight: '600', lineHeight: 23, paddingRight: onDelete ? 36 : 0 }}>
         {`“${h.text}”`}
       </Text>
       {where ? (
         <Text variant="labelMedium" color={tone.fg} style={{ marginTop: 8, opacity: 0.8 }}>
           {onPress ? `${where} · Go to page` : where}
         </Text>
+      ) : null}
+      {onDelete ? (
+        <IconButton icon="delete" accessibilityLabel="Delete highlight" size={40} onPress={onDelete} style={{ position: 'absolute', top: 4, right: 4 }} />
       ) : null}
     </>
   );
