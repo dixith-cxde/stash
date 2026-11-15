@@ -6,7 +6,6 @@ import { folderIcon, folderSeed } from '@/features/stash/model';
 import type { Collection } from '@/features/stash/queries';
 import { plural } from '@/lib/format';
 import { Shape } from '@/shapes/Shape';
-import type { MaterialShapeName } from '@/shapes/names';
 import { useAppTheme } from '@/theme/AppTheme';
 import type { IconName } from '@/theme/icons';
 import { collectionTones } from '@/theme/palette';
@@ -21,8 +20,8 @@ const SMALL = 56;
 const GAP = 8;
 const CORNER = 28;
 const HEIGHT = 112;
-/** Decoration bleeding off each card's corner, like the collection page header. */
-const DECOR: MaterialShapeName[] = ['circle', 'pill', 'puffy'];
+/** Decoration bleeding off each card's corner: always the pill (Home uses one shape only). */
+const DECOR = 'pill' as const;
 
 type Entry = { key: string; href: `/collection/${string}`; label: string; detail: string; icon: IconName; bg: string; fg: string; accent: string };
 
@@ -106,7 +105,7 @@ function Item({ e, index, x, step, large }: { e: Entry; index: number; x: Shared
     <Animated.View style={[styles.frame, frame]}>
       <TransformCard href={e.href} color={e.bg} corner={CORNER} accessibilityLabel={`${e.label}, ${e.detail}`} style={{ flex: 1 }} contentStyle={styles.card}>
         <Shape
-          name={DECOR[index % DECOR.length]}
+          name={DECOR}
           size={104}
           color={e.accent}
           rotation={index % 2 ? 18 : -12}

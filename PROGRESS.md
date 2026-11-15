@@ -108,6 +108,25 @@ No AI / no cloud. Battery matters: no background polling.
   reference screenshots (neutral blue-gray surfaces, sky-blue primary). A vivid Vibrant
   palette was tried and rejected.
 
+## Done 2026-11-15 (not on device yet)
+- Note editor: plain controlled input (live tint removed: restyled children made Android
+  replace the text each keystroke, breaking IME composition → "olleH"). Toolbar actions go
+  through `applyFormat` + `useCaretAfterEdit` (`src/features/notes/format.ts`), caret lands
+  inside the markers. Capture note toolbar uses the same. Editor scroll persists taps.
+- Keyboard: item page scroll, editor preview and every `SheetScrollView` use
+  `keyboardShouldPersistTaps="handled"`, so a tap acts at once instead of only hiding it.
+- Capture link mode: outlined link field (bodyLarge, Paste/Clear), titleLarge title; note
+  title titleLarge. Home carousel decor is the pill only. Tour no longer claims PDF text search.
+- Updates: `src/features/updates/updates.ts` reads GitHub Releases (latest tag + .apk asset).
+  Settings → About: version + build, Check for updates (opens the APK to install), release
+  history; Home checks at most daily (release builds only). Credits & licenses section.
+  `npm run version:bump [patch|minor|major|x.y.z]` bumps app.json version/versionCode + package.json.
+- Sheet lifts above the keyboard with layout (`bottom`), not a transform: a transformed sheet
+  made a second tap on a focused field drop the keyboard (reproduced + fixed on the vivo).
+  Every sheet closes on a drag down (persistent ones still ignore scrim taps).
+- Capture: Quote tab (text + optional who/link → a highlight with no item, tags, no
+  collection); tapping Save with something missing shows an inline reason above the button.
+
 ## Next
 Roadmap (in order, tracked at https://claude.ai/artifact/AimQzdGP6PGHB7FMd3RHHo): read-later queue
 on Home · highlights per item (jump to page, export) · search inside PDFs · duplicate warning +

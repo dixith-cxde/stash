@@ -212,7 +212,6 @@ export default function FeedsScreen() {
         ListEmptyComponent={
           showFirstRun || loading ? undefined : (
             <EmptyState
-              shape={listShow === 'saved' ? 'clover4Leaf' : 'cookie12Sided'}
               title={listShow === 'saved' ? 'Nothing saved here' : listShow === 'new' ? 'All caught up' : 'No articles yet'}
               body={
                 listShow === 'saved'

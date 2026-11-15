@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import * as WebBrowser from 'expo-web-browser';
+import { useEffect, useMemo, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
@@ -9,11 +10,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDbQuery } from '@/db/hooks';
 import { listFeeds } from '@/db/repo';
 import { exportHtml, exportJson, importBackup } from '@/features/backup/backup';
+import { MarkdownView } from '@/features/notes/MarkdownView';
 import { useTotals } from '@/features/stash/queries';
+import { appVersion, buildNumber, findUpdate, installRelease, type Release, RELEASES_URL, SOURCE_URL } from '@/features/updates/updates';
 import { TransitionScreen, useTransitionClose } from '@/motion/transition/TransitionScreen';
 import { MotionSpec } from '@/motion/tokens';
 import { usePressMorph } from '@/motion/usePressMorph';
 import { type Corners4, cornerStyle, useSelection } from '@/motion/useSelection';
+import { LoadingIndicator } from '@/shapes/LoadingIndicator';
 import { type ColorSource, type ThemeMode, useSettings } from '@/state/settings';
 import { useAppTheme } from '@/theme/AppTheme';
 import type { IconName } from '@/theme/icons';
@@ -83,7 +87,6 @@ function Settings() {
   const [busy, setBusy] = useState(false);
 
   const source: ColorSource = s.colorSource === 'wallpaper' && !HAS_WALLPAPER_COLOR ? 'stash' : s.colorSource;
-  const version = Constants.expoConfig?.version ?? '1.0.0';
   const appName = Constants.expoConfig?.name ?? 'Stash';
 
   const run = async (task: () => Promise<void>, ok: string, fail: string) => {
@@ -200,12 +203,110 @@ function Settings() {
       </Section>
 
       <Section title="About">
-        <Row icon="info" title={appName} supporting={`Version ${version}`} index={0} count={2} />
-        <Row icon="bookmark" title="Made to read & remember" supporting="Local-only: your stash never leaves this phone" index={1} count={2} />
+        <Row icon="info" title={appName} supporting={`Version ${appVersion}${buildNumber ? ` (build ${buildNumber})` : ''}`} index={0} count={4} />
+        <UpdateRow index={1} count={4} />
+        <Row
+          icon="history"
+          title="Release history"
+          supporting="Every version and what changed"
+          index={2}
+          count={4}
+          onPress={() => void WebBrowser.openBrowserAsync(RELEASES_URL)}
+          trailing={<Ico name="openInNew" color={colors.onSurfaceVariant} />}
+        />
+        <Row icon="bookmark" title="Made to read & remember" supporting="Local-only: your stash never leaves this phone" index={3} count={4} />
+      </Section>
+
+      <Section title="Credits & licenses">
+        {CREDITS.map((c, i) => (
+          <Row
+            key={c.title}
+            icon={c.icon}
+            title={c.title}
+            supporting={c.detail}
+            index={i}
+            count={CREDITS.length}
+            onPress={() => void WebBrowser.openBrowserAsync(c.url)}
+            trailing={<Ico name="openInNew" color={colors.onSurfaceVariant} />}
+          />
+        ))}
       </Section>
     </ScrollView>
   );
 }
+
+/** Third-party work Stash ships or relies on, with the license each is used under. */
+const CREDITS: { icon: IconName; title: string; detail: string; url: string }[] = [
+  { icon: 'title', title: 'Google Sans Flex', detail: 'Typeface by the Google Sans Flex Authors · SIL Open Font License 1.1', url: 'https://github.com/googlefonts/googlesans-flex' },
+  { icon: 'apps', title: 'Material Symbols', detail: 'Icons by Google · Apache License 2.0', url: 'https://github.com/google/material-design-icons' },
+  { icon: 'palette', title: 'Material 3 Expressive', detail: 'Shapes (ported from AndroidX) and Material Color Utilities by Google · Apache License 2.0', url: 'https://github.com/material-foundation/material-color-utilities' },
+  { icon: 'pictureAsPdf', title: 'PDF.js', detail: 'PDF viewer by Mozilla · Apache License 2.0', url: 'https://github.com/mozilla/pdf.js' },
+  { icon: 'public', title: 'Site icons', detail: "Website icons come from Google's favicon service", url: 'https://www.google.com/s2/favicons?domain=github.com' },
+  {
+    icon: 'code',
+    title: 'Open-source libraries',
+    detail: 'React Native, Expo, Reanimated, Gesture Handler, Skia, FlashList, Keyboard Controller, WebView, SVG, Drizzle ORM, marked, Zustand · MIT / Apache 2.0, by their authors',
+    url: 'https://github.com/dixith-cxde/stash/blob/main/package.json',
+  },
+  { icon: 'description', title: 'Stash', detail: 'Source code · CC BY-NC-SA 4.0', url: SOURCE_URL },
+];
+
+/** Check GitHub Releases for a newer version; when there is one, tap to download and install it. */
+function UpdateRow({ index, count }: { index: number; count: number }) {
+  const { colors } = useAppTheme();
+  // Opening Settings looks once, so an update shows without an extra tap.
+  const [state, setState] = useState<'idle' | 'checking' | 'latest' | 'failed'>('checking');
+  const [update, setUpdate] = useState<Release | null>(null);
+
+  const look = () =>
+    findUpdate().then(
+      (r) => {
+        setUpdate(r);
+        setState(r ? 'idle' : 'latest');
+      },
+      () => setState('failed'),
+    );
+  const check = () => {
+    if (state === 'checking') return;
+    setState('checking');
+    void look();
+  };
+
+  useEffect(() => {
+    void look();
+  }, []);
+
+  const supporting = update
+    ? `Version ${update.version} is ready · tap to download and install`
+    : state === 'checking'
+      ? 'Checking…'
+      : state === 'latest'
+        ? 'You have the latest version'
+        : state === 'failed'
+          ? "Couldn't reach GitHub · tap to try again"
+          : 'Tap to check for a newer version';
+
+  return (
+    <Row
+      icon={update ? 'download' : 'cloudDone'}
+      title={update ? 'Update available' : 'Check for updates'}
+      supporting={supporting}
+      index={index}
+      count={count}
+      onPress={() => (update ? void installRelease(update) : check())}
+      trailing={state === 'checking' ? <LoadingIndicator size={28} accessibilityLabel="Checking" /> : <Ico name="chevronRight" color={colors.onSurfaceVariant} />}
+    >
+      {update && update.notes.trim() ? (
+        <View style={[styles.notes, { backgroundColor: colors.surfaceContainerHigh }]}>
+          <MarkdownView markdown={releaseNotes(update.notes)} compact />
+        </View>
+      ) : null}
+    </Row>
+  );
+}
+
+/** Just the "What's new" part of a release body (the install notes are for the web page). */
+const releaseNotes = (body: string) => body.split(/\n## Install/i)[0].trim();
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -374,6 +475,7 @@ const styles = StyleSheet.create({
   rowText: { flex: 1, gap: 2 },
   tile: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   below: { gap: 12 },
+  notes: { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 8 },
   swatches: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 8 },
   swatchHit: { width: SWATCH + 4, height: SWATCH + 4, alignItems: 'center', justifyContent: 'center' },
   swatch: { width: SWATCH, height: SWATCH, alignItems: 'center', justifyContent: 'center' },

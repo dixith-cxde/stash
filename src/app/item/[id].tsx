@@ -77,7 +77,7 @@ function ItemBody() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
-      <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={{ paddingBottom: TOOLBAR_CLEARANCE + insets.bottom }}>
+      <Animated.ScrollView keyboardShouldPersistTaps="handled" onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={{ paddingBottom: TOOLBAR_CLEARANCE + insets.bottom }}>
         <View style={[styles.hero, { backgroundColor: tone.container }]}>
           <Animated.View style={[StyleSheet.absoluteFill, parallax]} pointerEvents="none">
             {art ? (

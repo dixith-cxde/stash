@@ -154,7 +154,6 @@ export default function SearchScreen() {
       )}
       {!recent.length && (
         <EmptyState
-          shape="cookie9Sided"
           title="Search smarter"
           body="Type a name, or #tag to find things you tagged. Close spellings work too."
         />
@@ -174,7 +173,6 @@ export default function SearchScreen() {
             idle
           ) : loading ? undefined : (
             <EmptyState
-              shape="clover4Leaf"
               title="Nothing found"
               body={`No matches for “${query}”${scope === 'all' ? '' : ' here'}. Try another word${scope === 'all' ? '' : ', or search All'}.`}
             />

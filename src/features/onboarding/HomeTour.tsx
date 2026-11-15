@@ -19,7 +19,7 @@ type Target = 'search' | 'add' | 'nav';
 type Step = { target: Target; icon: IconName; title: string; body: string };
 
 const STEPS: Step[] = [
-  { target: 'search', icon: 'search', title: 'Search everything', body: 'Words in articles, PDFs and notes, sites, tags. It forgives typos.' },
+  { target: 'search', icon: 'search', title: 'Search everything', body: 'Names, notes, article text, highlights, sites and #tags. It forgives typos.' },
   { target: 'add', icon: 'add', title: 'Save something', body: 'Tap + to add a link, note or file. From other apps, use Share → Stash.' },
   {
     target: 'nav',

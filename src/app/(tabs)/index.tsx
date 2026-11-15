@@ -9,6 +9,7 @@ import { Masonry } from '@/features/feed/Masonry';
 import { HomeTour } from '@/features/onboarding/HomeTour';
 import { type FeedFilter, matchesFilter } from '@/features/stash/model';
 import { useCollections, useFeed, useTotals } from '@/features/stash/queries';
+import { dailyUpdateCheck } from '@/features/updates/updates';
 import { useChromeScroll } from '@/motion/ScrollChrome';
 import { useSettings } from '@/state/settings';
 import { useColors } from '@/theme/AppTheme';
@@ -18,6 +19,7 @@ import { EmptyState } from '@/ui/EmptyState';
 import { IconButton } from '@/ui/IconButton';
 import { CollapsedAppBar, ScreenHeader } from '@/ui/ScreenHeader';
 import { SearchPill } from '@/ui/SearchPill';
+import { showSnackbar } from '@/ui/Snackbar';
 
 const FILTERS: { key: FeedFilter; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -46,6 +48,17 @@ export default function Home() {
     const t = setTimeout(() => router.push('/welcome'), 300);
     return () => clearTimeout(t);
   }, [onboarded]);
+  // Once a day at most: a quiet look for a newer release on GitHub.
+  useEffect(() => {
+    if (!onboarded) return;
+    let live = true;
+    void dailyUpdateCheck().then((r) => {
+      if (live && r) showSnackbar(`Stash ${r.version} is available`, { label: 'Update', onPress: () => router.push('/settings') });
+    });
+    return () => {
+      live = false;
+    };
+  }, [onboarded]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
@@ -73,7 +86,6 @@ export default function Home() {
             <Masonry items={visible} />
           ) : loading ? null : (
             <EmptyState
-              shape={filter === 'all' ? 'cookie9Sided' : 'clover4Leaf'}
               title={filter === 'all' ? 'Nothing saved yet' : 'Nothing here yet'}
               body={
                 filter === 'all'

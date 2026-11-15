@@ -194,10 +194,10 @@ function CollectionBody() {
                 ))}
               </View>
             ) : (
-              <EmptyState shape="softBurst" title="No highlights yet" body="Select text in any app and choose “Save to Stash”." />
+              <EmptyState title="No highlights yet" body="Select text in any app and choose “Save to Stash”." />
             )
           ) : items.length === 0 ? (
-            <EmptyState shape="cookie4Sided" title="Nothing here yet" body="Tap Add to save a link, note or file into this collection." />
+            <EmptyState title="Nothing here yet" body="Tap Add to save a link, note or file into this collection." />
           ) : grid ? (
             <View style={{ gap: Layout.gridGap }}>
               {pairs(items).map((row) => (
