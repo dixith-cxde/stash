@@ -1,3 +1,4 @@
+import * as Clipboard from "expo-clipboard";
 import * as DocumentPicker from "expo-document-picker";
 import { type Href, router, useLocalSearchParams } from "expo-router";
 import { type ComponentRef, useEffect, useMemo, useRef, useState } from "react";
@@ -7,6 +8,7 @@ import Animated from "react-native-reanimated";
 import { useDbQuery } from "@/db/hooks";
 import {
   createBookmark,
+  createHighlight,
   createFolder,
   deleteBookmarks,
   deleteHighlight,
@@ -20,6 +22,7 @@ import {
   typeForFile,
 } from "@/features/capture/normalize";
 import { saveDraft } from "@/features/capture/save";
+import { applyFormat, type MdFormat, useCaretAfterEdit } from "@/features/notes/format";
 import { CollectionPicker, TagPicker } from "@/features/detail/Pickers";
 import { folderSeed, glyphFor, hostSeed } from "@/features/stash/model";
 import { useCollections } from "@/features/stash/queries";
@@ -43,20 +46,23 @@ import { Sheet } from "@/ui/Sheet";
 import { SplitButton } from "@/ui/SplitButton";
 import { Text } from "@/ui/Text";
 
-type Mode = "link" | "note" | "file";
+type Mode = "link" | "note" | "quote" | "file";
 const MODES: { key: Mode; label: string }[] = [
   { key: "link", label: "Link" },
   { key: "note", label: "Note" },
+  { key: "quote", label: "Quote" },
   { key: "file", label: "File" },
 ];
 const SAVE_LABEL: Record<Mode, string> = {
   link: "Save link",
   note: "Save note",
+  quote: "Save quote",
   file: "Upload",
 };
 const SAVED_HINT: Record<Mode, string> = {
   link: "Preview and reader copy are being prepared.",
   note: "Your Markdown note is ready to edit anytime.",
+  quote: "Find it under Quotes on Home and in Library.",
   file: "Saved to your device, ready to open offline.",
 };
 
@@ -84,7 +90,7 @@ export default function CaptureScreen() {
   const highlightDraft = incoming?.kind === "highlight" ? incoming : null;
 
   const [mode, setMode] = useState<Mode>(() =>
-    !incoming && (params.mode === "note" || params.mode === "file")
+    !incoming && (params.mode === "note" || params.mode === "quote" || params.mode === "file")
       ? params.mode
       : !incoming || incoming.kind === "highlight"
       ? "link"
@@ -112,6 +118,8 @@ export default function CaptureScreen() {
       ? (incoming.content ?? "")
       : "",
   );
+  const [quoteText, setQuoteText] = useState("");
+  const [quoteSource, setQuoteSource] = useState("");
   const [files, setFiles] = useState<CaptureDraft[]>(() =>
     drafts.filter((d) => d.kind === "bookmark" && !!d.file),
   );
@@ -151,7 +159,9 @@ export default function CaptureScreen() {
                   viewAfterClose.current =
                     saved.mode === "note"
                       ? `/note/${saved.viewId}`
-                      : `/item/${saved.viewId}`;
+                      : saved.mode === "quote"
+                        ? `/highlight/${saved.viewId}`
+                        : `/item/${saved.viewId}`;
                 close();
               }}
             />
@@ -168,6 +178,10 @@ export default function CaptureScreen() {
                 setNoteTitle,
                 noteBody,
                 setNoteBody,
+                quoteText,
+                setQuoteText,
+                quoteSource,
+                setQuoteSource,
               }}
               {...{
                 files,
@@ -193,6 +207,8 @@ export default function CaptureScreen() {
                     title,
                     noteTitle,
                     noteBody,
+                    quoteText,
+                    quoteSource,
                     files,
                     folderId,
                     tagIds,
@@ -233,6 +249,8 @@ type SaveInput = {
   title: string;
   noteTitle: string;
   noteBody: string;
+  quoteText: string;
+  quoteSource: string;
   files: CaptureDraft[];
   folderId: string | null;
   tagIds: string[];
@@ -267,6 +285,17 @@ async function save(i: SaveInput): Promise<Saved> {
     if (r.duplicate) out.alreadySavedAt = r.savedAt;
     else out.bookmarkIds.push(r.id);
     out.viewId = r.id;
+  } else if (i.mode === "quote") {
+    // A quote is a highlight with no item behind it; the source is a link or a name.
+    const src = i.quoteSource.trim();
+    const link = src ? extractUrl(src) : null;
+    const id = await createHighlight({
+      text: i.quoteText.trim(),
+      ...(link ? { sourceUrl: link } : src ? { sourceTitle: src } : {}),
+      tagIds: i.tagIds,
+    });
+    out.highlightIds.push(id);
+    out.viewId = id;
   } else if (i.mode === "note") {
     const id = await createBookmark({
       type: "text",
@@ -295,6 +324,8 @@ type FormProps = Omit<SaveInput, "mode"> & {
   setTitle: (s: string) => void;
   setNoteTitle: (s: string) => void;
   setNoteBody: (s: string) => void;
+  setQuoteText: (s: string) => void;
+  setQuoteSource: (s: string) => void;
   setFiles: (f: CaptureDraft[]) => void;
   setFolderId: (id: string | null) => void;
   setTagIds: (ids: string[]) => void;
@@ -304,17 +335,32 @@ type FormProps = Omit<SaveInput, "mode"> & {
   onSave: () => void;
 };
 
+/** Why Save can't run yet, in words for the user; null when it can. */
+function missing(p: FormProps): string | null {
+  if (p.highlightDraft) return null;
+  switch (p.mode) {
+    case "link":
+      if (!p.url.trim()) return "Paste or type a link to save it.";
+      return extractUrl(p.url) || /^\S+\.\S+$/.test(p.url.trim())
+        ? null
+        : "That doesn't look like a link. Try something like example.com.";
+    case "note":
+      return p.noteTitle.trim() || p.noteBody.trim()
+        ? null
+        : "Give the note a title or write something first.";
+    case "quote":
+      return p.quoteText.trim() ? null : "Type or paste the quote first.";
+    case "file":
+      return p.files.length ? null : "Pick a file, PDF or image first.";
+  }
+}
+
 function CaptureForm(p: FormProps) {
   const { colors } = useAppTheme();
-  const canSave =
-    !p.busy &&
-    (!!p.highlightDraft ||
-      (p.mode === "link" &&
-        !!(
-          extractUrl(p.url) ?? (/^\S+\.\S+$/.test(p.url.trim()) ? p.url : "")
-        )) ||
-      (p.mode === "note" && !!(p.noteTitle.trim() || p.noteBody.trim())) ||
-      (p.mode === "file" && p.files.length > 0));
+  const reason = missing(p);
+  // The hint shows once Save was tried, and goes away as soon as the form is complete.
+  const [tried, setTried] = useState(false);
+  const showReason = tried && !!reason;
 
   return (
     <View>
@@ -367,7 +413,10 @@ function CaptureForm(p: FormProps) {
             <SegmentedTabs
               items={MODES}
               value={p.mode}
-              onChange={p.setMode}
+              onChange={(m) => {
+                setTried(false);
+                p.setMode(m);
+              }}
               accessibilityLabel="What to save"
               track={colors.surface}
             />
@@ -380,32 +429,78 @@ function CaptureForm(p: FormProps) {
           >
             {p.mode === "link" && <LinkFields {...p} />}
             {p.mode === "note" && <NoteFields {...p} />}
+            {p.mode === "quote" && <QuoteFields {...p} />}
             {p.mode === "file" && <FileFields {...p} />}
           </Animated.View>
         </>
       )}
 
-      {(p.mode === "link" || p.highlightDraft) && <TagRow {...p} />}
-      <CollectionRow
-        folderId={p.folderId}
-        setFolderId={p.setFolderId}
-        onMore={() => p.onPicker("folder")}
-      />
-
-      <Animated.View layout={reflow} style={{ marginTop: 22 }}>
-        <SplitButton
-          label={
-            p.busy
-              ? "Saving…"
-              : p.highlightDraft
-                ? "Save highlight"
-                : SAVE_LABEL[p.mode]
-          }
-          icon="bookmarkAdd"
-          onPress={() => canSave && p.onSave()}
-          onMenu={() => p.onPicker("folder")}
-          menuLabel="Choose another collection"
+      {(p.mode === "link" || p.mode === "quote" || p.highlightDraft) && (
+        <TagRow {...p} />
+      )}
+      {/* Quotes live with highlights, which have tags but no collection. */}
+      {p.mode !== "quote" && !p.highlightDraft && (
+        <CollectionRow
+          folderId={p.folderId}
+          setFolderId={p.setFolderId}
+          onMore={() => p.onPicker("folder")}
         />
+      )}
+
+      {showReason && (
+        <Animated.View
+          entering={enterFade}
+          exiting={exitFade}
+          accessibilityLiveRegion="polite"
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+            marginTop: 16,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            borderRadius: 20,
+            backgroundColor: colors.errorContainer,
+          }}
+        >
+          <Ico name="info" size={20} color={colors.onErrorContainer} />
+          <Text variant="bodyMedium" color={colors.onErrorContainer} style={{ flex: 1 }}>
+            {reason}
+          </Text>
+        </Animated.View>
+      )}
+
+      <Animated.View layout={reflow} style={{ marginTop: showReason ? 12 : 22 }}>
+        {p.mode === "quote" && !p.highlightDraft ? (
+          <Button
+            label={p.busy ? "Saving…" : SAVE_LABEL.quote}
+            icon="bookmarkAdd"
+            height={56}
+            onPress={() => {
+              if (p.busy) return;
+              if (reason) setTried(true);
+              else p.onSave();
+            }}
+          />
+        ) : (
+          <SplitButton
+            label={
+              p.busy
+                ? "Saving…"
+                : p.highlightDraft
+                  ? "Save highlight"
+                  : SAVE_LABEL[p.mode]
+            }
+            icon="bookmarkAdd"
+            onPress={() => {
+              if (p.busy) return;
+              if (reason) setTried(true);
+              else p.onSave();
+            }}
+            onMenu={() => p.onPicker("folder")}
+            menuLabel="Choose another collection"
+          />
+        )}
       </Animated.View>
     </View>
   );
@@ -440,6 +535,54 @@ function LinkFields(p: FormProps) {
   const tone = collectionTones(hostSeed(link || "link"), dark);
   return (
     <View style={{ marginTop: 12, gap: 8 }}>
+      {/* The link gets a real field: an outlined pill with its own icon and a Paste action. */}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 4,
+          minHeight: 56,
+          paddingLeft: 16,
+          paddingRight: 4,
+          borderRadius: 28,
+          borderWidth: 1,
+          borderColor: colors.outline,
+        }}
+      >
+        <Ico name="link" size={22} color={colors.onSurfaceVariant} />
+        <TextInput
+          value={p.url}
+          onChangeText={p.setUrl}
+          placeholder="Paste or type a link"
+          placeholderTextColor={colors.onSurfaceVariant}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
+          accessibilityLabel="Link"
+          style={[
+            inputStyle(colors.onSurface),
+            Type.bodyLarge,
+            { flex: 1, minWidth: 0, paddingVertical: 14, paddingHorizontal: 8 },
+          ]}
+        />
+        {p.url ? (
+          <IconButton
+            icon="close"
+            accessibilityLabel="Clear link"
+            size={48}
+            onPress={() => p.setUrl("")}
+          />
+        ) : (
+          <IconButton
+            icon="contentPaste"
+            accessibilityLabel="Paste link"
+            size={48}
+            onPress={() =>
+              void Clipboard.getStringAsync().then((t) => t.trim() && p.setUrl(t.trim()))
+            }
+          />
+        )}
+      </View>
       <View
         style={{
           flexDirection: "row",
@@ -471,31 +614,18 @@ function LinkFields(p: FormProps) {
               : "+"}
           </Text>
         </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <TextInput
-            value={p.url}
-            onChangeText={p.setUrl}
-            placeholder="Paste a link"
-            placeholderTextColor={colors.onSurfaceVariant}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="url"
-            accessibilityLabel="Link"
-            style={[inputStyle(colors.onSurfaceVariant), Type.labelMedium]}
-          />
-          <TextInput
-            value={p.title}
-            onChangeText={p.setTitle}
-            placeholder={host || "Title"}
-            placeholderTextColor={withAlpha(colors.onSurface, 0.5)}
-            accessibilityLabel="Title"
-            style={[
-              inputStyle(colors.onSurface),
-              Type.labelLargeEmphasized,
-              { marginTop: 2 },
-            ]}
-          />
-        </View>
+        <TextInput
+          value={p.title}
+          onChangeText={p.setTitle}
+          placeholder={host || "Title"}
+          placeholderTextColor={withAlpha(colors.onSurface, 0.5)}
+          accessibilityLabel="Title"
+          style={[
+            inputStyle(colors.onSurface),
+            Type.titleLargeEmphasized,
+            { flex: 1, minWidth: 0, minHeight: 48 },
+          ]}
+        />
       </View>
       {dup && (
         <View
@@ -531,26 +661,85 @@ const TOOLBAR: {
   label: string;
   icon?: "checklist" | "code";
   text?: string;
-  insert: string;
+  format: MdFormat;
 }[] = [
-  { label: "Bold", text: "B", insert: "**bold**" },
-  { label: "Italic", text: "I", insert: "_italic_" },
-  { label: "Heading", text: "H", insert: "\n## " },
-  { label: "Checklist", icon: "checklist", insert: "\n- [ ] " },
-  { label: "Code", icon: "code", insert: "`code`" },
+  { label: "Bold", text: "B", format: { wrap: ["**", "**"] } },
+  { label: "Italic", text: "I", format: { wrap: ["_", "_"] } },
+  { label: "Heading", text: "H", format: { line: "## " } },
+  { label: "Checklist", icon: "checklist", format: { line: "- [ ] " } },
+  { label: "Code", icon: "code", format: { wrap: ["`", "`"] } },
 ];
+
+function QuoteFields(p: FormProps) {
+  const { colors } = useAppTheme();
+  return (
+    <View style={{ marginTop: 12, gap: 8 }}>
+      <View
+        style={{
+          borderRadius: 24,
+          paddingHorizontal: 16,
+          paddingTop: 14,
+          paddingBottom: 10,
+          backgroundColor: colors.tertiaryContainer,
+        }}
+      >
+        <Ico name="formatQuote" size={24} color={colors.onTertiaryContainer} />
+        <TextInput
+          value={p.quoteText}
+          onChangeText={p.setQuoteText}
+          multiline
+          autoFocus
+          placeholder="Type or paste the quote"
+          placeholderTextColor={withAlpha(colors.onTertiaryContainer, 0.6)}
+          accessibilityLabel="Quote"
+          style={[
+            inputStyle(colors.onTertiaryContainer),
+            Type.titleLarge,
+            { minHeight: 96, maxHeight: 200, marginTop: 4, textAlignVertical: "top" },
+          ]}
+        />
+      </View>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
+          minHeight: 56,
+          paddingHorizontal: 16,
+          borderRadius: 28,
+          borderWidth: 1,
+          borderColor: colors.outline,
+        }}
+      >
+        <Ico name="person" size={22} color={colors.onSurfaceVariant} />
+        <TextInput
+          value={p.quoteSource}
+          onChangeText={p.setQuoteSource}
+          placeholder="Who said it, or a link (optional)"
+          placeholderTextColor={colors.onSurfaceVariant}
+          autoCorrect={false}
+          accessibilityLabel="Quote source"
+          style={[
+            inputStyle(colors.onSurface),
+            Type.bodyLarge,
+            { flex: 1, minWidth: 0, paddingVertical: 14 },
+          ]}
+        />
+      </View>
+    </View>
+  );
+}
 
 function NoteFields(p: FormProps) {
   const { colors } = useAppTheme();
   const body = useRef<ComponentRef<typeof TextInput>>(null);
-  const [sel, setSel] = useState({
-    start: p.noteBody.length,
-    end: p.noteBody.length,
-  });
-  const insert = (text: string) => {
-    const next =
-      p.noteBody.slice(0, sel.start) + text + p.noteBody.slice(sel.end);
-    p.setNoteBody(next);
+  const sel = useRef({ start: p.noteBody.length, end: p.noteBody.length });
+  const placeCaret = useCaretAfterEdit(body, p.noteBody);
+  const insert = (format: MdFormat) => {
+    const next = applyFormat(p.noteBody, sel.current, format);
+    sel.current = next.selection;
+    placeCaret(next.selection);
+    p.setNoteBody(next.text);
     body.current?.focus();
   };
   return (
@@ -570,12 +759,12 @@ function NoteFields(p: FormProps) {
           accessibilityLabel="Note title"
           style={[
             inputStyle(colors.onSurface),
-            Type.titleMediumEmphasized,
+            Type.titleLargeEmphasized,
             {
-              fontWeight: "800",
-              fontSize: 18,
+              minHeight: 56,
               paddingHorizontal: 16,
-              paddingTop: 14,
+              paddingTop: 16,
+              paddingBottom: 4,
             },
           ]}
         />
@@ -583,7 +772,7 @@ function NoteFields(p: FormProps) {
           ref={body}
           value={p.noteBody}
           onChangeText={p.setNoteBody}
-          onSelectionChange={(e) => setSel(e.nativeEvent.selection)}
+          onSelectionChange={(e) => (sel.current = e.nativeEvent.selection)}
           multiline
           placeholder="Write in Markdown…"
           placeholderTextColor={colors.onSurfaceVariant}
@@ -618,7 +807,7 @@ function NoteFields(p: FormProps) {
               key={t.label}
               kind="button"
               corner={12}
-              onPress={() => insert(t.insert)}
+              onPress={() => insert(t.format)}
               accessibilityLabel={t.label}
               style={{
                 width: 40,
@@ -974,7 +1163,7 @@ function SavedView({
   const folder = collections.find((c) => c.id === saved.folderId) ?? null;
   const tone = folder ? collectionTones(folderSeed(folder), dark) : null;
   const where =
-    folder?.name ?? (saved.highlightIds.length ? "Highlights" : "Inbox");
+    folder?.name ?? (saved.mode === "quote" ? "Quotes" : saved.highlightIds.length ? "Highlights" : "Inbox");
   return (
     <Animated.View
       entering={enterRise}

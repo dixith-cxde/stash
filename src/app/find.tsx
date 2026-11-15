@@ -70,9 +70,9 @@ function FindBody() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: insets.bottom + 32, gap: 8 }}
       >
         {!query ? (
-          <EmptyState shape="cookie9Sided" title="Find it again" body="Search titles, notes, sites, tags and highlights." />
+          <EmptyState title="Find it again" body="Search titles, notes, sites, tags and highlights." />
         ) : !loading && count === 0 ? (
-          <EmptyState shape="clover4Leaf" title="Nothing found" body={`No matches for “${query}”. Try fewer words, or the Search tab for looser matches.`} />
+          <EmptyState title="Nothing found" body={`No matches for “${query}”. Try fewer words, or the Search tab for looser matches.`} />
         ) : (
           <>
             {data.bookmarks.length > 0 && (

@@ -42,8 +42,8 @@ type Props = {
   children: React.ReactNode | ((close: () => void) => React.ReactNode);
   accessibilityLabel: string;
   /**
-   * Only an explicit action closes it (its buttons, Back): scrim taps just hide the keyboard
-   * and a drag down springs back. For forms where an accidental close loses typing.
+   * Scrim taps never close it (they only hide the keyboard), so a stray tap can't lose
+   * typing. Its buttons, Back and a deliberate drag down still close it.
    */
   persistent?: boolean;
 };
@@ -129,7 +129,6 @@ export function Sheet({ onDismiss, children, accessibilityLabel, persistent = fa
       "worklet";
       const v = e.velocityY;
       if (
-        !persistent &&
         (v > DISMISS_VELOCITY ||
           (y.get() > height.get() * DISMISS_FRACTION && v > -200))
       ) {
@@ -149,7 +148,11 @@ export function Sheet({ onDismiss, children, accessibilityLabel, persistent = fa
     // The keyboard lifts the sheet (height is <= 0), so shrink the cap by as much to keep
     // the top on screen.
     maxHeight: maxHeight + keyboard.height.get(),
-    transform: [{ translateY: y.get() + keyboard.height.get() }],
+    // Lift with layout (bottom), not a transform: touches are matched against layout, so a
+    // transform-lifted sheet made a second tap on a focused field land on what used to be
+    // there and drop the keyboard.
+    bottom: -keyboard.height.get(),
+    transform: [{ translateY: y.get() }],
   }));
   const scrim = useAnimatedStyle(() => {
     const h = height.get() || 1;
@@ -226,6 +229,8 @@ export function SheetScrollView({
   const scrolls = content > viewport + 1;
   return (
     <GHScrollView
+      // A tap on a control in the sheet acts at once; it never first just drops the keyboard.
+      keyboardShouldPersistTaps="handled"
       {...rest}
       block={scrolls && pan ? pan : undefined}
       scrollEnabled={scrolls}

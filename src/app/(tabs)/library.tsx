@@ -95,7 +95,7 @@ export default function Library() {
 
           <SectionHeader title="Collections" trailing={<SortButton sort={sort} onPress={() => setSort(SORTS[sort].next)} />} />
           {sorted.length === 0 && !loading ? (
-            <EmptyState shape="clover4Leaf" title="No collections yet" body="Group what you save: research, recipes, a trip. Tap + to start one." />
+            <EmptyState title="No collections yet" body="Group what you save: research, recipes, a trip. Tap + to start one." />
           ) : (
             <View style={{ paddingHorizontal: Layout.gutter, gap: Layout.gridGap }}>
               {rows.map((row) => (

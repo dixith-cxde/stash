@@ -9,7 +9,7 @@ import { useDbQuery } from '@/db/hooks';
 import { createBookmark, getBookmark, updateBookmark } from '@/db/repo';
 import { OrganizeCard } from '@/features/detail/OrganizeCard';
 import { MarkdownView } from '@/features/notes/MarkdownView';
-import { tintMarkdown } from '@/features/notes/tint';
+import { applyFormat, useCaretAfterEdit } from '@/features/notes/format';
 import { tasksIn, toggleTask } from '@/features/stash/model';
 import { haptic } from '@/motion/haptics';
 import { enterFade, exitFade } from '@/motion/layout';
@@ -57,7 +57,7 @@ const HISTORY = 50;
 
 /**
  * Markdown editor (design: Editor artboard). Opens from a note with a shared-axis slide;
- * syntax is tinted as you type; a formatting toolbar rides the keyboard; changes save
+ * plain Markdown source (no live tint: restyling text under the keyboard broke typing); a formatting toolbar rides the keyboard; changes save
  * automatically (debounced) with a "Saving… / Saved" status; Undo walks back edits.
  */
 function Editor() {
@@ -122,16 +122,13 @@ function Editor() {
     schedule(title, prev);
   };
 
+  const placeCaret = useCaretAfterEdit(input, body);
+
   const apply = (tool: (typeof TOOLS)[number]) => {
-    const { start, end } = sel.current;
-    let next = body;
-    if (tool.wrap) {
-      next = body.slice(0, start) + tool.wrap[0] + body.slice(start, end) + tool.wrap[1] + body.slice(end);
-    } else if (tool.line) {
-      const lineStart = body.lastIndexOf('\n', Math.max(0, start - 1)) + 1;
-      next = body.slice(0, lineStart) + tool.line + body.slice(lineStart);
-    }
-    changeBody(next);
+    const next = applyFormat(body, sel.current, tool);
+    sel.current = next.selection;
+    placeCaret(next.selection);
+    changeBody(next.text);
     input.current?.focus();
   };
 
@@ -187,25 +184,25 @@ function Editor() {
 
       {tab === 'write' ? (
         <Animated.View key="write" entering={enterFade} style={{ flex: 1 }}>
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 120 }}>
+          {/* Taps anywhere in the page keep the keyboard: the editor never closes it on its own. */}
+          <ScrollView keyboardShouldPersistTaps="always" contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 120 }}>
             <TextInput
               ref={input}
               multiline
+              value={body}
               onChangeText={changeBody}
               onSelectionChange={(e) => (sel.current = e.nativeEvent.selection)}
               placeholder="Start writing… Markdown works: **bold**, _italic_, ## heading, - [ ] task"
               placeholderTextColor={colors.onSurfaceVariant}
               accessibilityLabel="Markdown source"
               scrollEnabled={false}
-              style={{ color: colors.onSurface, fontFamily: MONO_FAMILY, fontSize: 14, lineHeight: 24, padding: 0, textAlignVertical: 'top', minHeight: 300 }}
-            >
-              {tintMarkdown(body, colors)}
-            </TextInput>
+              style={{ color: colors.onSurface, fontFamily: MONO_FAMILY, fontSize: 15, lineHeight: 24, padding: 0, textAlignVertical: 'top', minHeight: 300 }}
+            />
           </ScrollView>
         </Animated.View>
       ) : (
         <Animated.View key="preview" entering={enterFade} style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 8, paddingBottom: 60 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 8, paddingBottom: 60 }}>
             <MarkdownView
               markdown={body}
               onToggleTask={(i) => {

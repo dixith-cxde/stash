@@ -117,7 +117,7 @@ function LinksCheck() {
         }
         ListEmptyComponent={
           state === 'finished' ? (
-            <EmptyState shape="cookie9Sided" title="All links load" body={total ? `Checked ${total} saved links.` : 'You have no saved links yet.'} />
+            <EmptyState title="All links load" body={total ? `Checked ${total} saved links.` : 'You have no saved links yet.'} />
           ) : undefined
         }
         renderItem={({ item: r }) =>
