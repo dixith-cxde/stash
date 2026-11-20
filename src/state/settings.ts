@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
+export type LockAfter = 0 | 60 | 300;
 export type HomeLayout = 'cards' | 'compact';
 /** stash = the design's palette · wallpaper = Android dynamic color · seed = Expressive scheme from seedColor. */
 export type ColorSource = 'stash' | 'wallpaper' | 'seed';
@@ -19,6 +20,12 @@ type Settings = {
   onboarded: boolean;
   /** The Home tour was finished or skipped. */
   tourDone: boolean;
+  /** Ask for the fingerprint, face or screen lock before showing the app. */
+  appLock: boolean;
+  /** Seconds away from the app before it locks again (0 = every time). */
+  lockAfter: LockAfter;
+  setAppLock: (on: boolean) => void;
+  setLockAfter: (s: LockAfter) => void;
   setOnboarded: (on: boolean) => void;
   setTourDone: (on: boolean) => void;
   setColorSource: (c: ColorSource) => void;
@@ -39,6 +46,10 @@ export const useSettings = create<Settings>()(
       readerMode: true,
       onboarded: false,
       tourDone: false,
+      appLock: false,
+      lockAfter: 0,
+      setAppLock: (appLock) => set({ appLock }),
+      setLockAfter: (lockAfter) => set({ lockAfter }),
       setOnboarded: (onboarded) => set({ onboarded }),
       setTourDone: (tourDone) => set({ tourDone }),
       setSeedColor: (seedColor) => set({ seedColor }),

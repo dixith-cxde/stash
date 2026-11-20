@@ -1,2 +1,37 @@
-<manifest>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- In-app updates: the downloaded release APK is handed to the system installer. -->
+  <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+  <application>
+    <!--
+      "Save to Stash" in every app's text-selection menu. A tiny activity with no UI takes the
+      selected text and forwards it to MainActivity in Stash's own task, then closes. Apps
+      start PROCESS_TEXT for a result, which would otherwise put MainActivity inside the
+      caller's task (where the share library relaunches it and the text was lost).
+    -->
+    <activity
+      android:name="expo.modules.expressive.ProcessTextActivity"
+      android:exported="true"
+      android:excludeFromRecents="true"
+      android:noHistory="true"
+      android:label="Save to Stash"
+      android:taskAffinity=""
+      android:theme="@android:style/Theme.Translucent.NoTitleBar">
+      <intent-filter>
+        <action android:name="android.intent.action.PROCESS_TEXT" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:mimeType="text/plain" />
+      </intent-filter>
+    </activity>
+
+    <provider
+      android:name="expo.modules.expressive.UpdateFileProvider"
+      android:authorities="${applicationId}.updates"
+      android:exported="false"
+      android:grantUriPermissions="true">
+      <meta-data
+        android:name="android.support.FILE_PROVIDER_PATHS"
+        android:resource="@xml/stash_update_paths" />
+    </provider>
+  </application>
 </manifest>

@@ -10,15 +10,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDbQuery } from '@/db/hooks';
 import { listFeeds } from '@/db/repo';
 import { exportHtml, exportJson, importBackup } from '@/features/backup/backup';
+import { authenticate, canLock } from '@/features/lock/lock';
 import { MarkdownView } from '@/features/notes/MarkdownView';
 import { useTotals } from '@/features/stash/queries';
-import { appVersion, buildNumber, findUpdate, installRelease, type Release, RELEASES_URL, SOURCE_URL } from '@/features/updates/updates';
+import { appVersion, buildNumber, findUpdate, installRelease, type Release, RELEASES_URL, SOURCE_URL, useUpdate } from '@/features/updates/updates';
 import { TransitionScreen, useTransitionClose } from '@/motion/transition/TransitionScreen';
 import { MotionSpec } from '@/motion/tokens';
 import { usePressMorph } from '@/motion/usePressMorph';
 import { type Corners4, cornerStyle, useSelection } from '@/motion/useSelection';
 import { LoadingIndicator } from '@/shapes/LoadingIndicator';
-import { type ColorSource, type ThemeMode, useSettings } from '@/state/settings';
+import { type ColorSource, type LockAfter, type ThemeMode, useSettings } from '@/state/settings';
 import { useAppTheme } from '@/theme/AppTheme';
 import type { IconName } from '@/theme/icons';
 import { DEFAULT_SEED, expressivePalette, SEED_COLORS } from '@/theme/palette';
@@ -27,6 +28,7 @@ import { BackPill } from '@/ui/BackPill';
 import { ButtonGroup, type GroupItem } from '@/ui/ButtonGroup';
 import { Ico } from '@/ui/Ico';
 import { PressableSurface } from '@/ui/PressableSurface';
+import { ProgressBar } from '@/ui/ProgressBar';
 import { showSnackbar } from '@/ui/Snackbar';
 import { Switch } from '@/ui/Switch';
 import { Text } from '@/ui/Text';
@@ -156,6 +158,10 @@ function Settings() {
         <Row icon="rssFeed" title="Check feeds" supporting="When you open Feeds, at most every 3 hours" index={1} count={2} />
       </Section>
 
+      <Section title="Privacy">
+        <AppLockRows />
+      </Section>
+
       <Section title="Data">
         <Row
           icon="upload"
@@ -251,6 +257,54 @@ const CREDITS: { icon: IconName; title: string; detail: string; url: string }[] 
   { icon: 'description', title: 'Stash', detail: 'Source code · CC BY-NC-SA 4.0', url: SOURCE_URL },
 ];
 
+const LOCK_AFTER_ITEMS: GroupItem<`${LockAfter}`>[] = [
+  { key: '0', label: 'Right away' },
+  { key: '60', label: '1 min' },
+  { key: '300', label: '5 min' },
+];
+
+/**
+ * "Lock app": the system prompt (fingerprint, face, or the screen lock PIN / pattern /
+ * password) guards opening Stash. Turning it on or off asks once, so nobody else can change it.
+ */
+function AppLockRows() {
+  const appLock = useSettings((s) => s.appLock);
+  const lockAfter = useSettings((s) => s.lockAfter);
+  const setAppLock = useSettings((s) => s.setAppLock);
+  const setLockAfter = useSettings((s) => s.setLockAfter);
+
+  const toggle = async () => {
+    if (!appLock && !(await canLock())) {
+      showSnackbar('Set a screen lock in Android settings first');
+      return;
+    }
+    if (await authenticate(appLock ? 'Turn off app lock' : 'Turn on app lock')) setAppLock(!appLock);
+  };
+
+  return (
+    <>
+      <Row
+        icon="lock"
+        title="Lock app"
+        supporting="Unlock with your fingerprint, face or screen lock"
+        index={0}
+        count={appLock ? 2 : 1}
+        onPress={() => void toggle()}
+        role="switch"
+        checked={appLock}
+        trailing={<Switch value={appLock} onValueChange={() => void toggle()} decorative />}
+      />
+      {appLock && (
+        <Row icon="fingerprint" title="Lock after leaving" supporting="How long Stash can be in the background before it locks" index={1} count={2}>
+          <View style={styles.below}>
+            <ButtonGroup items={LOCK_AFTER_ITEMS} value={`${lockAfter}`} onChange={(k) => setLockAfter(Number(k) as LockAfter)} accessibilityLabel="Lock after leaving" />
+          </View>
+        </Row>
+      )}
+    </>
+  );
+}
+
 /** Check GitHub Releases for a newer version; when there is one, tap to download and install it. */
 function UpdateRow({ index, count }: { index: number; count: number }) {
   const { colors } = useAppTheme();
@@ -276,15 +330,27 @@ function UpdateRow({ index, count }: { index: number; count: number }) {
     void look();
   }, []);
 
-  const supporting = update
-    ? `Version ${update.version} is ready · tap to download and install`
-    : state === 'checking'
-      ? 'Checking…'
-      : state === 'latest'
-        ? 'You have the latest version'
-        : state === 'failed'
-          ? "Couldn't reach GitHub · tap to try again"
-          : 'Tap to check for a newer version';
+  const dl = useUpdate();
+  const busy = !!update && dl.version === update.version && dl.phase !== 'idle';
+  const pct = dl.progress == null ? null : Math.round(dl.progress * 100);
+
+  const supporting = busy
+    ? dl.phase === 'downloading'
+      ? pct == null ? 'Downloading…' : `Downloading · ${pct}%`
+      : dl.phase === 'permission'
+        ? 'Allow "Install unknown apps" for Stash, then come back'
+        : dl.phase === 'failed'
+          ? `Download failed${dl.error ? ` (${dl.error})` : ''} · tap to try again`
+          : 'Downloaded · tap to install'
+    : update
+      ? `Version ${update.version} is ready · tap to download and install`
+      : state === 'checking'
+        ? 'Checking…'
+        : state === 'latest'
+          ? 'You have the latest version'
+          : state === 'failed'
+            ? "Couldn't reach GitHub · tap to try again"
+            : 'Tap to check for a newer version';
 
   return (
     <Row
@@ -294,8 +360,17 @@ function UpdateRow({ index, count }: { index: number; count: number }) {
       index={index}
       count={count}
       onPress={() => (update ? void installRelease(update) : check())}
-      trailing={state === 'checking' ? <LoadingIndicator size={28} accessibilityLabel="Checking" /> : <Ico name="chevronRight" color={colors.onSurfaceVariant} />}
+      trailing={
+        state === 'checking' || (busy && dl.phase === 'downloading') ? (
+          <LoadingIndicator size={28} accessibilityLabel={busy ? 'Downloading' : 'Checking'} />
+        ) : (
+          <Ico name="chevronRight" color={colors.onSurfaceVariant} />
+        )
+      }
     >
+      {busy && dl.phase === 'downloading' ? (
+        <ProgressBar value={dl.progress ?? 0} wavy accessibilityLabel="Update download" />
+      ) : null}
       {update && update.notes.trim() ? (
         <View style={[styles.notes, { backgroundColor: colors.surfaceContainerHigh }]}>
           <MarkdownView markdown={releaseNotes(update.notes)} compact />

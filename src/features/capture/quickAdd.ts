@@ -7,6 +7,7 @@ import { useCapture } from '@/state/capture';
 
 import { type CaptureDraft, normalizeShare } from './normalize';
 import { type SaveOptions, saveDraft } from './save';
+import { keepUnlocked } from '@/features/lock/lock';
 
 /** Clipboard → capture screen (links become link drafts, anything else a note). */
 export async function captureFromClipboard(): Promise<boolean> {
@@ -18,11 +19,11 @@ export async function captureFromClipboard(): Promise<boolean> {
 }
 
 export async function pickPdfs(opts: SaveOptions = {}): Promise<number> {
-  const res = await DocumentPicker.getDocumentAsync({
+  const res = await keepUnlocked(() => DocumentPicker.getDocumentAsync({
     type: 'application/pdf',
     multiple: true,
     copyToCacheDirectory: true,
-  });
+  }));
   if (res.canceled) return 0;
   const drafts: CaptureDraft[] = res.assets.map((a) => ({
     kind: 'bookmark',
@@ -35,11 +36,11 @@ export async function pickPdfs(opts: SaveOptions = {}): Promise<number> {
 }
 
 export async function pickImages(opts: SaveOptions = {}): Promise<number> {
-  const res = await ImagePicker.launchImageLibraryAsync({
+  const res = await keepUnlocked(() => ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images'],
     allowsMultipleSelection: true,
     quality: 1,
-  });
+  }));
   if (res.canceled) return 0;
   for (const a of res.assets) {
     await saveDraft(

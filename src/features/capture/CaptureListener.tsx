@@ -1,6 +1,6 @@
-import { router, usePathname } from 'expo-router';
+import { router, usePathname, useRootNavigationState } from 'expo-router';
 import { useShareIntentContext } from 'expo-share-intent';
-import { useEffect, useEffectEvent } from 'react';
+import { useEffect, useEffectEvent, useRef } from 'react';
 import { AppState } from 'react-native';
 
 import { useCapture } from '@/state/capture';
@@ -12,13 +12,26 @@ import { normalizeShare } from './normalize';
 export function CaptureListener() {
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntentContext();
   const pathname = usePathname();
+  // On a cold start the text arrives before the navigator is mounted; pushing then is lost.
+  const navReady = !!useRootNavigationState()?.key;
+  const waiting = useRef(false);
+
+  const showCapture = useEffectEvent(() => {
+    waiting.current = false;
+    // The share deep link may already have routed to /capture; don't stack a second copy.
+    if (pathname !== '/capture') setTimeout(() => router.push('/capture'), 0);
+  });
 
   const openCapture = useEffectEvent((drafts: ReturnType<typeof normalizeShare>) => {
     if (!drafts.length) return;
     useCapture.getState().setDrafts(drafts, true);
-    // The share deep link may already have routed to /capture; don't stack a second copy.
-    if (pathname !== '/capture') setTimeout(() => router.push('/capture'), 0);
+    if (navReady) showCapture();
+    else waiting.current = true;
   });
+
+  useEffect(() => {
+    if (navReady && waiting.current) showCapture();
+  }, [navReady]);
 
   useEffect(() => {
     if (!hasShareIntent) return;

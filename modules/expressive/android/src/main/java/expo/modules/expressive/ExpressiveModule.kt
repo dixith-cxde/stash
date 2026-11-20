@@ -6,11 +6,18 @@ import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.Build
 import android.os.ParcelFileDescriptor
+import android.provider.Settings
+import androidx.core.content.FileProvider
 import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.File
 import java.io.FileOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
+
+class UpdateException(message: String, cause: Throwable? = null) :
+  CodedException("ERR_UPDATE", message, cause)
 
 class PdfRenderException(message: String, cause: Throwable? = null) :
   CodedException("ERR_PDF_RENDER", message, cause)
@@ -32,11 +39,17 @@ private val DYNAMIC_ROLES = listOf(
 class ExpressiveModule : Module() {
   private var pendingProcessText: String? = null
 
-  /** Pulls ACTION_PROCESS_TEXT payloads out of an intent exactly once. */
+  /**
+   * Pulls selected text out of an intent exactly once: ACTION_SAVE_TEXT from
+   * ProcessTextActivity, or a direct PROCESS_TEXT (older builds' manifest).
+   */
   private fun consumeProcessText(intent: Intent?) {
-    if (intent?.action != Intent.ACTION_PROCESS_TEXT) return
-    val text = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
-    intent.removeExtra(Intent.EXTRA_PROCESS_TEXT)
+    val text = when (intent?.action) {
+      ACTION_SAVE_TEXT -> intent.getStringExtra(EXTRA_SAVE_TEXT).also { intent.removeExtra(EXTRA_SAVE_TEXT) }
+      Intent.ACTION_PROCESS_TEXT -> intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
+        .also { intent.removeExtra(Intent.EXTRA_PROCESS_TEXT) }
+      else -> return
+    }
     intent.action = Intent.ACTION_MAIN
     if (text.isNullOrBlank()) return
     pendingProcessText = text
@@ -46,7 +59,7 @@ class ExpressiveModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("Expressive")
 
-    Events("onProcessText")
+    Events("onProcessText", "onUpdateProgress")
 
     OnActivityEntersForeground { consumeProcessText(appContext.currentActivity?.intent) }
     OnNewIntent { intent -> consumeProcessText(intent) }
@@ -57,6 +70,88 @@ class ExpressiveModule : Module() {
       val text = pendingProcessText
       pendingProcessText = null
       text
+    }
+
+    /**
+     * Downloads a release APK into cache/updates (replacing older ones), sending
+     * onUpdateProgress { received, total } about every 1%. Resolves with the file path.
+     */
+    AsyncFunction("downloadUpdate") { url: String, name: String ->
+      val context = appContext.reactContext ?: throw UpdateException("No React context")
+      val dir = File(context.cacheDir, "updates")
+      dir.mkdirs()
+      dir.listFiles()?.forEach { it.delete() }
+      val out = File(dir, name.replace(Regex("[^A-Za-z0-9._-]"), "_"))
+      val part = File(dir, out.name + ".part")
+      try {
+        var conn = URL(url).openConnection() as HttpURLConnection
+        // GitHub answers asset links with a redirect to its storage host.
+        var hops = 0
+        while (conn.responseCode in 300..399 && hops++ < 5) {
+          val next = conn.getHeaderField("Location") ?: break
+          conn.disconnect()
+          conn = URL(URL(url), next).openConnection() as HttpURLConnection
+        }
+        if (conn.responseCode != 200) throw UpdateException("Download failed (${conn.responseCode})")
+        val total = conn.contentLengthLong
+        var received = 0L
+        var lastSent = -1L
+        conn.inputStream.use { input ->
+          FileOutputStream(part).use { output ->
+            val buf = ByteArray(64 * 1024)
+            while (true) {
+              val n = input.read(buf)
+              if (n < 0) break
+              output.write(buf, 0, n)
+              received += n
+              val step = if (total > 0) received * 100 / total else received / (256 * 1024)
+              if (step != lastSent) {
+                lastSent = step
+                sendEvent("onUpdateProgress", mapOf("received" to received, "total" to total))
+              }
+            }
+          }
+        }
+        conn.disconnect()
+        if (total > 0 && received != total) throw UpdateException("Download was cut off")
+        if (!part.renameTo(out)) throw UpdateException("Could not save the update")
+        out.absolutePath
+      } catch (e: UpdateException) {
+        part.delete()
+        throw e
+      } catch (e: Exception) {
+        part.delete()
+        throw UpdateException(e.message ?: "Download failed", e)
+      }
+    }
+
+    /** True when Android lets Stash install APKs ("Install unknown apps" is on for Stash). */
+    Function("canInstallUpdates") {
+      val context = appContext.reactContext ?: return@Function false
+      context.packageManager.canRequestPackageInstalls()
+    }
+
+    /** Opens Settings → Install unknown apps for Stash. */
+    Function("openInstallPermission") {
+      val activity = appContext.currentActivity ?: return@Function null
+      activity.startActivity(
+        Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${activity.packageName}"))
+      )
+      null
+    }
+
+    /** Hands a downloaded APK (path from downloadUpdate) to the system installer. */
+    Function("installUpdate") { path: String ->
+      val activity = appContext.currentActivity ?: throw UpdateException("No activity")
+      val file = File(path)
+      if (!file.exists()) throw UpdateException("The update file is gone; download it again")
+      val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.updates", file)
+      activity.startActivity(
+        Intent(Intent.ACTION_VIEW)
+          .setDataAndType(uri, "application/vnd.android.package-archive")
+          .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+      )
+      null
     }
 
     /**

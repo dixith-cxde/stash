@@ -24,6 +24,7 @@ import {
 import { processPreviewQueue } from '@/features/preview/fetchPreview';
 
 import { parseNetscapeBookmarks, toNetscapeHtml } from './netscape';
+import { keepUnlocked } from '@/features/lock/lock';
 
 const BACKUP_VERSION = 1;
 
@@ -149,10 +150,10 @@ async function importHtml(text: string) {
 
 /** Imports a Stash JSON backup or any Netscape bookmarks HTML file. Returns items added. */
 export async function importBackup(): Promise<number | null> {
-  const res = await DocumentPicker.getDocumentAsync({
+  const res = await keepUnlocked(() => DocumentPicker.getDocumentAsync({
     type: ['application/json', 'text/html', 'text/plain', '*/*'],
     copyToCacheDirectory: true,
-  });
+  }));
   if (res.canceled) return null;
   const text = await new File(res.assets[0].uri).text();
   return text.trimStart().startsWith('{') ? importJson(text) : importHtml(text);
