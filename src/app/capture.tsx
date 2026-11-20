@@ -42,7 +42,7 @@ import { Ico } from "@/ui/Ico";
 import { IconButton } from "@/ui/IconButton";
 import { PressableSurface } from "@/ui/PressableSurface";
 import { SegmentedTabs } from "@/ui/SegmentedTabs";
-import { Sheet } from "@/ui/Sheet";
+import { Sheet, SheetScrollView } from "@/ui/Sheet";
 import { SplitButton } from "@/ui/SplitButton";
 import { Text } from "@/ui/Text";
 import { keepUnlocked } from '@/features/lock/lock';
@@ -363,14 +363,17 @@ function CaptureForm(p: FormProps) {
   const [tried, setTried] = useState(false);
   const showReason = tried && !!reason;
 
+  // Header and Save stay put; everything between scrolls, so with the keyboard up (the
+  // sheet is capped above it) tags, collection and Save stay reachable.
   return (
-    <View>
+    <View style={{ flexShrink: 1 }}>
       <View
         style={{
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "space-between",
           paddingHorizontal: 8,
+          paddingBottom: 12,
         }}
       >
         <Text variant="headlineSmallEmphasized" accessibilityRole="header">
@@ -385,91 +388,92 @@ function CaptureForm(p: FormProps) {
         />
       </View>
 
-      {p.highlightDraft ? (
-        <View
-          style={{
-            marginTop: 12,
-            borderRadius: 24,
-            padding: 16,
-            backgroundColor: colors.tertiaryContainer,
-          }}
-        >
-          <Ico
-            name="formatQuote"
-            size={24}
-            color={colors.onTertiaryContainer}
-          />
-          <Text
-            variant="quote"
-            color="onTertiaryContainer"
-            numberOfLines={6}
-            style={{ marginTop: 4 }}
+      <SheetScrollView>
+        {p.highlightDraft ? (
+          <View
+            style={{
+              borderRadius: 24,
+              padding: 16,
+              backgroundColor: colors.tertiaryContainer,
+            }}
           >
-            {p.highlightDraft.text}
-          </Text>
-        </View>
-      ) : (
-        <>
-          <View style={{ marginTop: 12 }}>
-            <SegmentedTabs
-              items={MODES}
-              value={p.mode}
-              onChange={(m) => {
-                setTried(false);
-                p.setMode(m);
-              }}
-              accessibilityLabel="What to save"
-              track={colors.surface}
+            <Ico
+              name="formatQuote"
+              size={24}
+              color={colors.onTertiaryContainer}
             />
+            <Text
+              variant="quote"
+              color="onTertiaryContainer"
+              numberOfLines={6}
+              style={{ marginTop: 4 }}
+            >
+              {p.highlightDraft.text}
+            </Text>
           </View>
+        ) : (
+          <>
+            <View>
+              <SegmentedTabs
+                items={MODES}
+                value={p.mode}
+                onChange={(m) => {
+                  setTried(false);
+                  p.setMode(m);
+                }}
+                accessibilityLabel="What to save"
+                track={colors.surface}
+              />
+            </View>
+            <Animated.View
+              key={p.mode}
+              entering={enterFade}
+              exiting={exitFade}
+              layout={reflow}
+            >
+              {p.mode === "link" && <LinkFields {...p} />}
+              {p.mode === "note" && <NoteFields {...p} />}
+              {p.mode === "quote" && <QuoteFields {...p} />}
+              {p.mode === "file" && <FileFields {...p} />}
+            </Animated.View>
+          </>
+        )}
+
+        {(p.mode === "link" || p.mode === "quote" || p.highlightDraft) && (
+          <TagRow {...p} />
+        )}
+        {/* Quotes live with highlights, which have tags but no collection. */}
+        {p.mode !== "quote" && !p.highlightDraft && (
+          <CollectionRow
+            folderId={p.folderId}
+            setFolderId={p.setFolderId}
+            onMore={() => p.onPicker("folder")}
+          />
+        )}
+
+        {showReason && (
           <Animated.View
-            key={p.mode}
             entering={enterFade}
             exiting={exitFade}
-            layout={reflow}
+            accessibilityLiveRegion="polite"
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 10,
+              marginTop: 16,
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+              borderRadius: 20,
+              backgroundColor: colors.errorContainer,
+            }}
           >
-            {p.mode === "link" && <LinkFields {...p} />}
-            {p.mode === "note" && <NoteFields {...p} />}
-            {p.mode === "quote" && <QuoteFields {...p} />}
-            {p.mode === "file" && <FileFields {...p} />}
+            <Ico name="info" size={20} color={colors.onErrorContainer} />
+            <Text variant="bodyMedium" color={colors.onErrorContainer} style={{ flex: 1 }}>
+              {reason}
+            </Text>
           </Animated.View>
-        </>
-      )}
-
-      {(p.mode === "link" || p.mode === "quote" || p.highlightDraft) && (
-        <TagRow {...p} />
-      )}
-      {/* Quotes live with highlights, which have tags but no collection. */}
-      {p.mode !== "quote" && !p.highlightDraft && (
-        <CollectionRow
-          folderId={p.folderId}
-          setFolderId={p.setFolderId}
-          onMore={() => p.onPicker("folder")}
-        />
-      )}
-
-      {showReason && (
-        <Animated.View
-          entering={enterFade}
-          exiting={exitFade}
-          accessibilityLiveRegion="polite"
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 10,
-            marginTop: 16,
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            borderRadius: 20,
-            backgroundColor: colors.errorContainer,
-          }}
-        >
-          <Ico name="info" size={20} color={colors.onErrorContainer} />
-          <Text variant="bodyMedium" color={colors.onErrorContainer} style={{ flex: 1 }}>
-            {reason}
-          </Text>
-        </Animated.View>
-      )}
+        )}
+      </SheetScrollView>
 
       <Animated.View layout={reflow} style={{ marginTop: showReason ? 12 : 22 }}>
         {p.mode === "quote" && !p.highlightDraft ? (
