@@ -33,5 +33,17 @@
         android:name="android.support.FILE_PROVIDER_PATHS"
         android:resource="@xml/stash_update_paths" />
     </provider>
+    <!-- "Save to Stash" home-screen widget (StashWidget.kt): paste link / note / file. -->
+    <receiver
+      android:name="expo.modules.expressive.StashWidget"
+      android:exported="false"
+      android:label="@string/stash_widget_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/stash_widget_info" />
+    </receiver>
   </application>
 </manifest>

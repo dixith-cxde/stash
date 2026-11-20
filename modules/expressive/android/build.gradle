@@ -5,7 +5,8 @@ group = 'expo.modules.expressive'
 version = '0.2.0'
 
 // Native helpers with no React Native equivalent: PDF page rendering, the PROCESS_TEXT
-// ("Save to Stash") bridge and wallpaper dynamic color. All UI lives in React Native.
+// ("Save to Stash") bridge, wallpaper dynamic color and the "Save to Stash" home-screen
+// widget (static RemoteViews buttons that deep-link to /capture). All app UI lives in React Native.
 android {
   namespace "expo.modules.expressive"
   defaultConfig {

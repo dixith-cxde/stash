@@ -141,6 +141,12 @@ No AI / no cloud. Battery matters: no background polling.
   MainActivity; `withProcessText` only strips the old filter. CaptureListener waits for the
   router before pushing /capture.
 
+## Done 2026-11-20 (v1.0.9, widget not checked on device yet)
+- "Save to Stash" home-screen widget (`modules/expressive`: `StashWidget.kt`, `res/layout/stash_widget.xml`):
+  RemoteViews pill bar, Paste link pill / Note circle / File square → `stash://capture?paste=1|mode=note|mode=file`.
+  Wallpaper colors on Android 12+ (`values*-v31`), M3 baseline below. `/capture` reads `paste=1`
+  and fills the link from the clipboard after 350 ms (Android needs window focus).
+
 ## Next
 Roadmap (in order, tracked at https://claude.ai/artifact/AimQzdGP6PGHB7FMd3RHHo): read-later queue
 on Home · highlights per item (jump to page, export) · search inside PDFs · duplicate warning +

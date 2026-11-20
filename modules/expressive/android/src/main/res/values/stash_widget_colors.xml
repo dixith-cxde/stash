@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home-screen widget, light, before Android 12: M3 baseline (the app's default seed). -->
+<resources>
+  <color name="stash_widget_surface">#F3EDF7</color>
+  <color name="stash_widget_on_surface_variant">#49454F</color>
+  <color name="stash_widget_primary">#6750A4</color>
+  <color name="stash_widget_on_primary">#FFFFFF</color>
+  <color name="stash_widget_secondary_container">#E8DEF8</color>
+  <color name="stash_widget_on_secondary_container">#1D192B</color>
+  <color name="stash_widget_tertiary_container">#FFD8E4</color>
+  <color name="stash_widget_on_tertiary_container">#31111D</color>
+  <color name="stash_widget_ripple_primary">#33FFFFFF</color>
+</resources>

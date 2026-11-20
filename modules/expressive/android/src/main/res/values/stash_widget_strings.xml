@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="stash_widget_label">Save to Stash</string>
+  <string name="stash_widget_description">Paste a link, write a note or upload a file.</string>
+  <string name="stash_widget_paste">Paste link</string>
+  <string name="stash_widget_note">New note</string>
+  <string name="stash_widget_file">Upload file</string>
+</resources>

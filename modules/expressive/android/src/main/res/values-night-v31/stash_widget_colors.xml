@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home-screen widget, dark, Android 12+: wallpaper dynamic color (surfaceContainer ~N12, primary A1-80, containers tone 30 / on tone 90). -->
+<resources>
+  <color name="stash_widget_surface">@android:color/system_neutral1_900</color>
+  <color name="stash_widget_on_surface_variant">@android:color/system_neutral2_200</color>
+  <color name="stash_widget_primary">@android:color/system_accent1_200</color>
+  <color name="stash_widget_on_primary">@android:color/system_accent1_800</color>
+  <color name="stash_widget_secondary_container">@android:color/system_accent2_700</color>
+  <color name="stash_widget_on_secondary_container">@android:color/system_accent2_100</color>
+  <color name="stash_widget_tertiary_container">@android:color/system_accent3_700</color>
+  <color name="stash_widget_on_tertiary_container">@android:color/system_accent3_100</color>
+</resources>

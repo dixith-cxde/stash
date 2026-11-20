@@ -84,7 +84,7 @@ type Saved = {
  * picker and a split Save button; then a success state with Undo.
  */
 export default function CaptureScreen() {
-  const params = useLocalSearchParams<{ folderId?: string; mode?: Mode }>();
+  const params = useLocalSearchParams<{ folderId?: string; mode?: Mode; paste?: string }>();
   const drafts = useCapture((s) => s.drafts);
   const clearDrafts = useCapture((s) => s.clear);
   const incoming = drafts[0];
@@ -127,6 +127,19 @@ export default function CaptureScreen() {
   const [folderId, setFolderId] = useState<string | null>(
     params.folderId || null,
   );
+  // Home-screen widget "Paste link" (stash://capture?paste=1): fill the link from the
+  // clipboard. Android only lets a focused window read it, so wait for the screen to settle.
+  const pasteOnOpen = params.paste === "1" && !incoming;
+  useEffect(() => {
+    if (!pasteOnOpen) return;
+    const t = setTimeout(() => {
+      void Clipboard.getStringAsync().then((text) => {
+        const link = extractUrl(text);
+        if (link) setUrl((cur) => cur || link);
+      });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [pasteOnOpen]);
   const [tagIds, setTagIds] = useState<string[]>([]);
   const [picker, setPicker] = useState<"tags" | "folder" | null>(null);
   const [saved, setSaved] = useState<Saved | null>(null);

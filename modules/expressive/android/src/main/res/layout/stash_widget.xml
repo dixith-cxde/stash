@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  "Save to Stash" home-screen widget: a pill bar with a primary "Paste link" pill, a circle
+  (note) and a rounded square (file). Each button deep-links into /capture (StashWidget.kt).
+  The bar keeps a fixed 72dp height and centers in whatever cell height the launcher gives it.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+  <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="72dp"
+      android:layout_gravity="center_vertical"
+      android:background="@drawable/stash_widget_bg"
+      android:gravity="center_vertical"
+      android:orientation="horizontal"
+      android:padding="8dp">
+
+    <LinearLayout
+        android:id="@+id/stash_widget_paste"
+        android:layout_width="0dp"
+        android:layout_height="56dp"
+        android:layout_weight="1"
+        android:background="@drawable/stash_widget_btn_primary"
+        android:contentDescription="@string/stash_widget_paste"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="20dp">
+
+      <ImageView
+          android:layout_width="24dp"
+          android:layout_height="24dp"
+          android:importantForAccessibility="no"
+          android:src="@drawable/stash_widget_ic_link" />
+
+      <TextView
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_marginStart="8dp"
+          android:ellipsize="end"
+          android:fontFamily="sans-serif-medium"
+          android:maxLines="1"
+          android:text="@string/stash_widget_paste"
+          android:textColor="@color/stash_widget_on_primary"
+          android:textSize="16sp" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/stash_widget_note"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/stash_widget_btn_circle"
+        android:contentDescription="@string/stash_widget_note">
+
+      <ImageView
+          android:layout_width="24dp"
+          android:layout_height="24dp"
+          android:layout_gravity="center"
+          android:importantForAccessibility="no"
+          android:src="@drawable/stash_widget_ic_note" />
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/stash_widget_file"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/stash_widget_btn_square"
+        android:contentDescription="@string/stash_widget_file">
+
+      <ImageView
+          android:layout_width="24dp"
+          android:layout_height="24dp"
+          android:layout_gravity="center"
+          android:importantForAccessibility="no"
+          android:src="@drawable/stash_widget_ic_file" />
+    </FrameLayout>
+  </LinearLayout>
+</FrameLayout>
