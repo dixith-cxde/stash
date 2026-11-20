@@ -10,6 +10,7 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { db } from '@/db/client';
 import { CaptureListener } from '@/features/capture/CaptureListener';
+import { LockScreen } from '@/features/lock/LockScreen';
 import { processPreviewQueue } from '@/features/preview/fetchPreview';
 import { installNavGuard } from '@/lib/navGuard';
 import { AppThemeProvider, useAppTheme } from '@/theme/AppTheme';
@@ -69,6 +70,7 @@ function ThemedStack() {
       </Stack>
       <PortalHost />
       <SnackbarHost />
+      <LockScreen />
     </ThemeProvider>
   );
 }

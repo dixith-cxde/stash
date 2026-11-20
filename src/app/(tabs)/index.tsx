@@ -9,7 +9,7 @@ import { Masonry } from '@/features/feed/Masonry';
 import { HomeTour } from '@/features/onboarding/HomeTour';
 import { type FeedFilter, matchesFilter } from '@/features/stash/model';
 import { useCollections, useFeed, useTotals } from '@/features/stash/queries';
-import { dailyUpdateCheck } from '@/features/updates/updates';
+import { dailyUpdateCheck, installRelease } from '@/features/updates/updates';
 import { useChromeScroll } from '@/motion/ScrollChrome';
 import { useSettings } from '@/state/settings';
 import { useColors } from '@/theme/AppTheme';
@@ -53,7 +53,14 @@ export default function Home() {
     if (!onboarded) return;
     let live = true;
     void dailyUpdateCheck().then((r) => {
-      if (live && r) showSnackbar(`Stash ${r.version} is available`, { label: 'Update', onPress: () => router.push('/settings') });
+      if (live && r) showSnackbar(`Stash ${r.version} is available`, {
+          label: 'Update',
+          // Downloads right here; Settings shows the progress.
+          onPress: () => {
+            void installRelease(r);
+            router.push('/settings');
+          },
+        });
     });
     return () => {
       live = false;

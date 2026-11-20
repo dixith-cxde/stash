@@ -1,8 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-<g transform="translate(512 500) scale(0.84) translate(-512 -512)" fill="none" stroke="#D0BCFF" stroke-width="38" stroke-linecap="round" stroke-linejoin="round">
-<path d="M352 676 C252 640 196 566 196 482 C196 352 336 262 512 262 C694 262 828 350 828 478 C828 590 724 668 590 676 C512 684 468 740 494 792 C520 844 614 838 630 784 C644 736 604 700 546 694"/>
-<circle cx="414" cy="452" r="28" fill="#D0BCFF" stroke="none"/>
-<circle cx="610" cy="452" r="28" fill="#D0BCFF" stroke="none"/>
-<path d="M462 548 Q512 584 562 548"/>
-</g>
-</svg>
+<g transform="" fill="none" stroke="#E6E1E5" stroke-width="66" stroke-linecap="round" stroke-linejoin="round">
+<path d="M150 690 C200 700 250 790 300 790 C328 790 340 772 340 744 L340 330 C340 272 378 236 436 236 L588 236 C646 236 684 272 684 330 L684 790 L512 660 L348 786"/>
+<circle cx="454" cy="420" r="42" fill="#E6E1E5" stroke="none"/><circle cx="570" cy="420" r="42" fill="#E6E1E5" stroke="none"/>
+</g></svg>

@@ -127,6 +127,20 @@ No AI / no cloud. Battery matters: no background polling.
 - Capture: Quote tab (text + optional who/link → a highlight with no item, tags, no
   collection); tapping Save with something missing shows an inline reason above the button.
 
+## Done 2026-11-20 (needs a native rebuild; not on device yet)
+- In-app updates: `installRelease` downloads the APK in the app (`downloadUpdate` in
+  modules/expressive, progress events, cache/updates) and opens the installer through a
+  FileProvider; asks for "Install unknown apps" first if needed. `useUpdate` store shared by
+  Settings (wavy progress) and the Home "Update" snackbar.
+- App lock (Settings → Privacy): `expo-local-authentication` prompt with device PIN fallback,
+  `LockScreen` overlay at the root, lock after Right away / 1 min / 5 min away. File and photo
+  pickers go through `keepUnlocked()` so they don't lock. An app-own passcode is for later.
+- Save to Stash (text selection) fixed: apps start PROCESS_TEXT for a result, which put
+  MainActivity in the caller's task and expo-share-intent relaunched it, losing the text.
+  Now `ProcessTextActivity` (module manifest) forwards `app.stash.action.SAVE_TEXT` to
+  MainActivity; `withProcessText` only strips the old filter. CaptureListener waits for the
+  router before pushing /capture.
+
 ## Next
 Roadmap (in order, tracked at https://claude.ai/artifact/AimQzdGP6PGHB7FMd3RHHo): read-later queue
 on Home · highlights per item (jump to page, export) · search inside PDFs · duplicate warning +

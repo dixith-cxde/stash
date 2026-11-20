@@ -45,6 +45,7 @@ import { SegmentedTabs } from "@/ui/SegmentedTabs";
 import { Sheet } from "@/ui/Sheet";
 import { SplitButton } from "@/ui/SplitButton";
 import { Text } from "@/ui/Text";
+import { keepUnlocked } from '@/features/lock/lock';
 
 type Mode = "link" | "note" | "quote" | "file";
 const MODES: { key: Mode; label: string }[] = [
@@ -855,11 +856,11 @@ function NoteFields(p: FormProps) {
 function FileFields(p: FormProps) {
   const { colors } = useAppTheme();
   const pick = async () => {
-    const res = await DocumentPicker.getDocumentAsync({
+    const res = await keepUnlocked(() => DocumentPicker.getDocumentAsync({
       type: ["application/pdf", "image/*", "text/*", "*/*"],
       multiple: true,
       copyToCacheDirectory: true,
-    });
+    }));
     if (res.canceled) return;
     const picked: CaptureDraft[] = res.assets.map((a) => {
       const file = {
