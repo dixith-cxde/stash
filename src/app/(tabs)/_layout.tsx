@@ -1,11 +1,13 @@
 import { router } from "expo-router";
-import { type BottomTabBarProps, Tabs } from "expo-router/tabs";
-import { useEffect } from "react";
+import { type BottomTabBarProps, type BottomTabNavigationOptions, Tabs } from "expo-router/tabs";
+import { type ComponentProps, useEffect } from "react";
 import { useReducedMotion } from "react-native-reanimated";
+import { ScreenContext } from "react-native-screens";
 
 import { openCapture, pickImages } from "@/features/capture/quickAdd";
 import { haptic } from "@/motion/haptics";
 import { ChromeProvider } from "@/motion/ScrollChrome";
+import { TabScreen } from "@/motion/TabScreen";
 import { endTabSwipe, TabSwipe } from "@/motion/TabSwipe";
 import { tabTransition, tabTransitionReduced } from "@/motion/tabTransition";
 import type { FabMenuItem } from "@/ui/FabMenu";
@@ -57,6 +59,37 @@ function TabBar({ state, navigateToTab }: BottomTabBarProps) {
   );
 }
 
+type TabsProps = ComponentProps<typeof Tabs>;
+
+/*
+ * Navigator props are module-level so they keep the same identity between renders: the tab
+ * navigator re-runs its options, layouts and transition setup whenever they change.
+ */
+const renderTabBar = (props: BottomTabBarProps) => <TabBar {...props} />;
+
+const screenListeners: TabsProps["screenListeners"] = ({ route }) => ({
+  transitionEnd: () => endTabSwipe(route.name),
+});
+
+const screenLayout: TabsProps["screenLayout"] = ({ children, route, navigation }) => (
+  <TabSwipe order={TAB_ORDER} current={route.name} navigation={navigation}>
+    {children}
+  </TabSwipe>
+);
+
+const optionsCache = new Map<string, BottomTabNavigationOptions>();
+function optionsFor(name: string, reduced: boolean) {
+  const key = `${reduced ? "r" : "f"}:${name}`;
+  let o = optionsCache.get(key);
+  if (!o) {
+    o = { headerShown: false, ...(reduced ? tabTransitionReduced(name) : tabTransition(name)) };
+    optionsCache.set(key, o);
+  }
+  return o;
+}
+const screenOptionsFull: TabsProps["screenOptions"] = ({ route }) => optionsFor(route.name, false);
+const screenOptionsReduced: TabsProps["screenOptions"] = ({ route }) => optionsFor(route.name, true);
+
 /** Tabs other than Home, mounted in the background so the first switch to each is instant. */
 const PRELOAD = ["/library", "/feeds", "/search"] as const;
 /** Long enough for Home to finish its first render and data load. */
@@ -70,29 +103,23 @@ export default function TabsLayout() {
   }, []);
   return (
     <ChromeProvider>
-      <Tabs
-        tabBar={(props) => <TabBar {...props} />}
-        // Inactive tabs stay attached (hidden by the fade-through) so a swipe can show the
-        // neighbouring tab beside the one being dragged.
-        detachInactiveScreens={false}
-        screenListeners={({ route }) => ({
-          transitionEnd: () => endTabSwipe(route.name),
-        })}
-        screenLayout={({ children, route, navigation }) => (
-          <TabSwipe order={TAB_ORDER} current={route.name} onGo={(name) => navigation.navigate(name)}>
-            {children}
-          </TabSwipe>
-        )}
-        screenOptions={({ route }) => ({
-          headerShown: false,
-          ...(reduced ? tabTransitionReduced(route.name) : tabTransition(route.name)),
-        })}
-      >
-        <Tabs.Screen name="index" />
-        <Tabs.Screen name="library" />
-        <Tabs.Screen name="feeds" />
-        <Tabs.Screen name="search" />
-      </Tabs>
+      {/* Inactive tabs stay mounted and laid out, hidden by the fade-through (see TabScreen). */}
+      <ScreenContext.Provider value={TabScreen}>
+        <Tabs
+          tabBar={renderTabBar}
+          // Inactive tabs stay attached so a swipe can show the neighbouring tab beside the
+          // one being dragged.
+          detachInactiveScreens={false}
+          screenListeners={screenListeners}
+          screenLayout={screenLayout}
+          screenOptions={reduced ? screenOptionsReduced : screenOptionsFull}
+        >
+          <Tabs.Screen name="index" />
+          <Tabs.Screen name="library" />
+          <Tabs.Screen name="feeds" />
+          <Tabs.Screen name="search" />
+        </Tabs>
+      </ScreenContext.Provider>
     </ChromeProvider>
   );
 }

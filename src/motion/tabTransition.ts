@@ -30,6 +30,37 @@ export function setPeek(name: string, on: boolean) {
   peekValue(name).setValue(on ? 1 : 0);
 }
 
+/**
+ * The navigator calls the interpolator on every render. Building the Animated graph once per
+ * tab (per progress value, which the navigator keeps for the route's lifetime) and returning
+ * the same style keeps the native driver from tearing it down and rebuilding it each time.
+ */
+type Interpolator = NonNullable<TabTransition['sceneStyleInterpolator']>;
+type SceneStyle = ReturnType<Interpolator>;
+function perProgress(build: (progress: Animated.Value) => SceneStyle): Interpolator {
+  const styles = new WeakMap<object, SceneStyle>();
+  return ({ current }) => {
+    let s = styles.get(current.progress);
+    if (!s) {
+      s = build(current.progress as Animated.Value);
+      styles.set(current.progress, s);
+    }
+    return s;
+  };
+}
+
+/** One options object per tab, so the screen options stay the same between renders. */
+const full = new Map<string, TabTransition>();
+const reduced = new Map<string, TabTransition>();
+function cachedTransition(cache: Map<string, TabTransition>, name: string, make: () => TabTransition) {
+  let t = cache.get(name);
+  if (!t) {
+    t = make();
+    cache.set(name, t);
+  }
+  return t;
+}
+
 /** Outgoing tab gone by halfway; incoming tab hidden until halfway, then fades in. */
 const fadeThroughOpacity = (progress: Animated.Value) =>
   progress.interpolate({
@@ -56,24 +87,26 @@ const opacityFor = (progress: Animated.Value, peek: Animated.Value) =>
  * full opacity and scale 1.
  */
 export function tabTransition(name: string): TabTransition {
-  const peek = peekValue(name);
-  const notPeeking = peek.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
-  return {
-    transitionSpec: { animation: 'spring', config: { stiffness, damping, mass } },
-    sceneStyleInterpolator: ({ current }) => {
-      // scale = 1 + (fadeThroughScale - 1) · |progress| · (1 - peek)
-      const shrink = current.progress.interpolate({
-        inputRange: [-1, 0, 1],
-        outputRange: [MotionSpec.fadeThroughScale - 1, 0, MotionSpec.fadeThroughScale - 1],
-      });
-      return {
-        sceneStyle: {
-          opacity: opacityFor(current.progress, peek),
-          transform: [{ scale: Animated.add(ONE, Animated.multiply(shrink, notPeeking)) }],
-        },
-      };
-    },
-  };
+  return cachedTransition(full, name, () => {
+    const peek = peekValue(name);
+    const notPeeking = peek.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
+    return {
+      transitionSpec: { animation: 'spring', config: { stiffness, damping, mass } },
+      sceneStyleInterpolator: perProgress((progress) => {
+        // scale = 1 + (fadeThroughScale - 1) · |progress| · (1 - peek)
+        const shrink = progress.interpolate({
+          inputRange: [-1, 0, 1],
+          outputRange: [MotionSpec.fadeThroughScale - 1, 0, MotionSpec.fadeThroughScale - 1],
+        });
+        return {
+          sceneStyle: {
+            opacity: opacityFor(progress, peek),
+            transform: [{ scale: Animated.add(ONE, Animated.multiply(shrink, notPeeking)) }],
+          },
+        };
+      }),
+    };
+  });
 }
 
 /**
@@ -82,12 +115,14 @@ export function tabTransition(name: string): TabTransition {
  * Reanimated's reduced-motion handling, so this has to be chosen explicitly.
  */
 export function tabTransitionReduced(name: string): TabTransition {
-  const peek = peekValue(name);
-  return {
-    transitionSpec: {
-      animation: 'spring',
-      config: { stiffness: fx.stiffness, damping: fx.damping, mass: fx.mass, overshootClamping: true },
-    },
-    sceneStyleInterpolator: ({ current }) => ({ sceneStyle: { opacity: opacityFor(current.progress, peek) } }),
-  };
+  return cachedTransition(reduced, name, () => {
+    const peek = peekValue(name);
+    return {
+      transitionSpec: {
+        animation: 'spring',
+        config: { stiffness: fx.stiffness, damping: fx.damping, mass: fx.mass, overshootClamping: true },
+      },
+      sceneStyleInterpolator: perProgress((progress) => ({ sceneStyle: { opacity: opacityFor(progress, peek) } })),
+    };
+  });
 }

@@ -164,6 +164,13 @@ No AI / no cloud. Battery matters: no background polling.
 - Open security items: no FLAG_SECURE with app lock (Recents shows content); pdf.js 3.11 with
   universal file access in the WebView; release signing silently falls back to the debug key.
 
+## Done 2026-11-21 (v1.0.11)
+- Tab swipe perf fix: with `detachInactiveScreens={false}` react-native-screens hid inactive tabs
+  with `display: none`, re-laying out whole tabs on every tab change (laggy app, dropped nav-bar
+  taps). `src/motion/TabScreen.tsx` (via `ScreenContext` in the tabs layout) keeps inactive tabs
+  laid out, transparent and touch-less. Navigator props, tab transitions and the TabSwipe pan
+  config are now stable between renders.
+
 ## Next
 Roadmap (in order, tracked at https://claude.ai/artifact/AimQzdGP6PGHB7FMd3RHHo): read-later queue
 on Home · highlights per item (jump to page, export) · search inside PDFs · duplicate warning +

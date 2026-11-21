@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useCallback, useMemo } from 'react';
 import { useWindowDimensions } from 'react-native';
-import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
+import { GestureDetector, type PanGestureConfig, usePanGesture } from 'react-native-gesture-handler';
 import Animated, { makeMutable, type SharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
@@ -69,7 +69,19 @@ export function endTabSwipe(keep: string) {
  *
  * The navigator's `transitionEnd` (and a spring-back) call endTabSwipe.
  */
-export function TabSwipe({ order, current, onGo, children }: { order: readonly string[]; current: string; onGo: (name: string) => void; children: ReactNode }) {
+export function TabSwipe({
+  order,
+  current,
+  navigation,
+  children,
+}: {
+  order: readonly string[];
+  current: string;
+  /** The route's navigation object (stable for the route's lifetime). */
+  navigation: { navigate: (name: string) => void };
+  children: ReactNode;
+}) {
+  const onGo = useCallback((name: string) => navigation.navigate(name), [navigation]);
   const springs = useSprings();
   const { width: W } = useWindowDimensions();
   const x = offsetOf(current);
@@ -79,9 +91,13 @@ export function TabSwipe({ order, current, onGo, children }: { order: readonly s
   const next = i >= 0 && i < order.length - 1 ? order[i + 1] : null;
   const prevX = prev ? offsetOf(prev) : null;
   const nextX = next ? offsetOf(next) : null;
-  const involved = [current, prev, next].filter((n): n is string => !!n);
+  const spring = springs.defaultSpatial;
 
-  const pan = usePanGesture({
+  // RNGH re-sends a gesture's config to native whenever the config object changes, and this
+  // re-renders with every navigator render (each tab change), so keep it stable.
+  const config = useMemo((): PanGestureConfig => {
+    const involved = [current, prev, next].filter((n): n is string => !!n);
+    return {
     activeOffsetX: [-24, 24],
     failOffsetY: [-14, 14],
     onActivate: () => {
@@ -110,21 +126,23 @@ export function TabSwipe({ order, current, onGo, children }: { order: readonly s
       scheduleOnRN(release);
       if (!to || !incoming || !far || !sameWay) {
         x.set(
-          springTo(0, springs.defaultSpatial, v, (done) => {
+          springTo(0, spring, v, (done) => {
             'worklet';
             if (done) scheduleOnRN(endTabSwipe, current);
           }),
         );
-        prevX?.set(springTo(-W, springs.defaultSpatial, v));
-        nextX?.set(springTo(W, springs.defaultSpatial, v));
+        prevX?.set(springTo(-W, spring, v));
+        nextX?.set(springTo(W, spring, v));
         return;
       }
       // Outgoing keeps moving off-screen; the incoming tab follows from right beside it.
-      x.set(springTo(Math.sign(t) * W, springs.defaultSpatial, v));
-      incoming.set(springTo(0, springs.defaultSpatial, v));
+      x.set(springTo(Math.sign(t) * W, spring, v));
+      incoming.set(springTo(0, spring, v));
       scheduleOnRN(onGo, to);
     },
-  });
+    };
+  }, [W, current, next, nextX, onGo, prev, prevX, spring, x]);
+  const pan = usePanGesture(config);
 
   const style = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }] }));
 
