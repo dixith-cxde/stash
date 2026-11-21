@@ -3,13 +3,14 @@ import Storage from 'expo-sqlite/kv-store';
 import { AppState, Linking } from 'react-native';
 import { create } from 'zustand';
 
-import { addUpdateProgressListener, ExpressiveModule } from '../../../modules/expressive';
+import { addUpdateProgressListener, addUpdateStatusListener, ExpressiveModule } from '../../../modules/expressive';
 
 /**
  * App updates from GitHub Releases. Each release (tag `vX.Y.Z`) carries a signed APK; the
  * app compares the newest tag with its own version and, on request, downloads the APK itself
- * (with progress) and hands it to Android's installer, which installs it over this one
- * (same signing key, data is kept). Without the native module it opens the link instead.
+ * (with progress) and installs it in-app through a PackageInstaller session: Android shows
+ * only its confirm sheet over Stash, then replaces this version (same signing key, data is
+ * kept). Only without the native module (iOS / Expo Go) does it open the release page.
  * Network use: only when the user taps "Check for updates", plus at most once a day when
  * the app starts (one small request, no background work).
  */
@@ -60,7 +61,7 @@ export function isNewer(a: string, b: string): boolean {
   return false;
 }
 
-export type UpdatePhase = 'idle' | 'downloading' | 'permission' | 'ready' | 'failed';
+export type UpdatePhase = 'idle' | 'downloading' | 'permission' | 'ready' | 'installing' | 'failed';
 
 type UpdateState = {
   phase: UpdatePhase;
@@ -69,66 +70,118 @@ type UpdateState = {
   version: string | null;
   path: string | null;
   error: string | null;
+  /** The user closed Android's install sheet without installing. */
+  cancelled: boolean;
 };
 
-/** The in-app update download, shared by Settings and Home. */
-export const useUpdate = create<UpdateState>(() => ({ phase: 'idle', progress: null, version: null, path: null, error: null }));
+/** The in-app update download and install, shared by Settings and Home. */
+export const useUpdate = create<UpdateState>(() => ({
+  phase: 'idle',
+  progress: null,
+  version: null,
+  path: null,
+  error: null,
+  cancelled: false,
+}));
 
-/** Hands the downloaded APK to the installer, first asking for "Install unknown apps" if needed. */
-export function installDownloaded() {
-  const { path } = useUpdate.getState();
+const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+// Install session results (Android's confirm sheet, success, cancel, failure). Subscribed once.
+let statusSub: ReturnType<typeof addUpdateStatusListener> | undefined;
+function listenForInstallStatus() {
+  if (statusSub !== undefined) return;
+  statusSub = addUpdateStatusListener((status, msg) => {
+    if (status === 'confirm') useUpdate.setState({ phase: 'installing' });
+    // On success Android replaces and restarts Stash; this is only seen if it didn't.
+    else if (status === 'success') useUpdate.setState({ phase: 'idle', path: null, cancelled: false });
+    else if (status === 'cancelled') useUpdate.setState({ phase: 'ready', cancelled: true });
+    else useUpdate.setState({ phase: 'failed', error: msg ?? 'Install failed' });
+  });
+}
+
+let permissionSub: { remove(): void } | null = null;
+/** A native install call is in flight (copying the APK into the session). */
+let starting = false;
+
+/**
+ * Installs the downloaded APK inside the app: Stash starts an install session and Android
+ * shows its confirm sheet over Stash. Asks for "Install unknown apps" first if needed.
+ */
+export async function installDownloaded() {
+  const { path, phase } = useUpdate.getState();
   const m = ExpressiveModule;
-  if (!path || !m) return;
-  if (!m.canInstallUpdates()) {
-    useUpdate.setState({ phase: 'permission' });
-    m.openInstallPermission();
-    // Back from Settings with the switch on: go straight on to the installer.
-    const sub = AppState.addEventListener('change', (s) => {
-      if (s !== 'active') return;
-      sub.remove();
-      if (m.canInstallUpdates()) installDownloaded();
-      else useUpdate.setState({ phase: 'ready' });
-    });
-    return;
-  }
+  // 'installing' is not a lock: if Android's sheet was lost, tapping again starts a new session.
+  if (!path || !m || starting || phase === 'downloading') return;
   try {
-    m.installUpdate(path);
-    useUpdate.setState({ phase: 'ready' });
+    if (!m.canInstallUpdates()) {
+      useUpdate.setState({ phase: 'permission' });
+      permissionSub?.remove();
+      // Back from Settings with the switch on: go straight on to the install.
+      permissionSub = AppState.addEventListener('change', (s) => {
+        if (s !== 'active') return;
+        permissionSub?.remove();
+        permissionSub = null;
+        let allowed = false;
+        try {
+          allowed = m.canInstallUpdates();
+        } catch {}
+        if (allowed) void installDownloaded();
+        else useUpdate.setState({ phase: 'ready' });
+      });
+      m.openInstallPermission();
+      return;
+    }
+    listenForInstallStatus();
+    useUpdate.setState({ phase: 'installing', cancelled: false, error: null });
+    starting = true;
+    const mode = await m.installUpdate(path).finally(() => {
+      starting = false;
+    });
+    // The system installer app took over; nothing more will be reported back.
+    if (mode === 'viewer') useUpdate.setState({ phase: 'ready' });
   } catch (e) {
-    useUpdate.setState({ phase: 'failed', path: null, error: e instanceof Error ? e.message : String(e) });
+    permissionSub?.remove();
+    permissionSub = null;
+    useUpdate.setState({ phase: 'failed', error: message(e) });
   }
 }
 
 /**
- * Downloads a release in the app and opens the installer when done. A second call while one
- * is running does nothing; a finished download of the same version is installed directly.
+ * Downloads a release in the app and installs it when done. A second call while one is
+ * running does nothing; a finished download of the same version is installed directly.
+ * Never throws: every problem ends in phase 'failed' with a message.
  */
 export async function installRelease(r: Release) {
   const m = ExpressiveModule;
-  // Older builds have the module but not the download functions: use the browser.
-  if (!r.apkUrl || typeof m?.downloadUpdate !== 'function') {
-    await Linking.openURL(r.apkUrl ?? r.pageUrl);
+  // iOS, web and Expo Go have no installer: the release page is all there is.
+  if (!m || typeof m.downloadUpdate !== 'function') {
+    await Linking.openURL(r.pageUrl).catch(() => {});
     return;
   }
   const s = useUpdate.getState();
   if (s.phase === 'downloading') return;
-  if (s.path && s.version === r.version) {
-    installDownloaded();
+  if (!r.apkUrl) {
+    useUpdate.setState({ phase: 'failed', version: r.version, error: 'This release has no APK to install' });
     return;
   }
-  useUpdate.setState({ phase: 'downloading', progress: 0, version: r.version, path: null, error: null });
+  if (s.path && s.version === r.version) {
+    await installDownloaded();
+    return;
+  }
+  useUpdate.setState({ phase: 'downloading', progress: 0, version: r.version, path: null, error: null, cancelled: false });
   const sub = addUpdateProgressListener((received, total) =>
     useUpdate.setState({ progress: total > 0 ? Math.min(1, received / total) : null }),
   );
   try {
-    const path = await m!.downloadUpdate(r.apkUrl, `stash-${r.version}.apk`);
+    const path = await m.downloadUpdate(r.apkUrl, `stash-${r.version}.apk`);
     useUpdate.setState({ phase: 'ready', progress: 1, path });
-    installDownloaded();
   } catch (e) {
-    useUpdate.setState({ phase: 'failed', progress: null, error: e instanceof Error ? e.message : String(e) });
+    useUpdate.setState({ phase: 'failed', progress: null, error: message(e) });
+    return;
   } finally {
     sub?.remove();
   }
+  await installDownloaded();
 }
 
 /** The newest release if it is newer than this app, else null. */

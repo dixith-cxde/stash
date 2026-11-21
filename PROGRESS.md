@@ -183,6 +183,13 @@ Known: dev-only `isFocused()` warning from a library; extractor keeps some page 
 (dates, "Story by"); test data on phone (Hacker News feed, 2 saved articles, 1 hidden article).
 - User asked (2026-11-14): skip per-screen phone testing; rely on tsc/lint/jest.
 
+## Done 2026-11-21 (v1.0.12, not on device yet)
+- In-app update install: the downloaded APK goes into a PackageInstaller session
+  (`UpdateInstaller.kt`, result receiver → `onUpdateStatus`), so Android shows only its
+  confirm sheet over Stash; no-prompt updates on Android 12+ once Stash is the installer.
+  Falls back to the system installer (ACTION_VIEW) when a ROM blocks sessions (check on the
+  vivo). No more GitHub fallback except iOS/Expo Go; failures and cancels show in Settings.
+
 ## How to run (low-spec laptop: never start an emulator)
 - Phone: vivo USB (adb). `adb reverse tcp:8081 tcp:8081` after any reconnect.
 - Metro: `eval "$(fnm env)"; fnm exec --using=26 npx expo start --dev-client`.

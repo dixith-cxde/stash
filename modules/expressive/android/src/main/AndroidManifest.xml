@@ -33,6 +33,11 @@
       android:taskAffinity=""
       android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
+    <!-- In-app update installs: PackageInstaller session results (UpdateInstaller.kt). -->
+    <receiver
+      android:name="expo.modules.expressive.UpdateInstallReceiver"
+      android:exported="false" />
+
     <provider
       android:name="expo.modules.expressive.UpdateFileProvider"
       android:authorities="${applicationId}.updates"

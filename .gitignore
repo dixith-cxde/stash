@@ -56,3 +56,5 @@ modules/**/android/build/
 .claude/
 CLAUDE.md
 AGENTS.md
+*.apk
+**.apk

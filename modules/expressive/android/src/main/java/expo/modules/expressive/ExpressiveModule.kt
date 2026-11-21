@@ -54,6 +54,32 @@ class ExpressiveModule : Module() {
     if (key == QuickSaveQueue.KEY && prefs.contains(QuickSaveQueue.KEY)) sendEvent("onQuickSave", emptyMap<String, Any>())
   }
 
+  /** Install session results from UpdateInstallReceiver. */
+  private val installListener = UpdateInstaller.Listener { status, message, confirm ->
+    if (status == "confirm" && confirm != null) {
+      showInstallConfirm(confirm)
+    } else {
+      sendEvent("onUpdateStatus", mapOf("status" to status, "message" to message))
+    }
+  }
+
+  /** Shows Android's install confirm sheet over Stash, or keeps it until Stash is in front. */
+  private fun showInstallConfirm(confirm: Intent) {
+    val activity = appContext.currentActivity
+    if (activity == null) {
+      UpdateInstaller.pendingConfirm = confirm
+      return
+    }
+    activity.runOnUiThread {
+      try {
+        activity.startActivity(confirm)
+        sendEvent("onUpdateStatus", mapOf("status" to "confirm", "message" to null))
+      } catch (e: Exception) {
+        sendEvent("onUpdateStatus", mapOf("status" to "failed", "message" to "Couldn't show the install prompt"))
+      }
+    }
+  }
+
   private fun quickSavePrefs(): SharedPreferences? =
     appContext.reactContext?.getSharedPreferences(QuickSaveQueue.PREFS, Context.MODE_PRIVATE)
 
@@ -77,10 +103,16 @@ class ExpressiveModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("Expressive")
 
-    Events("onProcessText", "onUpdateProgress", "onQuickSave")
+    Events("onProcessText", "onUpdateProgress", "onQuickSave", "onUpdateStatus")
 
-    OnCreate { quickSavePrefs()?.registerOnSharedPreferenceChangeListener(quickSaveListener) }
-    OnDestroy { quickSavePrefs()?.unregisterOnSharedPreferenceChangeListener(quickSaveListener) }
+    OnCreate {
+      quickSavePrefs()?.registerOnSharedPreferenceChangeListener(quickSaveListener)
+      UpdateInstaller.listener = installListener
+    }
+    OnDestroy {
+      quickSavePrefs()?.unregisterOnSharedPreferenceChangeListener(quickSaveListener)
+      if (UpdateInstaller.listener === installListener) UpdateInstaller.listener = null
+    }
 
     /** Returns (and clears) links the widget saved: [{ url, at }], oldest first. */
     Function("takeQuickSaves") {
@@ -88,7 +120,13 @@ class ExpressiveModule : Module() {
       QuickSaveQueue.take(context)
     }
 
-    OnActivityEntersForeground { consumeProcessText(appContext.currentActivity?.intent) }
+    OnActivityEntersForeground {
+      consumeProcessText(appContext.currentActivity?.intent)
+      UpdateInstaller.pendingConfirm?.let {
+        UpdateInstaller.pendingConfirm = null
+        showInstallConfirm(it)
+      }
+    }
     OnNewIntent { intent -> consumeProcessText(intent) }
 
     /** Returns (and clears) text selected in another app via the "Save to Stash" menu. */
@@ -172,24 +210,41 @@ class ExpressiveModule : Module() {
       null
     }
 
-    /** Hands a downloaded APK (path from downloadUpdate) to the system installer. */
-    Function("installUpdate") { path: String ->
-      val activity = appContext.currentActivity ?: throw UpdateException("No activity")
+    /**
+     * Installs a downloaded APK (path from downloadUpdate) in-app via a PackageInstaller
+     * session; progress/outcome arrive as onUpdateStatus. Resolves "session" once committed,
+     * or "viewer" when this phone refuses sessions and the system installer was opened instead.
+     */
+    AsyncFunction("installUpdate") { path: String ->
+      val context = appContext.reactContext ?: throw UpdateException("No React context")
       val file = File(path)
       if (!file.exists()) throw UpdateException("The update file is gone; download it again")
       // Only an update of Stash itself; Android then checks the signature matches the installed app.
-      val info = activity.packageManager.getPackageArchiveInfo(file.absolutePath, 0)
-      if (info?.packageName != activity.packageName) {
+      val info = context.packageManager.getPackageArchiveInfo(file.absolutePath, 0)
+      if (info?.packageName != context.packageName) {
         file.delete()
         throw UpdateException("This file is not a Stash update")
       }
-      val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.updates", file)
-      activity.startActivity(
-        Intent(Intent.ACTION_VIEW)
-          .setDataAndType(uri, "application/vnd.android.package-archive")
-          .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-      )
-      null
+      if (!context.packageManager.canRequestPackageInstalls()) {
+        throw UpdateException("Allow \"Install unknown apps\" for Stash first")
+      }
+      try {
+        UpdateInstaller.install(context, file)
+        "session"
+      } catch (e: Exception) {
+        // Some vendor ROMs block install sessions: hand the file to the system installer instead.
+        try {
+          val uri = FileProvider.getUriForFile(context, "${context.packageName}.updates", file)
+          context.startActivity(
+            Intent(Intent.ACTION_VIEW)
+              .setDataAndType(uri, "application/vnd.android.package-archive")
+              .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+          )
+          "viewer"
+        } catch (e2: Exception) {
+          throw UpdateException(e.message ?: "Couldn't start the install", e)
+        }
+      }
     }
 
     /**

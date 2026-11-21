@@ -3,8 +3,12 @@ import { type EventSubscription, NativeModule, requireOptionalNativeModule } fro
 type ExpressiveEvents = {
   onProcessText(event: { text: string }): void;
   onUpdateProgress(event: { received: number; total: number }): void;
+  onUpdateStatus(event: { status: UpdateInstallStatus; message: string | null }): void;
   onQuickSave(event: Record<string, never>): void;
 };
+
+/** In-app install session progress: the confirm sheet is up, or the install finished. */
+export type UpdateInstallStatus = 'confirm' | 'success' | 'cancelled' | 'failed';
 
 /** A link the home-screen widget saved without opening the app; `at` is ms since epoch. */
 export type QuickSave = { url: string; at: number };
@@ -24,8 +28,11 @@ declare class ExpressiveNativeModule extends NativeModule<ExpressiveEvents> {
   openInstallPermission(): void;
   /** Opens a saved file in its default app (Android asks when there is none). False when nothing can open it. */
   openFile(uri: string, mimeType: string | null): boolean;
-  /** Hands a downloaded APK to the system installer. */
-  installUpdate(path: string): void;
+  /**
+   * Installs a downloaded APK in-app (PackageInstaller session; outcome via onUpdateStatus).
+   * "viewer" when the phone refused sessions and the system installer was opened instead.
+   */
+  installUpdate(path: string): Promise<'session' | 'viewer'>;
   /** Wallpaper colors: `seed` on Android 12+, plus platform color roles on Android 14+. */
   getDynamicColors(dark: boolean): (Partial<Record<string, string>> & { seed?: string }) | null;
 }
@@ -39,6 +46,12 @@ export function addProcessTextListener(listener: (text: string) => void): EventS
 
 export function addUpdateProgressListener(listener: (received: number, total: number) => void): EventSubscription | null {
   return ExpressiveModule?.addListener('onUpdateProgress', (e) => listener(e.received, e.total)) ?? null;
+}
+
+export function addUpdateStatusListener(
+  listener: (status: UpdateInstallStatus, message: string | null) => void,
+): EventSubscription | null {
+  return ExpressiveModule?.addListener('onUpdateStatus', (e) => listener(e.status, e.message)) ?? null;
 }
 
 /** Fires while the app is running when the widget queues a link (take it with takeQuickSaves). */

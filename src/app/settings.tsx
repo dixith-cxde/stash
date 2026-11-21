@@ -305,7 +305,7 @@ function AppLockRows() {
   );
 }
 
-/** Check GitHub Releases for a newer version; when there is one, tap to download and install it. */
+/** Check GitHub Releases for a newer version; when there is one, tap to download and install it in-app. */
 function UpdateRow({ index, count }: { index: number; count: number }) {
   const { colors } = useAppTheme();
   // Opening Settings looks once, so an update shows without an extra tap.
@@ -339,9 +339,13 @@ function UpdateRow({ index, count }: { index: number; count: number }) {
       ? pct == null ? 'Downloading…' : `Downloading · ${pct}%`
       : dl.phase === 'permission'
         ? 'Allow "Install unknown apps" for Stash, then come back'
-        : dl.phase === 'failed'
-          ? `Download failed${dl.error ? ` (${dl.error})` : ''} · tap to try again`
-          : 'Downloaded · tap to install'
+        : dl.phase === 'installing'
+          ? 'Installing… confirm in the Android prompt'
+          : dl.phase === 'failed'
+            ? `${dl.path ? 'Install' : 'Download'} failed${dl.error ? ` (${dl.error})` : ''} · tap to try again`
+            : dl.cancelled
+              ? 'Install cancelled · tap to install'
+              : 'Downloaded · tap to install'
     : update
       ? `Version ${update.version} is ready · tap to download and install`
       : state === 'checking'
@@ -361,8 +365,8 @@ function UpdateRow({ index, count }: { index: number; count: number }) {
       count={count}
       onPress={() => (update ? void installRelease(update) : check())}
       trailing={
-        state === 'checking' || (busy && dl.phase === 'downloading') ? (
-          <LoadingIndicator size={28} accessibilityLabel={busy ? 'Downloading' : 'Checking'} />
+        state === 'checking' || (busy && (dl.phase === 'downloading' || dl.phase === 'installing')) ? (
+          <LoadingIndicator size={28} accessibilityLabel={busy ? (dl.phase === 'installing' ? 'Installing' : 'Downloading') : 'Checking'} />
         ) : (
           <Ico name="chevronRight" color={colors.onSurfaceVariant} />
         )
