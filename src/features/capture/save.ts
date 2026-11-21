@@ -48,7 +48,7 @@ export async function saveDraft(draft: CaptureDraft, opts: SaveOptions = {}): Pr
   if (draft.file) {
     const copied = importFile(draft.file.path, id, draft.file.fileName, draft.file.mimeType);
     filePath = copied.uri;
-    fileSize = copied.size ?? draft.file.size ?? undefined;
+    fileSize = copied.size || draft.file.size || undefined;
     if (draft.type === 'pdf') {
       const thumb = await makePdfThumbnail(copied.uri, id);
       thumbPath = thumb?.uri;

@@ -24,6 +24,15 @@
       </intent-filter>
     </activity>
 
+    <!-- Widget "Paste link": reads the clipboard once focused, queues the link, toasts, closes. -->
+    <activity
+      android:name="expo.modules.expressive.QuickSaveActivity"
+      android:exported="false"
+      android:excludeFromRecents="true"
+      android:noHistory="true"
+      android:taskAffinity=""
+      android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
     <provider
       android:name="expo.modules.expressive.UpdateFileProvider"
       android:authorities="${applicationId}.updates"
@@ -44,6 +53,18 @@
       <meta-data
         android:name="android.appwidget.provider"
         android:resource="@xml/stash_widget_info" />
+    </receiver>
+    <!-- 2x2 "Stash quick add" widget (StashWidget.kt). -->
+    <receiver
+      android:name="expo.modules.expressive.StashWidgetLarge"
+      android:exported="false"
+      android:label="@string/stash_widget_large_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/stash_widget_large_info" />
     </receiver>
   </application>
 </manifest>

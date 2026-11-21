@@ -1,6 +1,9 @@
 package expo.modules.expressive
 
+import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
@@ -22,6 +25,13 @@ class UpdateException(message: String, cause: Throwable? = null) :
 class PdfRenderException(message: String, cause: Throwable? = null) :
   CodedException("ERR_PDF_RENDER", message, cause)
 
+/** Update APKs come only from GitHub release assets, over HTTPS (each redirect is checked too). */
+private val UPDATE_HOSTS = setOf("github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com")
+
+private fun checkUpdateUrl(url: URL) {
+  if (url.protocol != "https" || url.host !in UPDATE_HOSTS) throw UpdateException("Updates only download from GitHub")
+}
+
 private val DYNAMIC_ROLES = listOf(
   "primary", "onPrimary", "primaryContainer", "onPrimaryContainer",
   "secondary", "onSecondary", "secondaryContainer", "onSecondaryContainer",
@@ -38,6 +48,14 @@ private val DYNAMIC_ROLES = listOf(
 
 class ExpressiveModule : Module() {
   private var pendingProcessText: String? = null
+
+  /** Held here: SharedPreferences keeps listeners weakly. Fires when the widget queues a link. */
+  private val quickSaveListener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
+    if (key == QuickSaveQueue.KEY && prefs.contains(QuickSaveQueue.KEY)) sendEvent("onQuickSave", emptyMap<String, Any>())
+  }
+
+  private fun quickSavePrefs(): SharedPreferences? =
+    appContext.reactContext?.getSharedPreferences(QuickSaveQueue.PREFS, Context.MODE_PRIVATE)
 
   /**
    * Pulls selected text out of an intent exactly once: ACTION_SAVE_TEXT from
@@ -59,7 +77,16 @@ class ExpressiveModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("Expressive")
 
-    Events("onProcessText", "onUpdateProgress")
+    Events("onProcessText", "onUpdateProgress", "onQuickSave")
+
+    OnCreate { quickSavePrefs()?.registerOnSharedPreferenceChangeListener(quickSaveListener) }
+    OnDestroy { quickSavePrefs()?.unregisterOnSharedPreferenceChangeListener(quickSaveListener) }
+
+    /** Returns (and clears) links the widget saved: [{ url, at }], oldest first. */
+    Function("takeQuickSaves") {
+      val context = appContext.reactContext ?: return@Function emptyList<Map<String, Any>>()
+      QuickSaveQueue.take(context)
+    }
 
     OnActivityEntersForeground { consumeProcessText(appContext.currentActivity?.intent) }
     OnNewIntent { intent -> consumeProcessText(intent) }
@@ -84,13 +111,18 @@ class ExpressiveModule : Module() {
       val out = File(dir, name.replace(Regex("[^A-Za-z0-9._-]"), "_"))
       val part = File(dir, out.name + ".part")
       try {
+        checkUpdateUrl(URL(url))
         var conn = URL(url).openConnection() as HttpURLConnection
+        conn.instanceFollowRedirects = false
         // GitHub answers asset links with a redirect to its storage host.
         var hops = 0
         while (conn.responseCode in 300..399 && hops++ < 5) {
           val next = conn.getHeaderField("Location") ?: break
           conn.disconnect()
-          conn = URL(URL(url), next).openConnection() as HttpURLConnection
+          val target = URL(conn.url, next)
+          checkUpdateUrl(target)
+          conn = target.openConnection() as HttpURLConnection
+          conn.instanceFollowRedirects = false
         }
         if (conn.responseCode != 200) throw UpdateException("Download failed (${conn.responseCode})")
         val total = conn.contentLengthLong
@@ -145,6 +177,12 @@ class ExpressiveModule : Module() {
       val activity = appContext.currentActivity ?: throw UpdateException("No activity")
       val file = File(path)
       if (!file.exists()) throw UpdateException("The update file is gone; download it again")
+      // Only an update of Stash itself; Android then checks the signature matches the installed app.
+      val info = activity.packageManager.getPackageArchiveInfo(file.absolutePath, 0)
+      if (info?.packageName != activity.packageName) {
+        file.delete()
+        throw UpdateException("This file is not a Stash update")
+      }
       val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.updates", file)
       activity.startActivity(
         Intent(Intent.ACTION_VIEW)
@@ -152,6 +190,28 @@ class ExpressiveModule : Module() {
           .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
       )
       null
+    }
+
+    /**
+     * Opens a saved file (file:// URI under files/) in the app the user picked as default for
+     * its type, like tapping it in a file manager; Android asks which app when there is no
+     * default. Resolves false when no installed app can open the type.
+     */
+    Function("openFile") { uri: String, mimeType: String? ->
+      val activity = appContext.currentActivity ?: return@Function false
+      val file = File(Uri.parse(uri).path ?: return@Function false)
+      if (!file.exists()) return@Function false
+      val content = FileProvider.getUriForFile(activity, "${activity.packageName}.updates", file)
+      val type = mimeType?.takeIf { it.isNotBlank() } ?: activity.contentResolver.getType(content) ?: "*/*"
+      val view = Intent(Intent.ACTION_VIEW)
+        .setDataAndType(content, type)
+        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+      try {
+        activity.startActivity(view)
+        true
+      } catch (e: ActivityNotFoundException) {
+        false
+      }
     }
 
     /**

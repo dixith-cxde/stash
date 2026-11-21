@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+<!-- Stash icon: the mark traced 1:1 from the supplied artwork (12 ellipses + ®), scaled and centred. -->
+<rect width="48" height="48" fill="#F5EEE6"/>
+<g transform="translate(24.0 24.0) scale(0.13) translate(-511.45 -288.15)">
+<g fill="#000000">
+  <ellipse cx="391.76" cy="288.23" rx="2.54" ry="23.06"/>
+  <ellipse cx="406.93" cy="288.26" rx="4.78" ry="49.22"/>
+  <ellipse cx="424.67" cy="288.21" rx="7.11" ry="64.53"/>
+  <ellipse cx="444.90" cy="288.21" rx="9.31" ry="74.61"/>
+  <ellipse cx="467.47" cy="288.22" rx="11.84" ry="77.80"/>
+  <ellipse cx="496.12" cy="288.07" rx="18.61" ry="83.84"/>
+  <ellipse cx="526.72" cy="288.07" rx="18.62" ry="83.87"/>
+  <ellipse cx="555.38" cy="288.20" rx="11.80" ry="77.78"/>
+  <ellipse cx="577.95" cy="288.22" rx="9.32" ry="74.52"/>
+  <ellipse cx="598.18" cy="288.22" rx="7.09" ry="64.64"/>
+  <ellipse cx="615.90" cy="288.17" rx="4.76" ry="49.28"/>
+  <ellipse cx="631.15" cy="288.21" rx="2.56" ry="22.91"/>
+  <circle cx="629.1" cy="209.0" r="4.45" fill="none" stroke="#000000" stroke-width="1.1"/>
+  <path d="M627.55 211.95V206.5H629.35Q630.75 206.5 630.75 207.85Q630.75 209.2 629.35 209.2H627.55M629.3 209.2L630.75 211.95" fill="none" stroke="#000000" stroke-width="0.95" stroke-linejoin="round" stroke-linecap="round"/>
+</g>
+</g>
+</svg>

@@ -147,6 +147,23 @@ No AI / no cloud. Battery matters: no background polling.
   Wallpaper colors on Android 12+ (`values*-v31`), M3 baseline below. `/capture` reads `paste=1`
   and fills the link from the clipboard after 350 ms (Android needs window focus).
 
+## Done 2026-11-21 (needs a native rebuild; not on device yet)
+- Widget Paste link saves at once: `QuickSaveActivity` (invisible, reads the clipboard once
+  focused) queues the link in SharedPreferences + toast; `CaptureListener` drains it through
+  `saveDraft` on start/resume or the `onQuickSave` event. Note/File still open /capture.
+- Launcher shortcuts (`plugins/withShortcuts.js`): Paste link / New note / Upload file.
+- Tab swipe shows the neighbouring tab while dragging: `detachInactiveScreens={false}`, per-tab
+  peek value in `tabTransition.ts` overrides the fade-through during a swipe, `endTabSwipe` on
+  `transitionEnd`. Watch memory/perf on a release build (all four tabs stay attached).
+- Collection pages: sort pill (Recent / Name / Size / Unread first), shared `ui/SortButton`.
+- `useSharedSelection` no longer reads a shared value during render.
+- Release hygiene: `devWarn` (src/lib/log.ts) replaces console.warn; dev routes redirect Home in
+  release (`devOnly`); backup import keeps only http(s) URLs and own file paths; delete/share
+  only touch files/ and thumbs/ (`isOwnFile`); update downloads only from GitHub over HTTPS and
+  the APK must be Stash's package.
+- Open security items: no FLAG_SECURE with app lock (Recents shows content); pdf.js 3.11 with
+  universal file access in the WebView; release signing silently falls back to the debug key.
+
 ## Next
 Roadmap (in order, tracked at https://claude.ai/artifact/AimQzdGP6PGHB7FMd3RHHo): read-later queue
 on Home · highlights per item (jump to page, export) · search inside PDFs · duplicate warning +

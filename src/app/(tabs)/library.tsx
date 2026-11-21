@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CollectionCard, PILL_LEFT, PILL_RIGHT, SmartViewTile } from '@/features/collections/CollectionCards';
@@ -9,23 +9,22 @@ import type { Collection } from '@/features/stash/queries';
 import { useCollections, useTotals } from '@/features/stash/queries';
 import { reflow } from '@/motion/layout';
 import { useChromeScroll } from '@/motion/ScrollChrome';
-import { useSelection } from '@/motion/useSelection';
 import { useAppTheme } from '@/theme/AppTheme';
 import { Layout } from '@/theme/tokens';
 import { EmptyState } from '@/ui/EmptyState';
-import { Ico } from '@/ui/Ico';
+import type { IconName } from '@/theme/icons';
 import { IconButton } from '@/ui/IconButton';
 import { LIST_GAP } from '@/ui/List';
-import { PressableSurface } from '@/ui/PressableSurface';
+import { SortButton } from '@/ui/SortButton';
 import { CollapsedAppBar, Overline, ScreenHeader, SectionHeader } from '@/ui/ScreenHeader';
-import { Text } from '@/ui/Text';
 
 type Sort = 'recent' | 'name' | 'size';
-const SORTS: Record<Sort, { label: string; next: Sort; by: (a: Collection, b: Collection) => number }> = {
-  recent: { label: 'Recent', next: 'name', by: (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime() },
-  name: { label: 'Name', next: 'size', by: (a, b) => a.name.localeCompare(b.name) },
-  size: { label: 'Size', next: 'recent', by: (a, b) => b.itemCount - a.itemCount },
+const SORTS: Record<Sort, { label: string; icon: IconName; by: (a: Collection, b: Collection) => number }> = {
+  recent: { label: 'Recent', icon: 'schedule', by: (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime() },
+  name: { label: 'Name', icon: 'title', by: (a, b) => a.name.localeCompare(b.name) },
+  size: { label: 'Size', icon: 'layers', by: (a, b) => b.itemCount - a.itemCount },
 };
+const SORT_OPTIONS = (Object.keys(SORTS) as Sort[]).map((key) => ({ key, label: SORTS[key].label, icon: SORTS[key].icon }));
 
 export default function Library() {
   const { colors } = useAppTheme();
@@ -93,7 +92,7 @@ export default function Library() {
             </View>
           </View>
 
-          <SectionHeader title="Collections" trailing={<SortButton sort={sort} onPress={() => setSort(SORTS[sort].next)} />} />
+          <SectionHeader title="Collections" trailing={<SortButton options={SORT_OPTIONS} value={sort} onChange={setSort} />} />
           {sorted.length === 0 && !loading ? (
             <EmptyState title="No collections yet" body="Group what you save: research, recipes, a trip. Tap + to start one." />
           ) : (
@@ -112,29 +111,6 @@ export default function Library() {
         <CollapsedAppBar title="Library" scrollY={scrollY} trailing={<NewCollectionButton />} />
       </>
     </View>
-  );
-}
-
-/** "⇅ Recent" pill: each tap cycles the sort; the icon flips with fastSpatial. */
-function SortButton({ sort, onPress }: { sort: Sort; onPress: () => void }) {
-  const { colors } = useAppTheme();
-  const flip = useSelection(sort === 'name', { shape: 'fastSpatial' });
-  const icon = useAnimatedStyle(() => ({ transform: [{ rotate: `${flip.shape.get() * 180}deg` }] }));
-  return (
-    <PressableSurface
-      kind="button"
-      corner={20}
-      onPress={onPress}
-      accessibilityLabel={`Sort by ${SORTS[sort].label}`}
-      style={{ height: 40, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, backgroundColor: colors.surfaceContainerHigh }}
-    >
-      <Animated.View style={icon}>
-        <Ico name="swapVert" size={18} color={colors.onSurfaceVariant} />
-      </Animated.View>
-      <Text variant="labelLarge" color="onSurfaceVariant">
-        {SORTS[sort].label}
-      </Text>
-    </PressableSurface>
   );
 }
 

@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
-import * as Sharing from 'expo-sharing';
+import { openFileExternally, shareFile } from '@/lib/nav';
 import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
@@ -19,7 +19,7 @@ import { ZoomableImage } from '@/ui/ZoomableImage';
 
 /**
  * In-app viewer for a saved image: fitted to the screen, pinch / double tap to zoom, pan and
- * fling. Tap to show or hide the top bar. Share or open it in another app from the menu.
+ * fling. Tap to show or hide the top bar. Open it in another app or share it from the menu.
  */
 export default function ImageScreen() {
   return (
@@ -52,9 +52,7 @@ function ImageBody() {
     if (unread) void updateBookmark(id, { readAt: new Date() });
   }, [unread, id]);
 
-  const share = () => {
-    if (b?.filePath) void Sharing.shareAsync(b.filePath, { mimeType: b.mimeType ?? 'image/*', dialogTitle: b.title });
-  };
+  const file = b?.filePath ? { filePath: b.filePath, mimeType: b.mimeType ?? 'image/*', title: b.title } : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surfaceContainerLowest }}>
@@ -83,7 +81,14 @@ function ImageBody() {
         <ActionSheet
           title={b.title}
           onDismiss={() => setMenu(false)}
-          actions={[{ label: 'Share or open in another app', icon: 'share', onPress: share }]}
+          actions={
+            file
+              ? [
+                  { label: 'Open in another app', icon: 'openInNew', onPress: () => void openFileExternally(file) },
+                  { label: 'Share', icon: 'share', onPress: () => void shareFile(file) },
+                ]
+              : []
+          }
         />
       )}
     </View>

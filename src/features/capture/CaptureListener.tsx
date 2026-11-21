@@ -5,8 +5,31 @@ import { AppState } from 'react-native';
 
 import { useCapture } from '@/state/capture';
 
-import { addProcessTextListener, ExpressiveModule } from '../../../modules/expressive';
-import { normalizeShare } from './normalize';
+import { addProcessTextListener, addQuickSaveListener, ExpressiveModule } from '../../../modules/expressive';
+import { hostOf, normalizeShare } from './normalize';
+import { saveDraft } from './save';
+
+let draining = false;
+
+/**
+ * Saves links the widget's Paste link queued (natively, without opening the app) through the
+ * normal save path: duplicate check, then the preview fetch fills title and image.
+ */
+async function drainQuickSaves() {
+  if (draining) return;
+  draining = true;
+  try {
+    for (const { url } of ExpressiveModule?.takeQuickSaves() ?? []) {
+      try {
+        await saveDraft({ kind: 'bookmark', type: 'link', url, title: hostOf(url) });
+      } catch {
+        // One bad link must not drop the rest.
+      }
+    }
+  } finally {
+    draining = false;
+  }
+}
 
 /** Bridges incoming shares and "Save to Stash" text selections into the capture screen. */
 export function CaptureListener() {
@@ -48,6 +71,7 @@ export function CaptureListener() {
 
   useEffect(() => {
     const check = () => {
+      void drainQuickSaves();
       const text = ExpressiveModule?.takePendingProcessText();
       if (text) openCapture(normalizeShare({ processText: text }));
     };
@@ -56,9 +80,11 @@ export function CaptureListener() {
       ExpressiveModule?.takePendingProcessText();
       openCapture(normalizeShare({ processText: text }));
     });
+    const quickSub = addQuickSaveListener(() => void drainQuickSaves());
     const appSub = AppState.addEventListener('change', (s) => s === 'active' && check());
     return () => {
       sub?.remove();
+      quickSub?.remove();
       appSub.remove();
     };
   }, []);

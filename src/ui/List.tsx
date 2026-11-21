@@ -25,7 +25,7 @@ export function listPosition(index: number, count: number): ListPosition {
 }
 
 /** Corners (TL, TR, BR, BL) for a position in a segmented group. */
-export function listCorners(position: ListPosition, outer = LIST_OUTER, inner = LIST_INNER): Corners4 {
+export function listCorners(position: ListPosition, outer: number = LIST_OUTER, inner: number = LIST_INNER): Corners4 {
   const top = position === 'single' || position === 'first' ? outer : inner;
   const bottom = position === 'single' || position === 'last' ? outer : inner;
   return [top, top, bottom, bottom];

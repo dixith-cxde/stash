@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, getTableColumns, inArray, isNotNull, isNull, like, max, ne, or, sql } from 'drizzle-orm';
 
-import { deleteLocalFiles } from '@/features/files/storage';
+import { deleteLocalFiles, fileSizeOf } from '@/features/files/storage';
 import { clearPdfCache } from '@/features/pdf/render';
 import {
   applyCorrections,
@@ -97,6 +97,21 @@ export async function updateBookmark(id: string, patch: Partial<Omit<NewBookmark
     .update(bookmarks)
     .set({ ...patch, updatedAt: new Date() })
     .where(eq(bookmarks.id, id));
+}
+
+/**
+ * Files saved before the size fix were stored as 0 B. Reads their real size from disk once
+ * (cheap: only rows still at 0 / null). Writes only file_size, so nothing looks edited.
+ */
+export async function repairFileSizes() {
+  const rows = await db
+    .select({ id: bookmarks.id, filePath: bookmarks.filePath })
+    .from(bookmarks)
+    .where(and(isNotNull(bookmarks.filePath), or(isNull(bookmarks.fileSize), eq(bookmarks.fileSize, 0))));
+  for (const r of rows) {
+    const size = fileSizeOf(r.filePath);
+    if (size) await db.update(bookmarks).set({ fileSize: size }).where(eq(bookmarks.id, r.id));
+  }
 }
 
 export async function deleteBookmarks(ids: string[]) {

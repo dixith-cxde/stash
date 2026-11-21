@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { View } from 'react-native';
+import { type StyleProp, View, type ViewStyle } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { useDbQuery } from '@/db/hooks';
@@ -22,7 +22,7 @@ import { CollectionPicker, TagPicker } from './Pickers';
  * ORGANIZE card (design: Item detail): the collection as a shaped pill, tag pills, "+ Tag",
  * and one-tap suggested tags. Changes save immediately; pills reflow on springs.
  */
-export function OrganizeCard({ b, compact }: { b: BookmarkWithTags; compact?: boolean }) {
+export function OrganizeCard({ b, compact, style }: { b: BookmarkWithTags; compact?: boolean; style?: StyleProp<ViewStyle> }) {
   const { colors, dark } = useAppTheme();
   const [picker, setPicker] = useState<'tags' | 'folder' | null>(null);
   const { data: folder } = useDbQuery(() => (b.folderId ? getFolder(b.folderId) : Promise.resolve(undefined)), [b.folderId], undefined);
@@ -110,7 +110,7 @@ export function OrganizeCard({ b, compact }: { b: BookmarkWithTags; compact?: bo
       {compact ? (
         body
       ) : (
-        <View style={{ marginHorizontal: 16, marginTop: 24, padding: 18, borderRadius: 28, backgroundColor: colors.surfaceContainer }}>
+        <View style={[{ padding: 18, borderRadius: 28, backgroundColor: colors.surfaceContainer }, style]}>
           <Text variant="titleSmallEmphasized" color="primary">
             Organize
           </Text>

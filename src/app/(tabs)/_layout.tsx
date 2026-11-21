@@ -6,7 +6,8 @@ import { useReducedMotion } from "react-native-reanimated";
 import { openCapture, pickImages } from "@/features/capture/quickAdd";
 import { haptic } from "@/motion/haptics";
 import { ChromeProvider } from "@/motion/ScrollChrome";
-import { TAB_TRANSITION, TAB_TRANSITION_REDUCED } from "@/motion/tabTransition";
+import { endTabSwipe, TabSwipe } from "@/motion/TabSwipe";
+import { tabTransition, tabTransitionReduced } from "@/motion/tabTransition";
 import type { FabMenuItem } from "@/ui/FabMenu";
 import { FloatingNavBar, type NavItem } from "@/ui/FloatingNavBar";
 import { showSnackbar } from "@/ui/Snackbar";
@@ -21,6 +22,9 @@ const TABS: Record<string, Omit<NavItem, "key">> = {
   feeds: { label: "Feeds", icon: "rssFeed", selectedIcon: "rssFeed" },
   search: { label: "Search", icon: "search", selectedIcon: "searchFill" },
 };
+
+/** Left-to-right tab order for swiping between tabs. */
+const TAB_ORDER = Object.keys(TABS);
 
 /** The + menu: what you can add to the stash. */
 const ADD_ITEMS: FabMenuItem[] = [
@@ -68,7 +72,21 @@ export default function TabsLayout() {
     <ChromeProvider>
       <Tabs
         tabBar={(props) => <TabBar {...props} />}
-        screenOptions={{ headerShown: false, freezeOnBlur: true, ...(reduced ? TAB_TRANSITION_REDUCED : TAB_TRANSITION) }}
+        // Inactive tabs stay attached (hidden by the fade-through) so a swipe can show the
+        // neighbouring tab beside the one being dragged.
+        detachInactiveScreens={false}
+        screenListeners={({ route }) => ({
+          transitionEnd: () => endTabSwipe(route.name),
+        })}
+        screenLayout={({ children, route, navigation }) => (
+          <TabSwipe order={TAB_ORDER} current={route.name} onGo={(name) => navigation.navigate(name)}>
+            {children}
+          </TabSwipe>
+        )}
+        screenOptions={({ route }) => ({
+          headerShown: false,
+          ...(reduced ? tabTransitionReduced(route.name) : tabTransition(route.name)),
+        })}
       >
         <Tabs.Screen name="index" />
         <Tabs.Screen name="library" />

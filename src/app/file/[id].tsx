@@ -1,6 +1,6 @@
 import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams } from 'expo-router';
-import * as Sharing from 'expo-sharing';
+import { openFileExternally, shareFile } from '@/lib/nav';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
@@ -23,6 +23,7 @@ import { Button } from '@/ui/Button';
 import { IconButton } from '@/ui/IconButton';
 import { showSnackbar } from '@/ui/Snackbar';
 import { Text } from '@/ui/Text';
+import { devWarn } from '@/lib/log';
 
 /**
  * In-app viewer for saved Markdown and plain-text files. Reads at most the first 200 KB
@@ -72,7 +73,7 @@ function Viewer({ b, source }: { b: BookmarkWithTags; source: string }) {
         if (Object.keys(patch).length) void updateBookmark(b.id, patch);
       })
       .catch((e) => {
-        console.warn('[file open]', e);
+        devWarn('[file open]', e);
         if (live) setError(true);
       });
     return () => {
@@ -82,7 +83,7 @@ function Viewer({ b, source }: { b: BookmarkWithTags; source: string }) {
 
   const chunks = useMemo(() => (head ? (markdown ? chunkMarkdown(head.text) : chunkText(head.text)) : []), [head, markdown]);
 
-  const openElsewhere = () => void Sharing.shareAsync(source, { mimeType: b.mimeType ?? 'text/plain', dialogTitle: b.title });
+  const openElsewhere = () => void openFileExternally({ filePath: source, mimeType: b.mimeType ?? 'text/plain', title: b.title });
   const copyText = async () => {
     if (!head) return;
     await Clipboard.setStringAsync(head.text);
@@ -165,6 +166,7 @@ function Viewer({ b, source }: { b: BookmarkWithTags; source: string }) {
           onDismiss={() => setMenu(false)}
           actions={[
             { label: 'Open in another app', icon: 'openInNew', onPress: openElsewhere },
+            { label: 'Share', icon: 'share', onPress: () => void shareFile({ filePath: source, mimeType: b.mimeType ?? 'text/plain', title: b.title }) },
             ...(head ? [{ label: 'Copy text', icon: 'contentCopy' as const, onPress: () => void copyText() }] : []),
             ...(!markdown
               ? [{ label: mono ? 'Use the body font' : 'Use monospace', icon: 'code' as const, onPress: () => setMono((m) => !m) }]

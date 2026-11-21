@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
   <cache-path name="updates" path="updates/" />
+  <!-- Saved files (Paths.document/files): opened in other apps with openFile. -->
+  <files-path name="files" path="files/" />
 </paths>

@@ -3,6 +3,7 @@ import type { Bookmark } from '@/db/schema';
 import { hostOf } from '@/features/capture/normalize';
 
 import { type PageMeta, parseMeta, youtubeId } from './parseMeta';
+import { devWarn } from '@/lib/log';
 
 const UA =
   'Mozilla/5.0 (Linux; Android 16; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Mobile Safari/537.36';
@@ -68,7 +69,7 @@ export async function refreshPreview(b: Pick<Bookmark, 'id' | 'url' | 'title'>) 
       fetchStatus: 'done',
     });
   } catch (e) {
-    console.warn('[preview] failed', b.url, e);
+    devWarn('[preview] failed', b.url, e);
     await updateBookmark(b.id, { favicon: googleFavicon(b.url), fetchStatus: 'failed' });
   }
 }

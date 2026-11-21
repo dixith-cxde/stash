@@ -1,6 +1,7 @@
 import { addDatabaseChangeListener } from 'expo-sqlite';
 import { NavigationContext } from 'expo-router/react-navigation';
 import { use, useEffect, useEffectEvent, useRef, useState } from 'react';
+import { devWarn } from '@/lib/log';
 
 type Listener = () => void;
 
@@ -61,7 +62,7 @@ export function useDbQuery<T>(query: () => Promise<T>, deps: unknown[], initial:
           setState({ data, loading: false });
         })
         .catch((e) => {
-          console.warn('[useDbQuery]', e);
+          devWarn('[useDbQuery]', e);
           if (!cancelled && v === version) setState((s) => ({ ...s, loading: false }));
         });
     };

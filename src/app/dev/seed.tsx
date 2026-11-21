@@ -9,6 +9,7 @@ import { createBookmark, createFolder, createHighlight, ensureTag, setBookmarkTa
 import { bookmarks, bookmarkTags, folders, highlights, tags } from '@/db/schema';
 import { useColors } from '@/theme/AppTheme';
 import { Text } from '@/ui/Text';
+import { devOnly } from '@/lib/devOnly';
 
 const NOTE = `Notes for the **M3 Expressive** talk on _Friday_.
 
@@ -144,7 +145,7 @@ async function clear() {
 }
 
 /** Dev-only: stash://dev/seed adds the design's sample content; ?clear=1 removes it. */
-export default function Seed() {
+function Seed() {
   const colors = useColors();
   const { clear: wipe } = useLocalSearchParams<{ clear?: string }>();
   const [status, setStatus] = useState('Working…');
@@ -162,3 +163,5 @@ export default function Seed() {
     </View>
   );
 }
+
+export default devOnly(Seed);

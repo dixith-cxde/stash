@@ -3,6 +3,7 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 
 import { db } from '@/db/client';
+import { isOwnFile } from '@/features/files/storage';
 import {
   createBookmark,
   createFolder,
@@ -82,6 +83,26 @@ const reviveDates = <T extends Record<string, unknown>>(row: Revive<T>): T => {
   return out as T;
 };
 
+const isWebUrl = (u: unknown) => typeof u === 'string' && /^https?:\/\//i.test(u);
+
+/**
+ * A backup file is untrusted input: keep only web links, and only file paths inside Stash's
+ * own files/thumbs folders (anything else could point at the database, which Delete would
+ * remove and Share would send out). Files from another phone don't exist here anyway.
+ */
+function sanitizeBookmark(row: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...row,
+    url: isWebUrl(row.url) ? row.url : null,
+    filePath: isOwnFile(row.filePath as string | null) ? row.filePath : null,
+    thumbPath: isOwnFile(row.thumbPath as string | null) ? row.thumbPath : null,
+  };
+}
+
+function sanitizeHighlight(row: Record<string, unknown>): Record<string, unknown> {
+  return { ...row, sourceUrl: isWebUrl(row.sourceUrl) ? row.sourceUrl : null };
+}
+
 async function importJson(text: string) {
   const data = JSON.parse(text);
   if (data?.app !== 'stash') throw new Error('Not a Stash backup');
@@ -101,10 +122,10 @@ async function importJson(text: string) {
     await insert(folders, sortedFolders);
     await insert(tags, data.tags);
     await insert(lists, data.lists);
-    await insert(bookmarks, data.bookmarks);
+    await insert(bookmarks, (data.bookmarks as Record<string, unknown>[] | undefined)?.map(sanitizeBookmark));
     await insert(bookmarkTags, data.bookmarkTags);
     await insert(listItems, data.listItems);
-    await insert(highlights, data.highlights);
+    await insert(highlights, (data.highlights as Record<string, unknown>[] | undefined)?.map(sanitizeHighlight));
     await insert(highlightTags, data.highlightTags);
     added = data.bookmarks?.length ?? 0;
   });

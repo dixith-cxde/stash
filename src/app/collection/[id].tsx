@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDbQuery } from '@/db/hooks';
 import { deleteFolder, getFolder, listTags, queryHighlights } from '@/db/repo';
-import type { Folder, SmartFilter } from '@/db/schema';
+import type { Bookmark, Folder, SmartFilter } from '@/db/schema';
 import { HighlightCard, ItemRow, ItemTile } from '@/features/collections/ItemViews';
 import { type FeedFilter, folderIcon, folderSeed, matchesFilter, seedFor, TYPE_COUNT_LABEL } from '@/features/stash/model';
 import { useFeed } from '@/features/stash/queries';
@@ -26,6 +26,7 @@ import { EmptyState } from '@/ui/EmptyState';
 import { Ico } from '@/ui/Ico';
 import { IconButton } from '@/ui/IconButton';
 import { showSnackbar } from '@/ui/Snackbar';
+import { SortButton } from '@/ui/SortButton';
 import { Text } from '@/ui/Text';
 
 type Scope = {
@@ -51,6 +52,17 @@ const FILTERS: { key: FeedFilter; label: string }[] = [
   { key: 'pdfs', label: 'PDFs' },
   { key: 'notes', label: 'Notes' },
 ];
+
+type ItemSort = 'recent' | 'name' | 'size' | 'unread';
+const byRecent = (a: Bookmark, b: Bookmark) => b.createdAt.getTime() - a.createdAt.getTime();
+const ITEM_SORTS: Record<ItemSort, { label: string; icon: IconName; by: (a: Bookmark, b: Bookmark) => number }> = {
+  recent: { label: 'Recent', icon: 'schedule', by: byRecent },
+  name: { label: 'Name', icon: 'title', by: (a, b) => a.title.localeCompare(b.title) },
+  // Files by size, largest first; links and notes (no size) after them, newest first.
+  size: { label: 'Size', icon: 'layers', by: (a, b) => (b.fileSize ?? -1) - (a.fileSize ?? -1) || byRecent(a, b) },
+  unread: { label: 'Unread first', icon: 'markEmailUnread', by: (a, b) => Number(!!a.readAt) - Number(!!b.readAt) || byRecent(a, b) },
+};
+const ITEM_SORT_OPTIONS = (Object.keys(ITEM_SORTS) as ItemSort[]).map((key) => ({ key, label: ITEM_SORTS[key].label, icon: ITEM_SORTS[key].icon }));
 
 export default function CollectionScreen() {
   const { origin } = useLocalSearchParams<{ origin?: string }>();
@@ -100,8 +112,9 @@ function CollectionBody() {
   const [filter, setFilter] = useState<FeedFilter>('all');
   const [grid, setGrid] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [sort, setSort] = useState<ItemSort>('recent');
 
-  const items = feed.flatMap((f) => (f.kind === 'bookmark' && matchesFilter(f, filter) ? [f.item] : []));
+  const items = feed.flatMap((f) => (f.kind === 'bookmark' && matchesFilter(f, filter) ? [f.item] : [])).sort(ITEM_SORTS[sort].by);
   const all = feed.flatMap((f) => (f.kind === 'bookmark' ? [f.item] : []));
   const counts = all.reduce<Record<string, number>>((acc, b) => ({ ...acc, [b.type]: (acc[b.type] ?? 0) + 1 }), {});
   const summary = scope?.highlightsOnly
@@ -180,6 +193,11 @@ function CollectionBody() {
                 onPress={() => setGrid((g) => !g)}
               />
             </View>
+            {all.length > 1 && (
+              <View style={styles.sortRow}>
+                <SortButton options={ITEM_SORT_OPTIONS} value={sort} onChange={setSort} />
+              </View>
+            )}
           </>
         )}
 
@@ -264,5 +282,6 @@ const styles = StyleSheet.create({
   heroText: { paddingHorizontal: 24, paddingTop: 28, paddingBottom: 24 },
   heroIcon: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   actions: { flexDirection: 'row', gap: 4, paddingHorizontal: Layout.gutter, paddingTop: 16 },
+  sortRow: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: Layout.gutter, paddingBottom: 12 },
   filterRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: Layout.gutter, paddingTop: 20, paddingBottom: 12 },
 });

@@ -6,9 +6,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TransitionScreen, useTransitionClose } from '@/motion/transition/TransitionScreen';
 import { Button } from '@/ui/Button';
 import { Text } from '@/ui/Text';
+import { devOnly } from '@/lib/devOnly';
 
 /** Dev-only shared axis (Y) destination, like Note → Editor. */
-export default function DevAxis() {
+function DevAxis() {
   return (
     <TransitionScreen kind="axisY">
       <Body />
@@ -33,3 +34,5 @@ function Body() {
     </View>
   );
 }
+
+export default devOnly(DevAxis);

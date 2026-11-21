@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { memo } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { ScrollView } from 'react-native-gesture-handler';
 
 import type { BookmarkWithTags } from '@/db/repo';
 import { cardKind, hostSeed, type QueueEntry, sourceLabel } from '@/features/stash/model';

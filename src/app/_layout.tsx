@@ -9,6 +9,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { db } from '@/db/client';
+import { repairFileSizes } from '@/db/repo';
 import { CaptureListener } from '@/features/capture/CaptureListener';
 import { LockScreen } from '@/features/lock/LockScreen';
 import { processPreviewQueue } from '@/features/preview/fetchPreview';
@@ -83,7 +84,10 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (success || error) SplashScreen.hideAsync();
-    if (success) void processPreviewQueue(true);
+    if (success) {
+      void processPreviewQueue(true);
+      void repairFileSizes();
+    }
   }, [success, error]);
 
   if (error) {

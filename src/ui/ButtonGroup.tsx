@@ -93,7 +93,7 @@ function Segment({
   onPress: () => void;
 }) {
   const colors = useColors();
-  const sel = useSharedSelection(active, index);
+  const sel = useSharedSelection(active, index, selected);
   const { gesture, progress } = usePressMorph({
     kind: 'card',
     corner: 0,

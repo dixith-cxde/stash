@@ -1,4 +1,5 @@
 import { Directory, Paths } from 'expo-file-system';
+import { devWarn } from '@/lib/log';
 
 /**
  * Page bitmaps from the old native-render reader lived in cache/pdf/<id>. The reader now
@@ -9,6 +10,6 @@ export function clearPdfCache(id: string) {
     const dir = new Directory(Paths.cache, 'pdf', id);
     if (dir.exists) dir.delete();
   } catch (e) {
-    console.warn('[pdf cache]', e);
+    devWarn('[pdf cache]', e);
   }
 }

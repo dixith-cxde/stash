@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  2x2 "Stash quick add" widget: a large primary Paste link tile on top, then a pill (note)
+  and a rounded square (file) side by side. Same deep links as the bar (StashWidget.kt).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/stash_widget_bg_square"
+    android:orientation="vertical"
+    android:padding="10dp">
+
+  <LinearLayout
+      android:id="@+id/stash_widget_paste"
+      android:layout_width="match_parent"
+      android:layout_height="0dp"
+      android:layout_weight="1.15"
+      android:background="@drawable/stash_widget_tile_primary"
+      android:contentDescription="@string/stash_widget_paste"
+      android:gravity="bottom|start"
+      android:orientation="vertical"
+      android:padding="16dp">
+
+    <ImageView
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:importantForAccessibility="no"
+        android:src="@drawable/stash_widget_ic_link" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:ellipsize="end"
+        android:fontFamily="sans-serif-medium"
+        android:maxLines="1"
+        android:text="@string/stash_widget_paste"
+        android:textColor="@color/stash_widget_on_primary"
+        android:textSize="18sp" />
+  </LinearLayout>
+
+  <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="0dp"
+      android:layout_marginTop="8dp"
+      android:layout_weight="1"
+      android:orientation="horizontal">
+
+    <LinearLayout
+        android:id="@+id/stash_widget_note"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:background="@drawable/stash_widget_tile_pill"
+        android:contentDescription="@string/stash_widget_note"
+        android:gravity="center"
+        android:orientation="vertical">
+
+      <ImageView
+          android:layout_width="24dp"
+          android:layout_height="24dp"
+          android:importantForAccessibility="no"
+          android:src="@drawable/stash_widget_ic_note" />
+
+      <TextView
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="2dp"
+          android:fontFamily="sans-serif-medium"
+          android:maxLines="1"
+          android:text="@string/stash_widget_note_short"
+          android:textColor="@color/stash_widget_on_secondary_container"
+          android:textSize="13sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/stash_widget_file"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_marginStart="8dp"
+        android:layout_weight="1"
+        android:background="@drawable/stash_widget_tile_square"
+        android:contentDescription="@string/stash_widget_file"
+        android:gravity="center"
+        android:orientation="vertical">
+
+      <ImageView
+          android:layout_width="24dp"
+          android:layout_height="24dp"
+          android:importantForAccessibility="no"
+          android:src="@drawable/stash_widget_ic_file" />
+
+      <TextView
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="2dp"
+          android:fontFamily="sans-serif-medium"
+          android:maxLines="1"
+          android:text="@string/stash_widget_file_short"
+          android:textColor="@color/stash_widget_on_tertiary_container"
+          android:textSize="13sp" />
+    </LinearLayout>
+  </LinearLayout>
+</LinearLayout>

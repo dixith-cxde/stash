@@ -9,11 +9,12 @@ import { collectionTones, COLLECTION_SEEDS } from '@/theme/palette';
 import { Button } from '@/ui/Button';
 import { PressableSurface } from '@/ui/PressableSurface';
 import { Text } from '@/ui/Text';
+import { devOnly } from '@/lib/devOnly';
 
 const CARDS = ['Research', 'Read later', 'Design refs', 'Recipes'];
 
 /** Dev-only (stash://dev/transitions): container transform + shared axis. `?demo=1` opens a card. */
-export default function Transitions() {
+function Transitions() {
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const { demo } = useLocalSearchParams<{ demo?: string }>();
@@ -74,3 +75,5 @@ function Card({
     </View>
   );
 }
+
+export default devOnly(Transitions);

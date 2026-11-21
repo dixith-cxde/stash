@@ -1,7 +1,7 @@
 import { Asset } from 'expo-asset';
 import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams } from 'expo-router';
-import * as Sharing from 'expo-sharing';
+import { openFileExternally, shareFile } from '@/lib/nav';
 import { type ComponentType, type Ref, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Share, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
@@ -27,6 +27,7 @@ import { ProgressBar } from '@/ui/ProgressBar';
 import { Sheet } from '@/ui/Sheet';
 import { showSnackbar } from '@/ui/Snackbar';
 import { Text } from '@/ui/Text';
+import { devWarn } from '@/lib/log';
 
 /**
  * In-app PDF reader: pdf.js in a WebView (bundled, offline; assets/pdf/viewer.html built by
@@ -71,7 +72,7 @@ function useViewerUri() {
     Asset.fromModule(viewerHtml)
       .downloadAsync()
       .then((a) => live && setUri(a.localUri ?? a.uri))
-      .catch((e) => console.warn('[pdf viewer asset]', e));
+      .catch((e) => devWarn('[pdf viewer asset]', e));
     return () => {
       live = false;
     };
@@ -192,7 +193,7 @@ function Reader({ b, source, startPage }: { b: BookmarkWithTags; source: string;
           setTapped({ page: m.page, text: m.text });
           break;
         case 'error':
-          console.warn('[pdf viewer]', m.message);
+          devWarn('[pdf viewer]', m.message);
           setError('Couldn’t open this PDF.');
           break;
       }
@@ -225,7 +226,7 @@ function Reader({ b, source, startPage }: { b: BookmarkWithTags; source: string;
     haptic.remove();
     showSnackbar('Highlight removed');
   };
-  const openElsewhere = () => void Sharing.shareAsync(source, { mimeType: b.mimeType ?? 'application/pdf', dialogTitle: b.title });
+  const openElsewhere = () => void openFileExternally({ filePath: source, mimeType: b.mimeType ?? 'application/pdf', title: b.title });
   const source_ = useMemo(() => (viewerUri ? { uri: viewerUri } : null), [viewerUri]);
 
   if (error) return <Problem text={error} onOpen={openElsewhere} onBack={close} />;
@@ -299,6 +300,7 @@ function Reader({ b, source, startPage }: { b: BookmarkWithTags; source: string;
             ...(pageCount ? [{ label: 'Go to page…', icon: 'swapVert' as const, onPress: () => setGoTo(true) }] : []),
             ...(pageCount && current > 0 ? [{ label: 'Back to the first page', icon: 'arrowBackIosNew' as const, onPress: () => jump(0) }] : []),
             { label: 'Open in another app', icon: 'openInNew', onPress: openElsewhere },
+            { label: 'Share', icon: 'share', onPress: () => void shareFile({ filePath: source, mimeType: b.mimeType ?? 'application/pdf', title: b.title }) },
           ]}
         />
       )}

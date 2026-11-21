@@ -8,11 +8,12 @@ import { USABLE_SHAPES } from '@/shapes/names';
 import { Shape } from '@/shapes/Shape';
 import { useColors } from '@/theme/AppTheme';
 import { Text } from '@/ui/Text';
+import { devOnly } from '@/lib/devOnly';
 
 const CYCLE = ['cookie9Sided', 'clover4Leaf', 'pentagon', 'sunny', 'gem', 'cookie4Sided'] as const;
 
 /** Dev-only gallery (stash://dev/shapes): every MaterialShape, a morph loop and the loader. */
-export default function ShapesGallery() {
+function ShapesGallery() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const [i, setI] = useState(0);
@@ -44,3 +45,5 @@ export default function ShapesGallery() {
     </ScrollView>
   );
 }
+
+export default devOnly(ShapesGallery);

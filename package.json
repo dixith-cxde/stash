@@ -1,6 +1,6 @@
 {
   "name": "stash",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "main": "expo-router/entry",
   "dependencies": {
     "@material/material-color-utilities": "^0.4.0",

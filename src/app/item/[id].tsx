@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Share, StyleSheet, TextInput, View } from 'react-native';
+import { Share, type StyleProp, StyleSheet, TextInput, View, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,7 +13,7 @@ import { FilePreview, hasFilePreview } from '@/features/files/FilePreview';
 import { formatBytes } from '@/features/files/kinds';
 import { cardKind, highlightsMarkdown, hostSeed, kindIcon, kindLabel, openAction, readingMinutes, sourceLabel } from '@/features/stash/model';
 import { relativeTime } from '@/lib/format';
-import { openItem } from '@/lib/nav';
+import { openItem, shareFile } from '@/lib/nav';
 import { EditItemSheet } from '@/features/detail/EditItemSheet';
 import { SwipeRow } from '@/features/feeds/SwipeRow';
 import { haptic } from '@/motion/haptics';
@@ -21,12 +21,14 @@ import { TransitionScreen, useTransitionClose } from '@/motion/transition/Transi
 import { Shape } from '@/shapes/Shape';
 import { useAppTheme } from '@/theme/AppTheme';
 import { collectionTones, withAlpha } from '@/theme/palette';
+import { Corner } from '@/theme/tokens';
 import { FONT_FAMILY, Type } from '@/theme/type';
 import { ActionSheet } from '@/ui/ActionSheet';
 import { BackPill } from '@/ui/BackPill';
 import { FloatingToolbar, TOOLBAR_CLEARANCE } from '@/ui/FloatingToolbar';
 import { Ico } from '@/ui/Ico';
 import { IconButton } from '@/ui/IconButton';
+import { cornersStyle, LIST_GAP, listCorners } from '@/ui/List';
 import { showSnackbar } from '@/ui/Snackbar';
 import { Text } from '@/ui/Text';
 
@@ -62,7 +64,7 @@ function ItemBody() {
   const isFile = !!b.filePath;
   const metaLine = [
     sourceLabel(b),
-    isFile ? formatBytes(b.fileSize) : null,
+    isFile ? formatBytes(b.fileSize || null) : null,
     `Saved ${relativeTime(b.createdAt)}`,
     minutes ? `${minutes} min read` : null,
   ]
@@ -74,6 +76,7 @@ function ItemBody() {
   const linkLabel = kind === 'link' ? kindLabel(b) : null;
   const linkIcon = kind === 'link' ? kindIcon(b) : null;
   const action = openAction(b);
+  const preview = hasFilePreview(kind, b);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
@@ -124,9 +127,13 @@ function ItemBody() {
           ) : null}
         </View>
 
-        {hasFilePreview(kind, b) && <FilePreview b={b} kind={kind} onOpen={() => void openItem(b)} />}
-
-        <OrganizeCard b={b} />
+        {/* Content, Organize and Your note: one segmented group (big outer corners, small inner
+            ones, 2dp gaps). Links have no preview, so their group is Organize + note. */}
+        <View style={styles.group}>
+          {preview && <FilePreview b={b} kind={kind} onOpen={() => void openItem(b)} style={cornersStyle(listCorners('first', ...GROUP))} />}
+          <OrganizeCard b={b} style={cornersStyle(listCorners(preview ? 'middle' : 'first', ...GROUP))} />
+          <NoteField id={b.id} initial={b.note ?? ''} style={cornersStyle(listCorners('last', ...GROUP))} />
+        </View>
 
         {hls.length > 0 && (
           <>
@@ -172,8 +179,6 @@ function ItemBody() {
             </View>
           </>
         )}
-
-        <NoteField id={b.id} initial={b.note ?? ''} />
       </Animated.ScrollView>
 
       <FloatingToolbar fab={{ label: action.label, icon: action.icon, onPress: () => void openItem(b) }}>
@@ -187,7 +192,7 @@ function ItemBody() {
         <IconButton
           icon="share"
           accessibilityLabel="Share"
-          onPress={() => void Share.share({ message: b.url ? `${b.title}\n${b.url}` : b.title, title: b.title })}
+          onPress={() => (b.filePath ? void shareFile(b) : void Share.share({ message: b.url ? `${b.title}\n${b.url}` : b.title, title: b.title }))}
         />
         <IconButton icon="moreVert" accessibilityLabel="More" onPress={() => setMenu(true)} />
       </FloatingToolbar>
@@ -242,13 +247,13 @@ async function copy(text: string) {
 }
 
 /** YOUR NOTE: saves as you type (debounced). */
-function NoteField({ id, initial }: { id: string; initial: string }) {
+function NoteField({ id, initial, style }: { id: string; initial: string; style?: StyleProp<ViewStyle> }) {
   const { colors } = useAppTheme();
   const [text, setText] = useState(initial);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
   return (
-    <View style={[styles.note, { backgroundColor: colors.surfaceContainer }]}>
+    <View style={[styles.note, { backgroundColor: colors.surfaceContainer }, style]}>
       <Text variant="titleSmallEmphasized" color="primary">
         Your note
       </Text>
@@ -269,6 +274,9 @@ function NoteField({ id, initial }: { id: string; initial: string }) {
   );
 }
 
+/** Section group corners: extraLarge outside, extraSmall where sections meet. */
+const GROUP: [outer: number, inner: number] = [Corner.extraLarge, Corner.extraSmall];
+
 const styles = StyleSheet.create({
   hero: { height: 300, borderBottomLeftRadius: 40, borderBottomRightRadius: 40, overflow: 'hidden' },
   heroBar: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12 },
@@ -276,5 +284,6 @@ const styles = StyleSheet.create({
   kindChip: { flexDirection: 'row', alignSelf: 'flex-start', alignItems: 'center', gap: 6, marginTop: 12, paddingHorizontal: 12, height: 32, borderRadius: 16 },
   favicon: { width: 20, height: 20, borderRadius: 6, overflow: 'hidden' },
   section: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 24, paddingTop: 28, paddingBottom: 12 },
-  note: { marginHorizontal: 16, marginTop: 16, borderRadius: 24, paddingVertical: 14, paddingHorizontal: 18 },
+  group: { marginHorizontal: 16, marginTop: 24, gap: LIST_GAP },
+  note: { paddingVertical: 14, paddingHorizontal: 18 },
 });

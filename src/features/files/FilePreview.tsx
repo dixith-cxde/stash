@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { StyleSheet, View } from 'react-native';
+import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import type { BookmarkWithTags } from '@/db/repo';
 import { MarkdownView } from '@/features/notes/MarkdownView';
@@ -7,7 +7,6 @@ import { type CardKind, kindIcon, kindLabel } from '@/features/stash/model';
 import { useAppTheme } from '@/theme/AppTheme';
 import { STASH_PALETTE } from '@/theme/palette';
 import { MONO_FAMILY } from '@/theme/type';
-import { Button } from '@/ui/Button';
 import { Ico } from '@/ui/Ico';
 import { PressableSurface } from '@/ui/PressableSurface';
 import { Text } from '@/ui/Text';
@@ -24,9 +23,10 @@ const PAPER = STASH_PALETTE.light;
 /**
  * Item page preview (no file reads: everything comes from the row): the PDF's first-page
  * thumbnail with its page position, the image itself, or the first lines of a Markdown /
- * text file from the excerpt saved with it. Tapping it, or Open, goes to the right viewer.
+ * text file from the excerpt saved with it. Tapping it goes to the right viewer (the page's
+ * main button does the same). `style` lets the item page set its corners in the section group.
  */
-export function FilePreview({ b, kind, onOpen }: { b: BookmarkWithTags; kind: CardKind; onOpen: () => void }) {
+export function FilePreview({ b, kind, onOpen, style }: { b: BookmarkWithTags; kind: CardKind; onOpen: () => void; style?: StyleProp<ViewStyle> }) {
   const { colors } = useAppTheme();
   const label = kind === 'pdf' ? 'PDF' : kind === 'image' ? 'Image' : (kindLabel(b) ?? 'File');
   const icon = kind === 'pdf' ? 'pictureAsPdf' : kind === 'image' ? 'image' : (kindIcon(b) ?? 'description');
@@ -38,7 +38,7 @@ export function FilePreview({ b, kind, onOpen }: { b: BookmarkWithTags; kind: Ca
       : null;
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
+    <View style={[styles.card, { backgroundColor: colors.surfaceContainer }, style]}>
       <View style={styles.head}>
         <Ico name={icon} size={20} color={colors.primary} />
         <Text variant="titleSmallEmphasized" color="primary" style={{ flex: 1 }}>
@@ -78,14 +78,12 @@ export function FilePreview({ b, kind, onOpen }: { b: BookmarkWithTags; kind: Ca
           </View>
         )}
       </PressableSurface>
-
-      <Button label={kind === 'image' ? 'View' : 'Open'} icon="openInNew" variant="tonal" onPress={onOpen} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { marginHorizontal: 16, marginTop: 16, borderRadius: 28, padding: 16, gap: 12 },
+  card: { borderRadius: 28, padding: 16, gap: 12 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 },
   body: { overflow: 'hidden' },
   pdfStage: { height: 260, alignItems: 'center', justifyContent: 'flex-end', paddingTop: 20 },

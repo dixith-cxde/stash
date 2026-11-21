@@ -18,6 +18,7 @@ import { Sheet } from '@/ui/Sheet';
 import { showSnackbar } from '@/ui/Snackbar';
 import { SplitButton } from '@/ui/SplitButton';
 import { Text } from '@/ui/Text';
+import { devOnly } from '@/lib/devOnly';
 
 const FILTERS = [
   { key: 'all', label: 'All' },
@@ -41,7 +42,7 @@ const TAGS = ['design', 'android', 'material-you', 'ux'];
  * Dev-only component kit (stash://dev/kit). `?demo=1` cycles every control on a timer so
  * motion can be reviewed without touching the screen.
  */
-export default function Kit() {
+function Kit() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { demo } = useLocalSearchParams<{ demo?: string }>();
@@ -210,3 +211,5 @@ val phones = listOf("Pixel", "Galaxy", "vivo").map { it.uppercase() }.sortedByDe
 *Written by [Jane Doe](https://example.com/jane)*
 
 **Tags:** [Android](https://example.com/tag/android), [Phones](https://example.com/tag/phones), [Reviews](https://example.com/tag/reviews)`);
+
+export default devOnly(Kit);

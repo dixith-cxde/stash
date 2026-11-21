@@ -5,4 +5,14 @@
   <string name="stash_widget_paste">Paste link</string>
   <string name="stash_widget_note">New note</string>
   <string name="stash_widget_file">Upload file</string>
+  <string name="stash_widget_large_label">Stash quick add</string>
+  <string name="stash_widget_large_description">A big Paste link button, plus a note and a file.</string>
+  <string name="stash_widget_note_short">Note</string>
+  <string name="stash_widget_file_short">File</string>
+  <string name="stash_quick_save_done">Saved to Stash</string>
+  <string name="stash_quick_save_no_link">No link copied. Copy a link first.</string>
+  <string name="stash_quick_save_failed">Couldn\'t read the clipboard. Open Stash to paste.</string>
+  <string name="stash_shortcut_paste">Paste link</string>
+  <string name="stash_shortcut_note">New note</string>
+  <string name="stash_shortcut_file">Upload file</string>
 </resources>

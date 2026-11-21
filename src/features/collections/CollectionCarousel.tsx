@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ScrollView as GHScrollView } from 'react-native-gesture-handler';
 import Animated, { type SharedValue, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 
 import { folderIcon, folderSeed } from '@/features/stash/model';
@@ -19,6 +20,8 @@ import { TransformCard } from '@/ui/TransformCard';
 const SMALL = 56;
 const GAP = 8;
 const CORNER = 28;
+/** Gesture Handler scroll view, so swiping the carousel scrolls it instead of changing tab. */
+const RailScrollView = Animated.createAnimatedComponent(GHScrollView);
 const HEIGHT = 112;
 /** Decoration bleeding off each card's corner: always the pill (Home uses one shape only). */
 const DECOR = 'pill' as const;
@@ -50,7 +53,7 @@ export function CollectionCarousel({ collections }: { collections: Collection[] 
 
   return (
     <View style={{ paddingTop: 16 }}>
-      <Animated.ScrollView
+      <RailScrollView
         horizontal
         onScroll={onScroll}
         scrollEventThrottle={16}
@@ -65,7 +68,7 @@ export function CollectionCarousel({ collections }: { collections: Collection[] 
         {entries.map((e, i) => (
           <Item key={e.key} e={e} index={i} x={x} step={step} large={large} />
         ))}
-      </Animated.ScrollView>
+      </RailScrollView>
       <Button variant="text" size="xs" label="Show all" onPress={() => router.push('/library')} style={{ alignSelf: 'flex-end', marginRight: Layout.gutter, marginTop: 4 }} />
     </View>
   );

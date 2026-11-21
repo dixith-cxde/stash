@@ -8,9 +8,10 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { collectionTones } from '@/theme/palette';
 import { Button } from '@/ui/Button';
 import { Text } from '@/ui/Text';
+import { devOnly } from '@/lib/devOnly';
 
 /** Dev-only destination of the container transform demo. */
-export default function DevDetail() {
+function DevDetail() {
   const { origin } = useLocalSearchParams<{ origin?: string }>();
   return (
     <TransitionScreen kind="container" origin={origin}>
@@ -58,3 +59,5 @@ function Body() {
     </View>
   );
 }
+
+export default devOnly(DevDetail);
