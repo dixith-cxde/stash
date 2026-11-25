@@ -54,8 +54,8 @@ const REPEAT_GUARD_MS = 350;
 /** A gesture another press can block (see `Options.block`). */
 export type PressBlock = NonNullable<NonNullable<Parameters<typeof useTapGesture>[0]>['block']>;
 
-/** Hold this long (ms) for a long press. */
-const LONG_PRESS = 450;
+/** Hold this long (ms) for a long press (selection, menus). 450 felt sluggish on the phone. */
+const LONG_PRESS = 300;
 
 /** A touch that moves further than this (dp) is a scroll or drag, never a tap. */
 const TAP_SLOP = 10;

@@ -2,7 +2,7 @@
  * Layout animation presets for lists (docs/animation.md §7): items that stay reflow on
  * defaultSpatial, new items fade in and rise 12dp, removed items fade and shrink to 92%.
  */
-import { FadeIn, FadeOut, LinearTransition, withSpring, withTiming } from 'react-native-reanimated';
+import { FadeIn, FadeOut, LinearTransition, withDelay, withSpring, withTiming } from 'react-native-reanimated';
 
 import { Duration, Ease, Spring, type SpringToken } from './tokens';
 
@@ -30,6 +30,28 @@ export const enterRise = () => {
       opacity: withSpring(1, Spring.defaultEffects),
       transform: [{ translateY: withSpring(0, ds) }, { scale: withSpring(1, ds) }],
     },
+  };
+};
+
+/** Per-item delay of a staggered entrance, and the cap (later items don't wait any longer). */
+const STAGGER_MS = 40;
+const STAGGER_MAX = 8;
+
+/**
+ * enterRise with a short stagger by position: lists cascade in from the top instead of
+ * popping in at once. Rises a little further (20dp) so the cascade reads. Capped at 8 steps.
+ */
+export const enterRiseAt = (index: number) => {
+  const delay = Math.min(index, STAGGER_MAX) * STAGGER_MS;
+  return () => {
+    'worklet';
+    return {
+      initialValues: { opacity: 0, transform: [{ translateY: 20 }, { scale: 0.96 }] },
+      animations: {
+        opacity: withDelay(delay, withSpring(1, Spring.defaultEffects)),
+        transform: [{ translateY: withDelay(delay, withSpring(0, ds)) }, { scale: withDelay(delay, withSpring(1, ds)) }],
+      },
+    };
   };
 };
 

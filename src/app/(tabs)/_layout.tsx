@@ -43,6 +43,7 @@ const ADD_ITEMS: FabMenuItem[] = [
         showSnackbar(n === 1 ? "Image saved" : `${n} images saved`);
       }),
   },
+  { label: "Collection", icon: "createNewFolder", onPress: () => router.push("/collection/new") },
 ];
 
 function TabBar({ state, navigateToTab }: BottomTabBarProps) {

@@ -190,6 +190,20 @@ Known: dev-only `isFocused()` warning from a library; extractor keeps some page 
   Falls back to the system installer (ACTION_VIEW) when a ROM blocks sessions (check on the
   vivo). No more GitHub fallback except iOS/Expo Go; failures and cancels show in Settings.
 
+## Done 2026-11-25 (v1.1.0)
+- Multi-select (`src/features/select/`): long press a card (300 ms) on Home, Library or a
+  collection page; taps toggle while selecting. `SelectionBar` (portal: count + Select all on
+  top, floating toolbar + More below) with `ItemSelection` (edit, share, move, tag, favorite,
+  read state, archive, remove from collection, delete all with confirm) and
+  `CollectionSelection` (edit, share, merge, delete). Back / leaving the screen ends it.
+  Repo: `setRead`, `setFavorite`, `deleteHighlights`, `deleteFolders`, `mergeFolders`.
+- New collection sheet: Enter only hides the keyboard; Create closes the sheet fully before
+  opening the collection (it used to push over the still-open sheet). FAB menu has Collection;
+  Library header + removed.
+- Motion: staggered list entrances (`enterRiseAt`), selected cards sink to 0.94, count roll.
+- Low-strain builds: `nice -n 19 ionice -c3 ./gradlew … --max-workers=2 -Dorg.gradle.parallel=false`
+  (+ `-PreactNativeArchitectures=arm64-v8a` for vivo debug builds).
+
 ## How to run (low-spec laptop: never start an emulator)
 - Phone: vivo USB (adb). `adb reverse tcp:8081 tcp:8081` after any reconnect.
 - Metro: `eval "$(fnm env)"; fnm exec --using=26 npx expo start --dev-client`.

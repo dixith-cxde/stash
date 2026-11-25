@@ -3,6 +3,7 @@ import { memo, useCallback, useState } from 'react';
 import { Share, StyleSheet, View } from 'react-native';
 
 import type { BookmarkWithTags, HighlightWithTags } from '@/db/repo';
+import { useSelectable } from '@/features/select/store';
 import {
   cardKind,
   DECOR_SHAPES,
@@ -101,7 +102,9 @@ function CardMenu({ copy: c, onDismiss }: { copy: CopyTargets; onDismiss: () => 
  */
 function CopyButton({ copy: c, color, edge = true }: { copy: CopyTargets; color: string; edge?: boolean }) {
   const what = c.primary;
-  if (!what) return null;
+  // While selecting, the whole card is one toggle target.
+  const select = useSelectable();
+  if (!what || select?.active) return null;
   return (
     <PressableSurface
       kind="button"

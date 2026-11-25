@@ -6,6 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CollectionCarousel } from '@/features/collections/CollectionCarousel';
 import { Masonry } from '@/features/feed/Masonry';
+import { ItemSelection } from '@/features/select/ItemSelection';
+import { SelectionScope, useSelectionMode, useSelectionStore } from '@/features/select/store';
 import { HomeTour } from '@/features/onboarding/HomeTour';
 import { type FeedFilter, matchesFilter } from '@/features/stash/model';
 import { useCollections, useFeed, useTotals } from '@/features/stash/queries';
@@ -39,6 +41,11 @@ export default function Home() {
   const { data: feed, loading } = useFeed({});
   const [filter, setFilter] = useState<FeedFilter>('all');
   const visible = feed.filter((f) => matchesFilter(f, filter));
+  // Long press a card to start selecting; the selection bar replaces the nav bar meanwhile.
+  const selection = useSelectionStore();
+  useSelectionMode(selection, visible.map((f) => f.key));
+  const shownBookmarks = visible.flatMap((f) => (f.kind === 'bookmark' ? [f.item] : []));
+  const shownHighlights = visible.flatMap((f) => (f.kind === 'highlight' ? [f.highlight] : []));
   // First launch: the welcome pages, then a short tour of Home.
   const onboarded = useSettings((s) => s.onboarded);
   const tourDone = useSettings((s) => s.tourDone);
@@ -90,7 +97,9 @@ export default function Home() {
           </View>
 
           {visible.length > 0 ? (
-            <Masonry items={visible} />
+            <SelectionScope value={selection}>
+              <Masonry items={visible} />
+            </SelectionScope>
           ) : loading ? null : (
             <EmptyState
               title={filter === 'all' ? 'Nothing saved yet' : 'Nothing here yet'}
@@ -104,6 +113,7 @@ export default function Home() {
         </Animated.ScrollView>
         <CollapsedAppBar title="Stash" scrollY={scrollY} trailing={<SettingsButton />} />
       </>
+      <ItemSelection store={selection} bookmarks={shownBookmarks} highlights={shownHighlights} />
       {onboarded && !tourDone && <HomeTour onDone={() => setTourDone(true)} />}
     </View>
   );

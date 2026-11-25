@@ -8,10 +8,12 @@ import { useDbQuery } from '@/db/hooks';
 import { deleteFolder, getFolder, listTags, queryHighlights } from '@/db/repo';
 import type { Bookmark, Folder, SmartFilter } from '@/db/schema';
 import { HighlightCard, ItemRow, ItemTile } from '@/features/collections/ItemViews';
+import { bookmarkKey, highlightKey, ItemSelection } from '@/features/select/ItemSelection';
+import { SelectionScope, useSelectionMode, useSelectionStore } from '@/features/select/store';
 import { type FeedFilter, folderIcon, folderSeed, matchesFilter, seedFor, TYPE_COUNT_LABEL } from '@/features/stash/model';
 import { useFeed } from '@/features/stash/queries';
 import { haptic } from '@/motion/haptics';
-import { enterRise, exitShrink, reflow } from '@/motion/layout';
+import { enterRiseAt, exitShrink, reflow } from '@/motion/layout';
 import { TransitionScreen, useTransitionClose } from '@/motion/transition/TransitionScreen';
 import { Shape } from '@/shapes/Shape';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -23,6 +25,7 @@ import { BackPill, HeroIconButton } from '@/ui/BackPill';
 import { Button } from '@/ui/Button';
 import { ButtonGroup } from '@/ui/ButtonGroup';
 import { EmptyState } from '@/ui/EmptyState';
+import { TOOLBAR_CLEARANCE } from '@/ui/FloatingToolbar';
 import { Ico } from '@/ui/Ico';
 import { IconButton } from '@/ui/IconButton';
 import { showSnackbar } from '@/ui/Snackbar';
@@ -116,6 +119,10 @@ function CollectionBody() {
 
   const items = feed.flatMap((f) => (f.kind === 'bookmark' && matchesFilter(f, filter) ? [f.item] : [])).sort(ITEM_SORTS[sort].by);
   const all = feed.flatMap((f) => (f.kind === 'bookmark' ? [f.item] : []));
+  // Long press an item (or highlight) to select; the selection bar floats at the bottom.
+  const selection = useSelectionStore();
+  const shownHighlights = scope?.highlightsOnly ? hls : [];
+  const { active: selecting } = useSelectionMode(selection, [...items.map((b) => bookmarkKey(b.id)), ...shownHighlights.map((h) => highlightKey(h.id))]);
   const counts = all.reduce<Record<string, number>>((acc, b) => ({ ...acc, [b.type]: (acc[b.type] ?? 0) + 1 }), {});
   const summary = scope?.highlightsOnly
     ? `${hls.length} highlights`
@@ -136,7 +143,7 @@ function CollectionBody() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
-      <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={{ paddingBottom: 48 + insets.bottom }}>
+      <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={{ paddingBottom: (selecting ? TOOLBAR_CLEARANCE : 48) + insets.bottom }}>
         <View style={[styles.hero, { backgroundColor: tone.container, paddingTop: insets.top }]}>
           <Animated.View style={[styles.decor, decor]} pointerEvents="none">
             <Shape name={scope?.folder ? 'cookie9Sided' : 'clover4Leaf'} size={300} color={tone.accent} />
@@ -201,12 +208,13 @@ function CollectionBody() {
           </>
         )}
 
+        <SelectionScope value={selection}>
         <View style={{ paddingHorizontal: Layout.gutter, paddingTop: scope?.highlightsOnly ? 16 : 0 }}>
           {scope?.highlightsOnly ? (
             hls.length ? (
               <View style={{ gap: 8 }}>
-                {hls.map((h) => (
-                  <Animated.View key={h.id} layout={reflow} entering={enterRise} exiting={exitShrink}>
+                {hls.map((h, i) => (
+                  <Animated.View key={h.id} layout={reflow} entering={enterRiseAt(i)} exiting={exitShrink}>
                     <HighlightCard h={h} showSource />
                   </Animated.View>
                 ))}
@@ -218,8 +226,8 @@ function CollectionBody() {
             <EmptyState title="Nothing here yet" body="Tap Add to save a link, note or file into this collection." />
           ) : grid ? (
             <View style={{ gap: Layout.gridGap }}>
-              {pairs(items).map((row) => (
-                <Animated.View key={row.map((b) => b.id).join('|')} layout={reflow} entering={enterRise} exiting={exitShrink} style={{ flexDirection: 'row', gap: Layout.gridGap }}>
+              {pairs(items).map((row, i) => (
+                <Animated.View key={row.map((b) => b.id).join('|')} layout={reflow} entering={enterRiseAt(i)} exiting={exitShrink} style={{ flexDirection: 'row', gap: Layout.gridGap }}>
                   {row.map((b) => (
                     <ItemTile key={b.id} b={b} />
                   ))}
@@ -229,15 +237,18 @@ function CollectionBody() {
             </View>
           ) : (
             <View style={{ gap: 4 }}>
-              {items.map((b) => (
-                <Animated.View key={b.id} layout={reflow} entering={enterRise} exiting={exitShrink}>
+              {items.map((b, i) => (
+                <Animated.View key={b.id} layout={reflow} entering={enterRiseAt(i)} exiting={exitShrink}>
                   <ItemRow b={b} />
                 </Animated.View>
               ))}
             </View>
           )}
         </View>
+        </SelectionScope>
       </Animated.ScrollView>
+
+      <ItemSelection store={selection} bookmarks={items} highlights={shownHighlights} folderId={scope?.folder?.id} />
 
       {menu && scope?.folder && (
         <ActionSheet

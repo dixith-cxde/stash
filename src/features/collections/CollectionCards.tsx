@@ -22,6 +22,7 @@ export function collectionSummary(c: Collection): string {
 /**
  * Collection card (design: tonal container, cookie/clover decoration bleeding off the top
  * right, icon tile, name and counts). Opens the collection with a container transform.
+ * Inside a selection scope, a long press selects it (key = the collection id).
  */
 export function CollectionCard({ c, index, width, height }: { c: Collection; index: number; width?: number; height: number }) {
   const { dark } = useAppTheme();
@@ -34,6 +35,7 @@ export function CollectionCard({ c, index, width, height }: { c: Collection; ind
       accessibilityLabel={`${c.name}, ${collectionSummary(c)}`}
       style={[{ height }, width ? { width } : { flex: 1 }]}
       contentStyle={styles.card}
+      selectKey={c.id}
     >
       <Shape
         name={DECOR_SHAPES[index % 2]}

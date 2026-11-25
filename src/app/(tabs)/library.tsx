@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 import Animated, { useSharedValue } from 'react-native-reanimated';
@@ -7,13 +6,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CollectionCard, PILL_LEFT, PILL_RIGHT, SmartViewTile } from '@/features/collections/CollectionCards';
 import type { Collection } from '@/features/stash/queries';
 import { useCollections, useTotals } from '@/features/stash/queries';
-import { reflow } from '@/motion/layout';
+import { enterRiseAt, reflow } from '@/motion/layout';
+import { CollectionSelection } from '@/features/select/CollectionSelection';
+import { SelectionScope, useSelectionMode, useSelectionStore } from '@/features/select/store';
 import { useChromeScroll } from '@/motion/ScrollChrome';
 import { useAppTheme } from '@/theme/AppTheme';
 import { Layout } from '@/theme/tokens';
 import { EmptyState } from '@/ui/EmptyState';
 import type { IconName } from '@/theme/icons';
-import { IconButton } from '@/ui/IconButton';
 import { LIST_GAP } from '@/ui/List';
 import { SortButton } from '@/ui/SortButton';
 import { CollapsedAppBar, Overline, ScreenHeader, SectionHeader } from '@/ui/ScreenHeader';
@@ -37,6 +37,9 @@ export default function Library() {
   const sorted = [...collections].sort(SORTS[sort].by);
   const rows: Collection[][] = [];
   for (let i = 0; i < sorted.length; i += 2) rows.push(sorted.slice(i, i + 2));
+  // Long press a collection to select; several can be merged or deleted together.
+  const selection = useSelectionStore();
+  useSelectionMode(selection, sorted.map((c) => c.id));
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
@@ -49,7 +52,6 @@ export default function Library() {
           <ScreenHeader
             title="Library"
             subtitle={`${collections.length} collections · ${totals.all} items`}
-            trailing={<NewCollectionButton />}
           />
 
           <Overline>Smart views</Overline>
@@ -94,11 +96,12 @@ export default function Library() {
 
           <SectionHeader title="Collections" trailing={<SortButton options={SORT_OPTIONS} value={sort} onChange={setSort} />} />
           {sorted.length === 0 && !loading ? (
-            <EmptyState title="No collections yet" body="Group what you save: research, recipes, a trip. Tap + to start one." />
+            <EmptyState title="No collections yet" body="Group what you save: research, recipes, a trip. Tap + and choose Collection to start one." />
           ) : (
+            <SelectionScope value={selection}>
             <View style={{ paddingHorizontal: Layout.gutter, gap: Layout.gridGap }}>
-              {rows.map((row) => (
-                <Animated.View key={row.map((c) => c.id).join('|')} layout={reflow} style={{ flexDirection: 'row', gap: Layout.gridGap }}>
+              {rows.map((row, r) => (
+                <Animated.View key={row.map((c) => c.id).join('|')} layout={reflow} entering={enterRiseAt(r)} style={{ flexDirection: 'row', gap: Layout.gridGap }}>
                   {row.map((c) => (
                     <CollectionCard key={c.id} c={c} index={sorted.indexOf(c)} height={168} />
                   ))}
@@ -106,15 +109,12 @@ export default function Library() {
                 </Animated.View>
               ))}
             </View>
+            </SelectionScope>
           )}
         </Animated.ScrollView>
-        <CollapsedAppBar title="Library" scrollY={scrollY} trailing={<NewCollectionButton />} />
+        <CollapsedAppBar title="Library" scrollY={scrollY} />
       </>
+      <CollectionSelection store={selection} collections={sorted} />
     </View>
   );
-}
-
-/** The app bar's one emphasized action: a tonal wide icon button. */
-function NewCollectionButton() {
-  return <IconButton icon="add" accessibilityLabel="New collection" variant="tonal" width={56} onPress={() => router.push('/collection/new')} />;
 }

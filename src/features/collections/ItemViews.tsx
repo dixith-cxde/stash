@@ -1,7 +1,10 @@
 import { Image } from 'expo-image';
 import { StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import type { BookmarkWithTags, HighlightWithTags } from '@/db/repo';
+import { SelectOverlay, useSelectScale } from '@/features/select/SelectOverlay';
+import { useSelectable } from '@/features/select/store';
 import { cardKind, formatDuration, glyphFor, hostSeed, kindIcon, kindLabel, sourceLabel } from '@/features/stash/model';
 import { relativeTime } from '@/lib/format';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -70,7 +73,7 @@ export function ItemRow({ b, corners }: { b: BookmarkWithTags; corners?: Corners
   const { colors } = useAppTheme();
   const progress = b.pageCount && b.lastPage && b.lastPage > 1 ? b.lastPage / b.pageCount : 0;
   return (
-    <TransformCard href={itemHref(b)} color={colors.surfaceContainer} corner={20} corners={corners} accessibilityLabel={b.title} contentStyle={styles.row}>
+    <TransformCard href={itemHref(b)} color={colors.surfaceContainer} corner={20} corners={corners} accessibilityLabel={b.title} contentStyle={styles.row} selectKey={`b:${b.id}`}>
       <View style={styles.rowArt}>
         <Art b={b} size={56} />
       </View>
@@ -95,7 +98,7 @@ export function ItemRow({ b, corners }: { b: BookmarkWithTags; corners?: Corners
 export function ItemTile({ b }: { b: BookmarkWithTags }) {
   const { colors } = useAppTheme();
   return (
-    <TransformCard href={itemHref(b)} color={colors.surfaceContainer} corner={24} accessibilityLabel={b.title} style={{ flex: 1 }}>
+    <TransformCard href={itemHref(b)} color={colors.surfaceContainer} corner={24} accessibilityLabel={b.title} style={{ flex: 1 }} selectKey={`b:${b.id}`}>
       <View style={{ height: 96 }}>
         <Art b={b} size={96} />
       </View>
@@ -111,10 +114,10 @@ export function ItemTile({ b }: { b: BookmarkWithTags }) {
   );
 }
 
-/** A highlight as a tinted quote card (design: Item detail highlights). */
 /**
  * A highlight as a tinted quote card. `unit` names its position ("Page 4" in a PDF). With
- * `onPress` it is tappable (jump to where it was taken).
+ * `onPress` it is tappable (jump to where it was taken). Inside a selection scope a long press
+ * selects it (key "h:<id>") and taps toggle it while selecting.
  */
 export function HighlightCard({
   h,
@@ -128,6 +131,8 @@ export function HighlightCard({
   onPress?: () => void;
 }) {
   const { dark } = useAppTheme();
+  const select = useSelectable(`h:${h.id}`);
+  const sink = useSelectScale(!!select?.active && select.selected);
   const tone = HIGHLIGHT_TONES[h.color][dark ? 'dark' : 'light'];
   const where = [h.page ? `${unit} ${h.page}` : null, h.note ? `your note: ${h.note}` : null, showSource ? h.bookmarkTitle ?? h.sourceTitle : null]
     .filter(Boolean)
@@ -144,6 +149,26 @@ export function HighlightCard({
       ) : null}
     </>
   );
+  if (select) {
+    const selecting = select.active;
+    return (
+      <Animated.View style={sink}>
+        <PressableSurface
+          kind="card"
+          corner={24}
+          onPress={selecting ? select.toggle : onPress}
+          onLongPress={select.toggle}
+          accessibilityRole={selecting ? 'checkbox' : 'button'}
+          accessibilityState={selecting ? { checked: select.selected } : undefined}
+          accessibilityLabel={`Highlight: ${h.text}${where ? `. ${where}` : ''}`}
+          style={{ padding: 16, backgroundColor: tone.bg }}
+        >
+          {body}
+        </PressableSurface>
+        {selecting && <SelectOverlay selected={select.selected} corner={24} />}
+      </Animated.View>
+    );
+  }
   return onPress ? (
     <PressableSurface kind="card" corner={24} onPress={onPress} accessibilityLabel={`Highlight: ${h.text}. ${where}. Go to page`} style={{ padding: 16, backgroundColor: tone.bg }}>
       {body}

@@ -135,6 +135,20 @@ export async function setArchived(ids: string[], isArchived: boolean) {
   await db.update(bookmarks).set({ isArchived, updatedAt: new Date() }).where(inArray(bookmarks.id, ids));
 }
 
+/** Marks items read (now) or unread. */
+export async function setRead(ids: string[], read: boolean) {
+  if (!ids.length) return;
+  await db
+    .update(bookmarks)
+    .set({ readAt: read ? new Date() : null, updatedAt: new Date() })
+    .where(inArray(bookmarks.id, ids));
+}
+
+export async function setFavorite(ids: string[], isFavorite: boolean) {
+  if (!ids.length) return;
+  await db.update(bookmarks).set({ isFavorite, updatedAt: new Date() }).where(inArray(bookmarks.id, ids));
+}
+
 /** Bookmarks whose titles match exactly (case-insensitive), for [[wiki links]] in notes. */
 export async function bookmarksByTitles(titles: string[]): Promise<Map<string, Bookmark>> {
   if (!titles.length) return new Map();
@@ -383,6 +397,29 @@ export async function deleteFolder(id: string) {
   await db.delete(folders).where(eq(folders.id, id));
 }
 
+/** Deletes collections; their items stay in the stash (folder_id is set to null). */
+export async function deleteFolders(ids: string[]) {
+  if (!ids.length) return;
+  await db.delete(folders).where(inArray(folders.id, ids));
+}
+
+/**
+ * Merges collections into `targetId`: their items (archived ones too) and sub-collections
+ * move there, then the merged collections are deleted. Returns how many items moved.
+ */
+export async function mergeFolders(targetId: string, sourceIds: string[]) {
+  const ids = sourceIds.filter((id) => id !== targetId);
+  if (!ids.length) return 0;
+  const [{ n }] = await db.select({ n: count() }).from(bookmarks).where(inArray(bookmarks.folderId, ids));
+  await db.update(bookmarks).set({ folderId: targetId, updatedAt: new Date() }).where(inArray(bookmarks.folderId, ids));
+  await db.update(folders).set({ parentId: targetId, updatedAt: new Date() }).where(and(inArray(folders.parentId, ids), ne(folders.id, targetId)));
+  // parent_id cascades on delete: a target nested in a merged collection moves to the top first.
+  await db.update(folders).set({ parentId: null }).where(and(eq(folders.id, targetId), inArray(folders.parentId, ids)));
+  await db.delete(folders).where(inArray(folders.id, ids));
+  await db.update(folders).set({ updatedAt: new Date() }).where(eq(folders.id, targetId));
+  return n;
+}
+
 /* --------------------------------- Lists ---------------------------------- */
 
 export type ListWithCount = List & { itemCount: number };
@@ -557,6 +594,11 @@ export async function setHighlightTags(highlightId: string, tagIds: string[]) {
 
 export async function deleteHighlight(id: string) {
   await db.delete(highlights).where(eq(highlights.id, id));
+}
+
+export async function deleteHighlights(ids: string[]) {
+  if (!ids.length) return;
+  await db.delete(highlights).where(inArray(highlights.id, ids));
 }
 
 /* --------------------------------- Search --------------------------------- */

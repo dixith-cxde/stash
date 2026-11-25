@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
-import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Keyboard, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle } from 'react-native-reanimated';
 
 import { useDbQuery } from '@/db/hooks';
@@ -40,9 +40,17 @@ function Editor({ folder }: { folder: { id: string; name: string; color: string 
   const tone = collectionTones(seed, dark);
   const editing = !!folder;
 
+  // Set once a new collection is created; the sheet opens it after it has fully closed.
+  const created = useRef<string | null>(null);
+  const saving = useRef(false);
+
   const save = async (close: () => void) => {
     const n = name.trim();
-    if (!n) return;
+    if (!n || saving.current) return;
+    saving.current = true;
+    // Put the keyboard away first, so the sheet slides fully off screen instead of stopping
+    // behind it.
+    Keyboard.dismiss();
     if (folder) {
       await updateFolder(folder.id, { name: n, color: seed, icon });
       haptic.save();
@@ -50,15 +58,23 @@ function Editor({ folder }: { folder: { id: string; name: string; color: string 
       close();
       return;
     }
-    const newId = await createFolder({ name: n, color: seed, icon });
+    created.current = await createFolder({ name: n, color: seed, icon });
     haptic.save();
     close();
-    // Open it once the sheet has gone.
-    setTimeout(() => router.push({ pathname: '/collection/[id]', params: { id: newId } }), 280);
+  };
+
+  // Runs once the sheet has animated away. Pop this route first, then open the new
+  // collection: pushing while the sheet was still up stacked the page on top of the sheet,
+  // which then stayed open (with its old name and color) underneath.
+  const onDismiss = () => {
+    Keyboard.dismiss();
+    router.back();
+    const newId = created.current;
+    if (newId) setTimeout(() => router.push({ pathname: '/collection/[id]', params: { id: newId } }), 0);
   };
 
   return (
-    <Sheet accessibilityLabel={editing ? 'Edit collection' : 'New collection'} onDismiss={() => router.back()}>
+    <Sheet accessibilityLabel={editing ? 'Edit collection' : 'New collection'} onDismiss={onDismiss}>
       {(close) => (
         <View style={{ gap: 16, flexShrink: 1 }}>
           <Text variant="headlineSmallEmphasized" style={{ paddingHorizontal: 8 }}>
@@ -72,9 +88,10 @@ function Editor({ folder }: { folder: { id: string; name: string; color: string 
               autoFocus={!editing}
               placeholder="Name"
               placeholderTextColor={colors.onSurfaceVariant}
+              // Enter only puts the keyboard away; the collection is made with the button.
               returnKeyType="done"
+              submitBehavior="blurAndSubmit"
               maxLength={60}
-              onSubmitEditing={() => void save(close)}
               accessibilityLabel="Collection name"
               style={{ flex: 1, color: colors.onSurface, fontFamily: FONT_FAMILY, ...Type.bodyLarge, paddingVertical: 0 }}
             />
