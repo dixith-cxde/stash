@@ -99,6 +99,6 @@ function FindBody() {
 }
 
 const styles = StyleSheet.create({
-  field: { marginHorizontal: 16, height: 56, borderRadius: 28, flexDirection: 'row', alignItems: 'center', paddingRight: 4 },
+  field: { marginHorizontal: 16, height: 64, borderRadius: 32, flexDirection: 'row', alignItems: 'center', paddingRight: 4 },
   section: { marginTop: 12, marginBottom: 4, paddingHorizontal: 8 },
 });

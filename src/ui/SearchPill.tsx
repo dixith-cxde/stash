@@ -10,10 +10,10 @@ import { PressableSurface } from './PressableSurface';
 import { Text } from './Text';
 import { TourTarget } from './TourTarget';
 
-const CORNER = 28;
+const CORNER = 32;
 
 /**
- * The Home search field (design: 56dp pill). Tapping grows it into the keyword search page
+ * The Home search field (design: 64dp pill). Tapping grows it into the keyword search page
  * (container transform, animation.md §6).
  */
 export function SearchPill({ href, placeholder = 'Search your stash' }: { href: Href; placeholder?: string }) {
@@ -30,14 +30,14 @@ export function SearchPill({ href, placeholder = 'Search your stash' }: { href: 
       <TourTarget id="search" radius={CORNER}>
       <PressableSurface
         corner={CORNER}
-        pressedCorner={20}
+        pressedCorner={22}
         pressedScale={0.98}
         measureRef={frameRef}
         onPressMeasured={(frame) => openAt(href, frame)}
         onPress={() => openAt(href, null)}
         accessibilityRole="search"
         accessibilityLabel={placeholder}
-        style={{ height: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, backgroundColor: bg }}
+        style={{ height: 64, flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 22, backgroundColor: bg }}
       >
         <Ico name="search" size={24} color={colors.onSurfaceVariant} />
         <Text variant="bodyLarge" color="onSurfaceVariant" style={{ fontWeight: '500' }}>

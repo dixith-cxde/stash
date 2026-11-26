@@ -2,7 +2,7 @@
   "expo": {
     "name": "Stash",
     "slug": "stash",
-    "version": "1.1.0",
+    "version": "1.2.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "stash",
@@ -20,7 +20,7 @@
       },
       "predictiveBackGestureEnabled": true,
       "package": "app.stash.bookmarks",
-      "versionCode": 15
+      "versionCode": 16
     },
     "web": {
       "output": "single",
@@ -33,9 +33,9 @@
         {
           "backgroundColor": "#F5EEE6",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 100,
+          "imageWidth": 150,
           "dark": {
-            "backgroundColor": "#F5EEE6",
+            "backgroundColor": "#161311",
             "image": "./assets/images/splash-icon-dark.png"
           }
         }

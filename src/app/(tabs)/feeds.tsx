@@ -1,14 +1,14 @@
 import { useFocusEffect } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
 import { useCallback, useDeferredValue, useMemo, useRef, useState } from 'react';
-import { RefreshControl, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDbQuery } from '@/db/hooks';
 import { type FeedItemWithFeed, listFeedItems, listFeeds, markAllFeedItemsRead } from '@/db/repo';
 import { AddFeedSheet } from '@/features/feeds/AddFeedSheet';
-import { ArticleRow, LeadCard } from '@/features/feeds/ArticleCard';
+import { ArticleRow, LeadCard, ROW_GAP } from '@/features/feeds/ArticleCard';
 import { FirstRun } from '@/features/feeds/FirstRun';
 import { ReadingQueue } from '@/features/feed/ReadingQueue';
 import { readingQueue } from '@/features/stash/model';
@@ -24,8 +24,9 @@ import { ActionSheet } from '@/ui/ActionSheet';
 import { ButtonGroup } from '@/ui/ButtonGroup';
 import { EmptyState } from '@/ui/EmptyState';
 import { IconButton } from '@/ui/IconButton';
-import { LIST_GAP, type ListPosition, listPosition } from '@/ui/List';
-import { CollapsedAppBar, ScreenHeader } from '@/ui/ScreenHeader';
+import { type ListPosition, listPosition } from '@/ui/List';
+import { PullToRefresh } from '@/ui/PullToRefresh';
+import { StatusScrim } from '@/ui/ScreenHeader';
 import { showSnackbar } from '@/ui/Snackbar';
 import { Text } from '@/ui/Text';
 
@@ -142,44 +143,24 @@ export default function FeedsScreen() {
     { key: 'saved', label: 'Saved' },
   ];
 
-  const barActions = (
+  const header = showFirstRun ? (
+    <FirstRun onDone={() => setFirstRun(false)} />
+  ) : (
     <>
-      <IconButton icon="moreVert" accessibilityLabel="Feed options" onPress={() => setMenu(true)} />
-      <IconButton icon="add" accessibilityLabel="Follow a site" variant="tonal" width={56} onPress={() => setAdding(true)} />
-    </>
-  );
-
-  const header = (
-    <>
-      <ScreenHeader
-        title="Feeds"
-        subtitle={
-          showFirstRun
-            ? 'Follow the sites you read'
-            : `${unread} new · ${feeds.length} source${feeds.length === 1 ? '' : 's'}`
-        }
-        trailing={
-          showFirstRun ? undefined : (
-            barActions
-          )
-        }
-      />
-      {showFirstRun ? (
-        <FirstRun onDone={() => setFirstRun(false)} />
-      ) : (
-        <>
-          <SourceRail feeds={feeds} value={feedId} onChange={setFeedId} />
-          {feedId === null && <ReadingQueue entries={queue} />}
-          <View style={{ paddingHorizontal: Layout.gutter, paddingTop: 16, paddingBottom: 4 }}>
-            <ButtonGroup items={tabs} value={show} onChange={setShow} accessibilityLabel="Show" />
-          </View>
-        </>
-      )}
+      <SourceRail feeds={feeds} value={feedId} onChange={setFeedId} onAdd={() => setAdding(true)} />
+      {feedId === null && <ReadingQueue entries={queue} />}
+      <View style={styles.tabs}>
+        <View style={{ flex: 1 }}>
+          <ButtonGroup items={tabs} value={show} onChange={setShow} accessibilityLabel="Show" />
+        </View>
+        <IconButton icon="moreVert" accessibilityLabel="Feed options" onPress={() => setMenu(true)} />
+      </View>
     </>
   );
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
+      <PullToRefresh refreshing={refreshing} onRefresh={() => void pull()} scrollY={scrollY} offset={insets.top} enabled={!showFirstRun}>
       <AnimatedFlashList
         data={showFirstRun ? [] : rows}
         // FlashList 2 can ask about an index that just left the data (fast filter / source
@@ -226,21 +207,11 @@ export default function FeedsScreen() {
         onScroll={onScroll}
         scrollEventThrottle={16}
         keyboardShouldPersistTaps="handled"
-        refreshControl={
-          showFirstRun ? undefined : (
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => void pull()}
-              progressViewOffset={insets.top}
-              colors={[colors.primary]}
-              progressBackgroundColor={colors.surfaceContainerHigh}
-            />
-          )
-        }
-        contentContainerStyle={{ paddingTop: insets.top, paddingBottom: Layout.navBarClearance + insets.bottom }}
+        contentContainerStyle={{ paddingTop: insets.top + 4, paddingBottom: Layout.navBarClearance + insets.bottom }}
       />
+      </PullToRefresh>
 
-      <CollapsedAppBar title="Feeds" scrollY={scrollY} trailing={showFirstRun ? undefined : barActions} />
+      <StatusScrim scrollY={scrollY} />
       {adding && <AddFeedSheet onDismiss={() => setAdding(false)} onAdded={(id) => setFeedId(id)} />}
       {menu && (
         <ActionSheet
@@ -278,5 +249,6 @@ export default function FeedsScreen() {
 const styles = StyleSheet.create({
   lead: { paddingHorizontal: Layout.gutter, paddingTop: 12 },
   day: { flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingHorizontal: Layout.gutter + 8, paddingTop: 24, paddingBottom: 10 },
-  item: { paddingHorizontal: Layout.gutter, paddingBottom: LIST_GAP },
+  item: { paddingHorizontal: Layout.gutter, paddingBottom: ROW_GAP },
+  tabs: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingLeft: Layout.gutter, paddingRight: Layout.gutter - 8, paddingTop: 16, paddingBottom: 4 },
 });

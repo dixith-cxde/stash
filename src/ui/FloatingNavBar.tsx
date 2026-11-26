@@ -40,6 +40,10 @@ const GROUP_GAP = 4;
 /** How much wider the active slot grows to make room for its label. */
 const ACTIVE_GROW = 2.5;
 const LABEL_MAX = 96;
+/** With the bar hidden the FAB grows to a medium FAB (64 → 80dp, androidx MediumFloatingActionButton). */
+const FAB_GROWN_SCALE = 80 / 64;
+/** Its corners, before the scale: 16 × 1.25 = 20dp, the medium FAB's corner. */
+const FAB_GROWN_CORNER = 16;
 
 /**
  * Floating navigation bar with the add FAB beside it, shaped as one connected group (bar:
@@ -56,16 +60,33 @@ export function FloatingNavBar({ items, selectedKey, onSelect, fabLabel, fabItem
   const requestClose = useCallback(() => setMenu((m) => (m === 'open' ? 'closing' : m)), []);
   const closed = useCallback(() => setMenu('closed'), []);
   const away = Layout.navBarHeight + Layout.navBarBottom + insets.bottom + 16;
+  // Scrolling down hides only the bar. The FAB stays and grows into a standalone medium FAB:
+  // larger and evenly rounded instead of half of the connected group.
   const barMotion = useAnimatedStyle(() => {
     const h = hidden ? hidden.get() : 0;
     return { opacity: 1 - h * 0.6, transform: [{ translateY: h * away }] };
   });
+  const fabGrow = useAnimatedStyle(() => {
+    const h = hidden ? hidden.get() : 0;
+    return { transform: [{ scale: 1 + h * (FAB_GROWN_SCALE - 1) }] };
+  });
+  const fabShape = useAnimatedStyle(() => {
+    const h = hidden ? hidden.get() : 0;
+    const inner = INNER_CORNER + (FAB_GROWN_CORNER - INNER_CORNER) * h;
+    const outer = OUTER_CORNER + (FAB_GROWN_CORNER - OUTER_CORNER) * h;
+    return {
+      borderTopLeftRadius: inner,
+      borderBottomLeftRadius: inner,
+      borderTopRightRadius: outer,
+      borderBottomRightRadius: outer,
+    };
+  });
 
   return (
-    <Animated.View pointerEvents="box-none" style={[styles.row, { bottom: insets.bottom + Layout.navBarBottom }, barMotion]}>
-      <View
+    <View pointerEvents="box-none" style={[styles.row, { bottom: insets.bottom + Layout.navBarBottom }]}>
+      <Animated.View
         accessibilityRole="tablist"
-        style={[styles.bar, styles.shape, { backgroundColor: colors.surfaceContainerHigh, boxShadow: shadow(colors.shadow) }]}
+        style={[styles.bar, styles.shape, { backgroundColor: colors.surfaceContainerHigh, boxShadow: shadow(colors.shadow) }, barMotion]}
       >
         {items.map((item, i) => (
           <NavSlot
@@ -77,16 +98,18 @@ export function FloatingNavBar({ items, selectedKey, onSelect, fabLabel, fabItem
             }}
           />
         ))}
-      </View>
-      <PressableSurface
-        corner={OUTER_CORNER}
-        pressedCorner={Corner.large}
-        onPress={() => setMenu('open')}
-        accessibilityLabel={fabLabel}
-        style={[styles.fab, styles.fabInner, { backgroundColor: colors.primary, boxShadow: shadow(colors.shadow) }]}
-      >
-        <Ico name="add" size={28} color={colors.onPrimary} />
-      </PressableSurface>
+      </Animated.View>
+      <Animated.View style={[styles.fabGrow, fabGrow]}>
+        <PressableSurface
+          corner={OUTER_CORNER}
+          pressedCorner={Corner.large}
+          onPress={() => setMenu('open')}
+          accessibilityLabel={fabLabel}
+          style={[styles.fab, { backgroundColor: colors.primary, boxShadow: shadow(colors.shadow) }, fabShape]}
+        >
+          <Ico name="add" size={28} color={colors.onPrimary} />
+        </PressableSurface>
+      </Animated.View>
       {menu !== 'closed' && (
         <FabMenu
           items={fabItems}
@@ -96,7 +119,7 @@ export function FloatingNavBar({ items, selectedKey, onSelect, fabLabel, fabItem
           fab={{ size: Layout.navBarHeight, bottom: insets.bottom + Layout.navBarBottom, right: Layout.gutter, innerCorner: INNER_CORNER }}
         />
       )}
-    </Animated.View>
+    </View>
   );
 }
 
@@ -217,9 +240,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  /** Specific corners win over the morph's borderRadius: the inner (left) side stays tight, the outer side morphs. */
-  fabInner: {
-    borderTopLeftRadius: INNER_CORNER,
-    borderBottomLeftRadius: INNER_CORNER,
+  /** Grows from its bottom-right corner, so it stays anchored where it sits. */
+  fabGrow: {
+    transformOrigin: 'right bottom',
   },
 });

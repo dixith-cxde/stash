@@ -22,6 +22,8 @@ import { SnackbarHost } from '@/ui/Snackbar';
 import migrations from '../../drizzle/migrations';
 
 SplashScreen.preventAutoHideAsync();
+// Fade the splash into the first screen instead of cutting to it (Duration.medium2).
+SplashScreen.setOptions({ fade: true, duration: 300 });
 installNavGuard();
 
 /** Any render error below the root shows the crash screen instead of a red box. */

@@ -13,6 +13,8 @@ import { PressableSurface } from '@/ui/PressableSurface';
 import { Text } from '@/ui/Text';
 
 import { MorphingShape } from '@/shapes/MorphingShape';
+import type { MaterialShapeName } from '@/shapes/names';
+import type { IconName } from '@/theme/icons';
 import { sourceGlyph } from './ArticleCard';
 
 const SIZE = 56;
@@ -22,6 +24,9 @@ function Avatar({
   bg,
   fg,
   glyph,
+  icon = 'rssFeed',
+  shape,
+  a11y,
   count,
   selected,
   onPress,
@@ -30,6 +35,10 @@ function Avatar({
   bg: string;
   fg: string;
   glyph: string | null;
+  icon?: IconName;
+  /** Resting shape; defaults to the 9-sided cookie (a circle once selected). */
+  shape?: MaterialShapeName;
+  a11y?: string;
   count: number;
   selected: boolean;
   onPress: () => void;
@@ -45,20 +54,20 @@ function Avatar({
       pressedScale={0.92}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={count ? `${label}, ${count} new` : label}
-      accessibilityState={{ selected }}
+      accessibilityLabel={a11y ?? (count ? `${label}, ${count} new` : label)}
+      accessibilityState={a11y ? undefined : { selected }}
       style={styles.item}
     >
       <View style={styles.avatarBox}>
         <Animated.View style={[styles.ring, { borderColor: colors.primary }, ring]} />
         <View style={styles.avatar}>
-          <MorphingShape shape={selected ? 'circle' : 'cookie9Sided'} size={SIZE} color={bg} fit="box" style={StyleSheet.absoluteFill} />
+          <MorphingShape shape={selected ? 'circle' : (shape ?? 'cookie9Sided')} size={SIZE} color={bg} fit="box" style={StyleSheet.absoluteFill} />
           {glyph ? (
             <Text variant="titleLargeEmphasized" color={fg} style={{ fontWeight: '700' }}>
               {glyph}
             </Text>
           ) : (
-            <Ico name="rssFeed" size={24} color={fg} />
+            <Ico name={icon} size={icon === 'add' ? 28 : 24} color={fg} />
           )}
         </View>
         {count > 0 && (
@@ -86,14 +95,31 @@ export function SourceRail({
   feeds,
   value,
   onChange,
+  onAdd,
 }: {
   feeds: FeedWithCounts[];
   value: string | null;
   onChange: (id: string | null) => void;
+  /** Leading "+" (follow a site), at the far left of the rail. */
+  onAdd?: () => void;
 }) {
   const { colors, dark } = useAppTheme();
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail} accessibilityLabel="Sources">
+      {onAdd && (
+        <Avatar
+          label="Follow"
+          a11y="Follow a site"
+          bg={colors.secondaryContainer}
+          fg={colors.onSecondaryContainer}
+          glyph={null}
+          icon="add"
+          shape="square"
+          count={0}
+          selected={false}
+          onPress={onAdd}
+        />
+      )}
       <Avatar label="All" bg={colors.primaryContainer} fg={colors.onPrimaryContainer} glyph={null} count={0} selected={value === null} onPress={() => onChange(null)} />
       {feeds.map((f) => {
         const tone = collectionTones(hostSeed(f.siteUrl ?? f.url), dark);

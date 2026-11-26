@@ -16,7 +16,7 @@ import { EmptyState } from '@/ui/EmptyState';
 import type { IconName } from '@/theme/icons';
 import { LIST_GAP } from '@/ui/List';
 import { SortButton } from '@/ui/SortButton';
-import { CollapsedAppBar, Overline, ScreenHeader, SectionHeader } from '@/ui/ScreenHeader';
+import { Overline, SectionHeader, StatusScrim } from '@/ui/ScreenHeader';
 
 type Sort = 'recent' | 'name' | 'size';
 const SORTS: Record<Sort, { label: string; icon: IconName; by: (a: Collection, b: Collection) => number }> = {
@@ -47,13 +47,8 @@ export default function Library() {
         <Animated.ScrollView
           onScroll={onScroll}
           scrollEventThrottle={16}
-          contentContainerStyle={{ paddingTop: insets.top, paddingBottom: Layout.navBarClearance + insets.bottom }}
+          contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: Layout.navBarClearance + insets.bottom }}
         >
-          <ScreenHeader
-            title="Library"
-            subtitle={`${collections.length} collections · ${totals.all} items`}
-          />
-
           <Overline>Smart views</Overline>
           <View style={{ paddingHorizontal: Layout.gutter, gap: 8 }}>
             <View style={{ flexDirection: 'row', gap: LIST_GAP }}>
@@ -112,7 +107,7 @@ export default function Library() {
             </SelectionScope>
           )}
         </Animated.ScrollView>
-        <CollapsedAppBar title="Library" scrollY={scrollY} />
+        <StatusScrim scrollY={scrollY} />
       </>
       <CollectionSelection store={selection} collections={sorted} />
     </View>

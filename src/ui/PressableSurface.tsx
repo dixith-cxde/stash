@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 import type { AccessibilityRole, StyleProp, ViewStyle } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
-import Animated, { type AnimatedRef, type MeasuredDimensions } from 'react-native-reanimated';
+import Animated, { type AnimatedRef, type AnimatedStyle, type MeasuredDimensions } from 'react-native-reanimated';
 
 import { type PressBlock, type PressMorphKind, usePressMorph } from '@/motion/usePressMorph';
 
@@ -22,7 +22,7 @@ type Props = {
   pressedCorner?: number;
   pressedScale?: number;
   disabled?: boolean;
-  style?: StyleProp<ViewStyle>;
+  style?: StyleProp<AnimatedStyle<ViewStyle>>;
   accessibilityLabel?: string;
   accessibilityRole?: AccessibilityRole;
   accessibilityState?: { selected?: boolean; checked?: boolean; disabled?: boolean };

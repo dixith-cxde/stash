@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 import {
   cancelAnimation,
+  type SharedValue,
   ReduceMotion,
   useDerivedValue,
   useReducedMotion,
@@ -27,6 +28,9 @@ const STEPS: MorphPair[] = SEQUENCE.map((s, i) => shapeMorph(s, SEQUENCE[(i + 1)
 /** One scale for every shape (androidx sizes the indicator by the shapes' max bounds). */
 const RADIUS = Math.max(...STEPS.map((p) => maxRadius(p.from)));
 
+/** androidx LoadingIndicatorDefaults.DeterminateIndicatorPolygons: Circle → SoftBurst. */
+const DETERMINATE = shapeMorph('circle', 'softBurst');
+
 type Props = {
   /** Container size (M3: 48). The shape is 38/48 of it. */
   size?: number;
@@ -35,6 +39,11 @@ type Props = {
   /** Override the indicator color (defaults to primary, or onPrimaryContainer when contained). */
   color?: string;
   accessibilityLabel?: string;
+  /**
+   * Determinate mode (0–1), e.g. a pull-to-refresh drag: the circle morphs into a soft burst
+   * and turns half a turn as progress grows, instead of looping on its own.
+   */
+  progress?: Readonly<SharedValue<number>>;
 };
 
 /**
@@ -42,7 +51,7 @@ type Props = {
  * Cookie4 → Oval every 650 ms on spring(0.6, 200), turning +90° per morph on top of a
  * 360° / 4666 ms linear spin (androidx LoadingIndicator.kt). With reduced motion it only spins.
  */
-export function LoadingIndicator({ size = 48, contained = false, color, accessibilityLabel = 'Loading' }: Props) {
+export function LoadingIndicator({ size = 48, contained = false, color, accessibilityLabel = 'Loading', progress }: Props) {
   const colors = useColors();
   const reduced = useReducedMotion();
   const shapeSize = (size * 38) / 48;
@@ -54,7 +63,9 @@ export function LoadingIndicator({ size = 48, contained = false, color, accessib
   const from = useSharedValue(STEPS[0].from);
   const to = useSharedValue(STEPS[0].from);
 
+  const determinate = !!progress;
   useEffect(() => {
+    if (determinate) return;
     // The spin opts out of Reanimated's reduced-motion skip (which would stop a repeat after
     // one instant pass): with reduced motion it is the indicator's only motion (docs §10.6).
     spin.set(
@@ -80,9 +91,13 @@ export function LoadingIndicator({ size = 48, contained = false, color, accessib
       clearInterval(id);
       cancelAnimation(spin);
     };
-  }, [reduced, spin, step, morph, from, to]);
+  }, [determinate, reduced, spin, step, morph, from, to]);
 
   const path = useDerivedValue(() => {
+    if (progress) {
+      const p = Math.min(1, Math.max(0, progress.get()));
+      return morphPath(DETERMINATE.from, DETERMINATE.to, p, shapeSize, p * 180, RADIUS);
+    }
     const rotation = spin.get() + (step.get() - 1 + morph.get()) * 90;
     return morphPath(from.get(), to.get(), morph.get(), shapeSize, rotation, RADIUS);
   });
@@ -94,6 +109,7 @@ export function LoadingIndicator({ size = 48, contained = false, color, accessib
       accessible
       accessibilityRole="progressbar"
       accessibilityLabel={accessibilityLabel}
+      accessibilityState={determinate ? undefined : { busy: true }}
       style={{ width: size, height: size }}
     >
       <Canvas style={{ width: size, height: size }}>

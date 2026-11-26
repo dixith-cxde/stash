@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
@@ -19,8 +20,9 @@ import { Layout } from '@/theme/tokens';
 import { ButtonGroup } from '@/ui/ButtonGroup';
 import { EmptyState } from '@/ui/EmptyState';
 import { IconButton } from '@/ui/IconButton';
-import { CollapsedAppBar, ScreenHeader } from '@/ui/ScreenHeader';
+import { StatusScrim, TopRow } from '@/ui/ScreenHeader';
 import { SearchPill } from '@/ui/SearchPill';
+import { Text } from '@/ui/Text';
 import { showSnackbar } from '@/ui/Snackbar';
 
 const FILTERS: { key: FeedFilter; label: string }[] = [
@@ -82,12 +84,7 @@ export default function Home() {
           scrollEventThrottle={16}
           contentContainerStyle={{ paddingTop: insets.top, paddingBottom: Layout.navBarClearance + insets.bottom }}
         >
-          <ScreenHeader
-            title="Stash"
-            size="editorial"
-            subtitle={`${totals.all} saved · ${totals.unread} to read`}
-            trailing={<SettingsButton />}
-          />
+          <TopRow leading={<Brand detail={`${totals.all} saved · ${totals.unread} to read`} />} trailing={<SettingsButton />} />
           <SearchPill href="/find" />
 
           <CollectionCarousel collections={collections} />
@@ -111,10 +108,26 @@ export default function Home() {
             />
           )}
         </Animated.ScrollView>
-        <CollapsedAppBar title="Stash" scrollY={scrollY} trailing={<SettingsButton />} />
+        <StatusScrim scrollY={scrollY} />
       </>
       <ItemSelection store={selection} bookmarks={shownBookmarks} highlights={shownHighlights} />
       {onboarded && !tourDone && <HomeTour onDone={() => setTourDone(true)} />}
+    </View>
+  );
+}
+
+/** The quiet brand line in Home's top row: the loop mark, "Stash" and the counts. */
+function Brand({ detail }: { detail: string }) {
+  const colors = useColors();
+  return (
+    <View accessible accessibilityRole="header" accessibilityLabel={`Stash, ${detail}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <Image source={require('@/assets/images/splash-icon.png')} tintColor={colors.primary} style={{ width: 24, height: 20 }} contentFit="contain" />
+      <Text variant="titleMediumEmphasized" color="onSurface" style={{ fontWeight: '700' }}>
+        Stash
+      </Text>
+      <Text variant="labelMedium" color="onSurfaceVariant" numberOfLines={1}>
+        {detail}
+      </Text>
     </View>
   );
 }

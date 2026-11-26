@@ -204,6 +204,17 @@ Known: dev-only `isFocused()` warning from a library; extractor keeps some page 
 - Low-strain builds: `nice -n 19 ionice -c3 ./gradlew … --max-workers=2 -Dorg.gradle.parallel=false`
   (+ `-PreactNativeArchitectures=arm64-v8a` for vivo debug builds).
 
+## Done 2026-11-26 (v1.2.1)
+- Splash: the new loop mark at 150dp (`splash-icon*.png` cut from the adaptive foreground;
+  the SVGs in `assets/icon-src` are still the old mark), cream on dark #161311 at night, fades
+  out over 300 ms (`SplashScreen.setOptions`).
+- Scrolling down hides only the nav bar; the FAB stays and grows into an 80dp medium FAB.
+- Tabs have no headline: `TopRow` (Home: tinted loop mark + "Stash" + counts, settings) and
+  `StatusScrim` replace `ScreenHeader`/`CollapsedAppBar`. Search fields are 64dp.
+- Feeds: M3E pull to refresh (`src/ui/PullToRefresh.tsx`, determinate circle→soft burst while
+  pulling, contained LoadingIndicator while refreshing); "+" leads the source rail, ⋮ sits
+  beside New/All/Saved; article rows rounder (28/12 corners) and roomier.
+
 ## How to run (low-spec laptop: never start an emulator)
 - Phone: vivo USB (adb). `adb reverse tcp:8081 tcp:8081` after any reconnect.
 - Metro: `eval "$(fnm env)"; fnm exec --using=26 npx expo start --dev-client`.

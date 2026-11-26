@@ -23,7 +23,14 @@ import { TransformCard } from '@/ui/TransformCard';
 import { cleanTeaser, readMinutes } from './format';
 import { SwipeRow } from './SwipeRow';
 import { cornersStyle, type ListPosition, listCorners } from '@/ui/List';
+import { Corner } from '@/theme/tokens';
 import { saveFeedItem } from './sync';
+
+/** Article rows are a touch rounder and roomier than plain list rows (design: bubbly cards). */
+const ROW_OUTER = Corner.extraLarge;
+const ROW_INNER = Corner.medium;
+/** Space between article rows in a day group. */
+export const ROW_GAP = 4;
 
 /** Hides an article from the list, with Undo. */
 export async function hideArticle(id: string) {
@@ -66,20 +73,20 @@ function SaveButton({ a }: { a: FeedItemWithFeed }) {
   const saved = !!a.bookmarkId;
   const sel = useSelection(saved);
   const style = useAnimatedStyle(() => ({
-    borderRadius: 22 - 8 * sel.shape.get(),
+    borderRadius: 24 - 8 * sel.shape.get(),
     backgroundColor: interpolateColor(sel.color.get(), [0, 1], [colors.surfaceContainerHighest, colors.primary]),
   }));
   return (
     <PressableSurface
       kind="button"
-      corner={22}
+      corner={24}
       onPress={saved ? undefined : () => void saveArticle(a.id)}
       accessibilityLabel={saved ? 'Saved to your stash' : 'Save to your stash'}
       accessibilityState={{ checked: saved }}
       style={styles.saveHit}
     >
       <Animated.View style={[styles.save, style]}>
-        <Ico name={saved ? 'bookmarkFill' : 'bookmarkAdd'} size={20} color={saved ? colors.onPrimary : colors.onSurface} />
+        <Ico name={saved ? 'bookmarkFill' : 'bookmarkAdd'} size={22} color={saved ? colors.onPrimary : colors.onSurface} />
       </Animated.View>
     </PressableSurface>
   );
@@ -93,7 +100,7 @@ export const ArticleRow = memo(function ArticleRow({ a, position = 'single' }: {
   const saved = !!a.bookmarkId;
   // Recycled by the list: per-row state resets when the cell shows another article.
   const [menu, setMenu] = useRecyclingState(false, [a.id]);
-  const corners = listCorners(position);
+  const corners = listCorners(position, ROW_OUTER, ROW_INNER);
   return (
     <>
     <SwipeRow
@@ -117,7 +124,7 @@ export const ArticleRow = memo(function ArticleRow({ a, position = 'single' }: {
       <TransformCard
         href={`/article/${a.id}`}
         color={unread ? colors.surfaceContainer : colors.surfaceContainerLow}
-        corner={16}
+        corner={ROW_INNER}
         accessibilityLabel={a.title}
         onLongPress={() => setMenu(true)}
         style={{ flex: 1 }}
@@ -146,7 +153,7 @@ export const ArticleRow = memo(function ArticleRow({ a, position = 'single' }: {
             variant="titleMediumEmphasized"
             color={unread ? 'onSurface' : 'onSurfaceVariant'}
             numberOfLines={2}
-            style={{ marginTop: 3, fontSize: 15, lineHeight: 20, fontWeight: unread ? '700' : '500' }}
+            style={{ marginTop: 4, fontSize: 16, lineHeight: 22, fontWeight: unread ? '700' : '500' }}
           >
             {a.title}
           </Text>
@@ -219,13 +226,13 @@ export const LeadCard = memo(function LeadCard({ a }: { a: FeedItemWithFeed }) {
 });
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingRight: 10, overflow: 'hidden' },
-  rowBody: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10 },
-  tile: { width: 56, height: 56, borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingRight: 12, overflow: 'hidden' },
+  rowBody: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 12, paddingVertical: 14 },
+  tile: { width: 64, height: 64, borderRadius: 20, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 7, height: 7, borderRadius: 4 },
-  saveHit: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
-  save: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  saveHit: { width: 52, height: 52, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
+  save: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   leadArt: { height: 148, overflow: 'hidden', justifyContent: 'flex-end' },
   leadDecor: { position: 'absolute', right: -50, top: -60 },
   chip: { position: 'absolute', left: 20, bottom: 16, height: 28, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 8, paddingRight: 12 },

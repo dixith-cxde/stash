@@ -19,7 +19,7 @@ import { EmptyState } from '@/ui/EmptyState';
 import { Ico } from '@/ui/Ico';
 import { IconButton } from '@/ui/IconButton';
 import { LIST_GAP, ListGroup, ListItem, type ListPosition, listCorners, listPosition } from '@/ui/List';
-import { CollapsedAppBar, ScreenHeader } from '@/ui/ScreenHeader';
+import { StatusScrim } from '@/ui/ScreenHeader';
 import { Text } from '@/ui/Text';
 
 /** Typing pauses this long (ms) before the query runs. */
@@ -93,10 +93,6 @@ export default function SearchScreen() {
   const count = data.hits.length;
   const header = (
     <>
-      <ScreenHeader
-        title="Search"
-        subtitle={query && !loading ? `${count === 100 ? '100+' : count} result${count === 1 ? '' : 's'}` : 'Find anything you’ve kept'}
-      />
       <View style={[styles.field, { backgroundColor: colors.surfaceContainerHigh }]}>
         <Ico name="search" size={24} color={colors.onSurfaceVariant} />
         <TextInput
@@ -117,6 +113,11 @@ export default function SearchScreen() {
       <View style={styles.scopes}>
         <ButtonGroup items={SCOPES} value={scope} onChange={setScope} accessibilityLabel="Search in" />
       </View>
+      {query && !loading && count > 0 ? (
+        <Text variant="labelLarge" color="onSurfaceVariant" style={styles.count}>
+          {`${count === 100 ? '100+' : count} result${count === 1 ? '' : 's'}`}
+        </Text>
+      ) : null}
       {query && data.corrected ? (
         <View style={styles.corrected}>
           <Text variant="bodyMedium" color="onSurfaceVariant">
@@ -182,11 +183,11 @@ export default function SearchScreen() {
         scrollEventThrottle={16}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        contentContainerStyle={{ paddingTop: insets.top, paddingBottom: Layout.navBarClearance + insets.bottom }}
+        contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: Layout.navBarClearance + insets.bottom }}
         initialNumToRender={10}
         windowSize={7}
       />
-      <CollapsedAppBar title="Search" scrollY={scrollY} />
+      <StatusScrim scrollY={scrollY} />
     </View>
   );
 }
@@ -208,17 +209,18 @@ const styles = StyleSheet.create({
   field: {
     marginHorizontal: Layout.gutter,
     marginTop: 16,
-    height: 56,
-    borderRadius: 28,
+    height: 64,
+    borderRadius: 32,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingLeft: 20,
-    paddingRight: 4,
+    paddingLeft: 22,
+    paddingRight: 6,
   },
   input: { flex: 1, ...Type.bodyLarge, paddingVertical: 0 },
   scopes: { paddingHorizontal: Layout.gutter, paddingTop: 16, paddingBottom: 8 },
   corrected: { paddingHorizontal: Layout.textInset, paddingTop: 4 },
+  count: { paddingHorizontal: Layout.textInset, paddingTop: 4, paddingBottom: 4 },
   idle: { paddingHorizontal: Layout.gutter, paddingTop: 8 },
   section: { marginBottom: 8, paddingHorizontal: 8 },
   recent: { height: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 16, paddingRight: 4, marginBottom: 4 },
